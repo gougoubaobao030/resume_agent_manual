@@ -1,0 +1,80 @@
+﻿后端框架：FastAPI
+文件处理:Unstructured
+
+端口万位以后，避免不必要冲突
+
+项目架构：
+resume_agent/
+│
+├── backend/                         # FastAPI 后端
+│   ├── app/
+│   │   ├── main.py                  # FastAPI 应用入口
+│   │   │
+│   │   ├── core/                    # 全局基础配置
+│   │   │   ├── config.py            # 环境变量、路径、模型配置
+│   │   │   └── exceptions.py        # 统一业务异常
+│   │   │
+│   │   ├── api/                     # HTTP 接口层
+│   │   │   ├── router.py            # 汇总全部路由
+│   │   │   ├── jd.py                # JD 解析、修改、保存接口
+│   │   │   ├── resumes.py           # 简历上传、解析接口
+│   │   │   └── candidates.py        # 候选人结果、详情、状态接口
+│   │   │
+│   │   ├── schemas/                 # Pydantic 数据结构
+│   │   │   ├── jd.py                # JD 请求和响应结构
+│   │   │   ├── resume.py            # 简历解析结果结构
+│   │   │   └── candidate.py         # 评分和候选人结果结构
+│   │   │
+│   │   ├── services/                # 核心业务逻辑
+│   │   │   ├── jd_service.py         # JD 解析、权重处理
+│   │   │   ├── file_service.py       # 上传文件保存与校验
+│   │   │   ├── resume_service.py     # Unstructured 简历解析
+│   │   │   ├── scoring_service.py    # 三维评分及汇总
+│   │   │   └── candidate_service.py  # 候选人列表和人工状态
+│   │   │
+│   │   ├── clients/                 # 外部服务调用
+│   │   │   └── llm_client.py         # OpenAI 兼容模型接口
+│   │   │
+│   │   ├── prompts/                 # 大模型提示词
+│   │   │   ├── jd_prompt.py
+│   │   │   ├── resume_prompt.py
+│   │   │   └── scoring_prompt.py
+│   │   │
+│   │   ├── database/                # SQLite 数据层
+│   │   │   ├── db.py                 # 数据库连接与初始化
+│   │   │   └── repository.py         # 基础增删改查
+│   │   │
+│   │   └── utils/
+│   │       └── json_utils.py         # 模型 JSON 清洗与解析
+│   │
+│   ├── tests/
+│   │   ├── test_jd_api.py
+│   │   └── test_resume_parser.py
+│   │
+│   └── requirements.txt
+│
+├── frontend/                        # 独立前端
+│   ├── app.py                       # Gradio 启动入口
+│   ├── api_client.py                # 调用 FastAPI 接口
+│   │
+│   ├── pages/
+│   │   ├── jd_page.py               # JD 输入和权重调整
+│   │   ├── upload_page.py           # 批量上传简历
+│   │   └── result_page.py           # 候选人列表与详情
+│   │
+│   └── components/
+│       └── candidate_table.py       # 候选人表格公共组件
+│
+├── data/
+│   ├── uploads/                     # 上传的原始简历
+│   ├── samples/                     # 演示 JD 和模拟简历
+│   └── resume_agent.db              # SQLite 数据库
+│
+├── scripts/
+│   └── init_db.py                   # 初始化数据库
+│
+├── .env.example
+├── .gitignore
+├── README.md
+└── run.py                           # 同时启动前后端，可后做
+
