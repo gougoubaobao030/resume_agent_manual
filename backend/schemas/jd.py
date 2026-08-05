@@ -222,3 +222,24 @@ class LLMJDResult(BaseModel):
         """去掉岗位名称前后的多余空格。"""
 
         return value.strip()
+
+#保存JD后返回的响应模型
+class JDSaveResponse(BaseModel):
+    """保存JD后的响应。"""
+
+    job: JDInfo = Field(
+        description="保存后的岗位信息"
+    )
+
+#更新JD时提交的结构数据
+class JDUpdateRequest(BaseModel):
+    """更新JD时提交的数据。"""
+
+    job_title: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+
+    requirements: list[JDRequirement] = Field(
+        min_length=1,
+    )

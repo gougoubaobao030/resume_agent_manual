@@ -1,255 +1,614 @@
-﻿# Resume Agent 开发进度
+﻿# Resume Agent 开发进度记录
 
+> 项目目标：开发一个 AI 简历筛选 Agent。
+>
+> 当前阶段重点：JD解析模块。
+>
+> 记录目的：方便后续聊天继续开发，不需要重新解释项目背景。
 
-## 第一模块：JD解析模块
+------------------------------------------------------------------------
 
+# 一、项目基础信息
 
-### 已完成
+## 环境
 
-- 创建 Conda 环境
-  - 环境名:
+Conda:
+
     resume_agent_py310
-  - Python版本:
+
+Python:
+
     3.10
 
+## 技术栈
 
-- 创建项目基础目录
+后端：
 
-- 完成后端基础架构
+-   FastAPI
+-   Uvicorn
+-   Pydantic
 
-技术:
-- FastAPI
-- Uvicorn
-- Pydantic
+LLM：
 
+-   OpenAI兼容接口
+-   当前使用 DeepSeek 模型
 
-当前目录:
+------------------------------------------------------------------------
 
-resume_agent/
-├── backend
-├── frontend
-├── data
+# 二、项目结构
 
-## 项目目录约定
+当前采用前后端分离：
 
-后端采用平行目录结构。
+    resume_agent/
 
-`api`、`clients`、`prompts`、`schemas`、`services`
-均直接位于 `backend` 目录下，并与 `app` 文件夹平级。
+    ├── backend/
+    │
+    │   ├── app/
+    │   │   └── main.py
+    │   │
+    │   ├── api/
+    │   ├── clients/
+    │   ├── prompts/
+    │   ├── schemas/
+    │   ├── services/
+    │   └── requirements.txt
+    │
+    ├── frontend/
+    └── data/
 
-`app` 文件夹当前用于存放 FastAPI 启动入口：
+注意：
 
-```text
-backend/app/main.py
+`api`、`clients`、`prompts`、`schemas`、`services` 与 `app` 平级。
 
-backend/
-├── app/
-│   └── main.py
-├── api/
-├── clients/
-├── prompts/
-├── schemas/
-├── services/
-├── ....
-└── requirements.txt
+------------------------------------------------------------------------
 
+# 三、已完成模块
 
-- FastAPI启动成功
+## 1. FastAPI基础框架
 
-启动命令:
+完成：
 
-uvicorn app.main:app --reload -port 18000
+-   FastAPI启动
+-   VS Code Debug配置
+-   后端端口固定18000
 
+启动：
 
-测试:
+``` bash
+uvicorn app.main:app --reload --port 18000
+```
 
-GET /
+测试：
 
-返回:
+    GET /
 
+返回：
+
+``` json
 {
- "message":"Resume Agent Backend Running"
+    "message": "Resume Agent Backend Running"
 }
+```
 
+------------------------------------------------------------------------
 
-再补上启动配置：
+## 2. JD数据结构设计
 
-```markdown
-## 后端启动配置
+文件：
 
-后端已配置 VS Code 调试启动。
+    backend/schemas/jd.py
 
-调试配置名称：
+### JDInfo
 
-```text
-Backend FastAPI
+完整岗位信息：
 
+-   id
+-   job_title
+-   raw_text
+-   requirements
 
-### 当前状态
+### JDRequirement
 
-完成:
-- 后端基础框架
+单条岗位要求：
 
-未完成:
-- JD数据结构设计
-- JD解析接口
-- LLM调用
-- HR权重调整功能
-- 前端页面
+-   id
+-   name
+-   description
+-   category
+-   weight
 
+category：
 
-### 下一步
-
-开发JD解析模块:
-1. 设计JD Pydantic模型
-2. 编写JD API
-3. 接入LLM解析
-4. 实现HR修改权重
-
-## JD解析模块
-
-### 已完成：JD数据结构设计
-
-已创建：
-
-- `backend/schemas/jd.py`
-- 各后端目录的 `__init__.py`
-- `backend/test_jd_schema.py`
-
-JD数据结构包括：
-
-#### JDInfo
-
-- `id`：岗位唯一标识，自动生成
-- `job_title`：岗位名称
-- `raw_text`：原始JD文本
-- `requirements`：结构化岗位要求列表
-
-#### JDRequirement
-
-- `id`：条目唯一标识，自动生成
-- `name`：要求名称
-- `description`：详细要求
-- `category`：要求分类
-- `weight`：HR设置的相对权重
-
-分类目前限定为：
-
-- `technical`
-- `experience`
-- `education`
-- `other`
+    technical
+    experience
+    education
+    other
 
 权重设计：
 
-- HR填写相对权重
-- 权重总和不要求为100
-- 数据中保存HR填写的原始权重
-- 实际评分时再自动归一化
-- 所有权重均为0时，后续评分模块按等权处理
+-   HR填写相对权重
+-   不要求总和100
+-   保存原始权重
+-   评分阶段自动归一化
 
-验证情况：
+如果全部权重为0：
 
-- JD对象可以正常创建并输出JSON
-- 非法分类会被Pydantic拦截
-- 负数权重会被Pydantic拦截
+后续评分模块按等权处理。
 
-### 下一步
+------------------------------------------------------------------------
 
-设计并实现JD解析接口的请求与响应结构，然后编写LLM提示词。
+## 3. JD接口数据结构
 
-### 已完成：JD接口数据结构设计
+新增：
 
-已在 `backend/schemas/jd.py` 中增加：
+### JDParseRequest
 
-- `JDParseRequest`
-  - 用于提交原始JD文本
-  - 当前只包含 `raw_text`
-  - 限制文本长度为10至20000字符
+接收原始JD文本。
 
-- `JDParseResponse`
-  - 返回结构化 `JDInfo`
-  - 支持返回非致命提示 `warnings`
+### JDParseResponse
 
-- `JDSaveRequest`
-  - 用于HR修改、增删条目、调整权重后提交最终JD
-  - 正式保存时要求至少包含一条岗位要求
+返回：
 
-接口设计原则：
+-   JDInfo
+-   warnings
 
-- JD解析和正式保存分开
-- 解析接口不直接代表数据已保存
-- HR可以在前端修改完整要求列表后一次提交
-- 解析结果允许要求列表为空，并通过warnings提示
-- 正式保存时岗位要求列表不能为空
-- 新建和修改JD可以复用 `JDSaveRequest`
-- 岗位ID由接口路径或后端管理，不在保存请求中重复提交
+### JDSaveRequest
+
+用于HR修改后的正式保存。
+
+设计原则：
+
+解析和保存分离：
+
+    输入JD
+     ↓
+    LLM解析
+     ↓
+    HR修改
+     ↓
+    正式保存
+
+------------------------------------------------------------------------
+
+# 四、LLM解析模块
+
+## LLM专用结构
+
+文件：
+
+    prompts/jd_prompt.py
+    services/jd_service.py
+
+定义：
+
+-   LLMJDRequirement
+-   LLMJDResult
+
+职责：
+
+LLM负责：
+
+-   岗位名称
+-   要求名称
+-   要求说明
+-   category
+-   建议权重
+
+后端负责：
+
+-   岗位ID
+-   要求ID
+-   原始JD文本
+
+------------------------------------------------------------------------
+
+## JD解析提示词
+
+规则：
+
+-   不虚构不存在的要求
+-   合并重复要求
+-   拆分不同能力
+-   category限制
+-   输出纯JSON
+
+------------------------------------------------------------------------
+
+# 五、LLM客户端
+
+文件：
+
+    backend/clients/llm_client.py
+
+作用：
+
+统一封装模型调用。
+
+核心功能：
+
+-   初始化客户端
+-   读取配置
+-   调用聊天接口
+-   JSON解析
+-   Markdown代码块清理
+-   Pydantic校验
+
+核心函数：
+
+``` python
+generate_structured(
+    system_prompt,
+    user_prompt,
+    response_model
+)
+```
+
+流程：
+
+    Prompt
+     ↓
+    DeepSeek API
+     ↓
+    JSON
+     ↓
+    Pydantic校验
+     ↓
+    Python对象
+
+------------------------------------------------------------------------
+
+异常：
+
+    LLMClientError
+    LLMConfigError
+    LLMRequestError
+    LLMResponseError
+
+------------------------------------------------------------------------
+
+# 六、JD Service完整流程
+
+当前流程：
+
+    用户输入JD文本
+
+    ↓
+
+    parse_jd()
+
+    ↓
+
+    清理文本
+
+    ↓
+
+    生成Prompt
+
+    ↓
+
+    调用LLMClient
+
+    ↓
+
+    得到LLMJDResult
+
+    ↓
+
+    补充岗位ID
+
+    ↓
+
+    补充requirement ID
+
+    ↓
+
+    保存raw_text
+
+    ↓
+
+    转换JDInfo
+
+    ↓
+
+    返回JDParseResponse
+
+目前：
+
+DeepSeek真实解析已经成功。
+
+------------------------------------------------------------------------
+
+# 七、重要Bug与修改记录
+
+## API Key认证失败
+
+错误：
+
+    401 Authentication Fails
+
+原因：
+
+之前使用：
+
+    OPENAI_API_KEY
+    OPENAI_BASE_URL
+    OPENAI_MODEL
+
+但实际调用DeepSeek。
+
+Windows环境中存在旧OPENAI_API_KEY，导致读取错误Key。
+
+解决：
+
+改为通用命名：
+
+    LLM_API_KEY
+    LLM_BASE_URL
+    LLM_MODEL
+    LLM_TIMEOUT
+
+代码：
+
+``` python
+os.getenv("LLM_API_KEY")
+```
+
+并：
+
+``` python
+load_dotenv(
+    PROJECT_ROOT / ".env",
+    override=True
+)
+```
+
+确保项目配置优先。
+
+------------------------------------------------------------------------
+
+## Git
+
+已完成阶段性git commit。
+
+后续继续开发建议保持小步提交。
+
+------------------------------------------------------------------------
+
+# 八、当前验证状态
+
+已确认：
+
+✅ FastAPI启动
+
+✅ Pydantic模型校验
+
+✅ JD Prompt生成
+
+✅ Mock LLM测试
+
+✅ DeepSeek真实调用
+
+✅ JDInfo生成
+
+------------------------------------------------------------------------
+
+# 九、下一步开发
+
+## Step 1
+
+创建：
+
+    backend/api/jd.py
+
+实现：
+
+    POST /api/jd/parse
+
+输入：
+
+``` json
+{
+ "raw_text":"招聘信息..."
+}
+```
+
+输出：
+
+结构化JD。
+
+------------------------------------------------------------------------
+
+## Step 2
+
+main.py注册JD路由。
+
+## Step 3
+
+Swagger测试真实接口。
+
+## Step 4
+
+实现HR调整：
+
+-   新增要求
+-   删除要求
+-   修改要求
+-   调整权重
+
+------------------------------------------------------------------------
+
+# 当前项目状态
+
+已经完成：
+
+    JD文本
+     ↓
+    Prompt
+     ↓
+    DeepSeek
+     ↓
+    结构化解析
+     ↓
+    Pydantic校验
+     ↓
+    JDInfo生成
+
+下一阶段：
+
+把内部Python函数封装成真正FastAPI接口。
+
+## update: 2026年8月3日
+### 已完成：JD解析HTTP接口
+
+新增：
+
+- `backend/api/jd.py`
+
+实现接口：
+
+POST `/api/jd/parse`
+
+请求：
+
+- JDParseRequest
+- 接收原始JD文本
+
+
+响应：
+
+- JDParseResponse
+- 返回结构化JD
+
+
+FastAPI路由：
+
+- 已在 `app/main.py` 注册
+
+
+异常处理：
+
+不同错误转换为不同HTTP状态码：
+
+- LLMConfigError
+  - 500
+  - 模型配置错误
+
+- LLMRequestError
+  - 503
+  - 模型服务请求失败
+
+- LLMResponseError
+  - 502
+  - 模型返回格式错误
+
+- ValueError
+  - 400
+  - 用户输入错误
+
+
+测试：
+
+- FastAPI启动成功
+- Swagger文档出现 `/api/jd/parse`
+- 可以通过接口调用真实LLM完成JD解析
+
+
+当前JD模块流程：
+
+用户输入JD
+↓
+FastAPI接口
+↓
+jd_service
+↓
+LLMClient
+↓
+LLM解析
+↓
+Pydantic校验
+↓
+生成JDInfo
+↓
+返回JSON
+
 
 下一步：
 
-- 设计JD解析提示词
-- 让LLM只输出岗位名称和要求列表
-- 后端补充岗位ID、条目ID和原始JD文本
+开发HR端JD管理功能：
 
-### 已完成：JD解析提示词与模型输出结构
+- 查看解析结果
+- 修改要求条目
+- 增加要求
+- 删除要求
+- 调整权重
+- 保存最终JD
 
-已创建：
+## update 2026年8月4日
+## 已完成：JD保存与修改管理接口
 
-- `backend/prompts/jd_prompt.py`
-- `backend/services/jd_service.py`
-- `backend/test_jd_prompt.py`
-- `backend/test_jd_service.py`
+新增：
 
-已增加模型专用数据结构：
+- services/jd_repository.py
 
-- `LLMJDRequirement`
-- `LLMJDResult`
+实现临时JD存储层：
 
-职责划分：
+- save_jd()
+- get_jd()
+- update_jd()
 
-- LLM只负责返回：
-  - 岗位名称
-  - 要求名称
-  - 要求说明
-  - 要求分类
-  - 建议相对权重
+当前使用内存dict模拟数据库，
+后续可替换为SQLite。
 
-- LLM不负责返回：
-  - 岗位ID
-  - 要求条目ID
-  - 原始JD文本
 
-- 后端负责：
-  - 自动生成岗位ID
-  - 自动生成要求条目ID
-  - 保存原始JD文本
-  - 将模型结果转换为正式的 `JDInfo`
+新增接口：
 
-提示词规则包括：
+POST /api/jd
 
-- 不虚构原文中没有的岗位要求
-- 合并含义高度重复的要求
-- 拆分含义明显不同的要求
-- category只能使用：
-  - technical
-  - experience
-  - education
-  - other
-- 建议权重为相对权重，不要求总和为100
-- 核心要求权重较高
-- 优先项和加分项通常使用较低权重
-- 模型只输出结构化JSON，不输出额外解释
+功能：
+- 保存HR确认后的JD
+- 生成正式JD数据
 
-当前验证：
 
-- 提示词可以正常生成
-- 模型模拟结果可以通过Pydantic校验
-- 后端可以补充岗位ID、条目ID和原始JD文本
-- 可以成功生成完整 `JDInfo`
+GET /api/jd/{job_id}
+
+功能：
+- 根据岗位ID获取JD
+
+
+PUT /api/jd/{job_id}
+
+功能：
+- 修改岗位名称
+- 修改要求条目
+- 修改权重
+
+
+设计原则：
+
+- AI解析结果不是最终数据
+- HR拥有最终确认权
+- 保存的是HR确认后的JD
+- 原始JD文本保持不变
+- 权重保存原始值，评分阶段自动归一化
+
+
+当前JD模块完整流程：
+
+输入JD
+↓
+LLM解析
+↓
+HR确认修改
+↓
+保存岗位要求
+↓
+后续评分模块读取
+
 
 下一步：
 
-- 实现统一的LLM客户端
-- 配置模型API Key、Base URL和模型名
-- 调用真实模型并解析为 `LLMJDResult`
-
+开发简历解析模块：
+- PDF上传
+- Unstructured解析
+- 简历结构化Schema
+- 候选人信息提取

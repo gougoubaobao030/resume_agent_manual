@@ -21,7 +21,10 @@ from pydantic import BaseModel, ValidationError
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # 明确读取项目根目录下的 .env
-load_dotenv(PROJECT_ROOT / ".env")
+load_dotenv(
+    PROJECT_ROOT / ".env",
+    override=True,
+)
 
 
 # T 表示传入什么 Pydantic 模型，最终就返回什么模型
@@ -48,12 +51,12 @@ class LLMClient:
     """统一封装 OpenAI 兼容模型调用。"""
 
     def __init__(self) -> None:
-        self.api_key = os.getenv("OPENAI_API_KEY", "").strip()
+        self.api_key = os.getenv("LLM_API_KEY", "").strip()
         self.base_url = os.getenv(
-            "OPENAI_BASE_URL",
+            "LLM_BASE_URL",
             "https://api.openai.com/v1",
         ).strip()
-        self.model = os.getenv("OPENAI_MODEL", "").strip()
+        self.model = os.getenv("LLM_MODEL", "").strip()
 
         timeout_text = os.getenv("LLM_TIMEOUT", "60").strip()
 
@@ -77,17 +80,17 @@ class LLMClient:
 
         if not self.api_key:
             raise LLMConfigError(
-                "未配置 OPENAI_API_KEY，请检查项目根目录下的 .env 文件。"
+                "未配置 LLM_API_KEY，请检查项目根目录下的 .env 文件。"
             )
 
         if not self.base_url:
             raise LLMConfigError(
-                "未配置 OPENAI_BASE_URL。"
+                "未配置 LLM_BASE_URL。"
             )
 
         if not self.model:
             raise LLMConfigError(
-                "未配置 OPENAI_MODEL，请检查项目根目录下的 .env 文件。"
+                "未配置 LLM_MODEL，请检查项目根目录下的 .env 文件。"
             )
 
         if self.timeout <= 0:
@@ -143,9 +146,10 @@ class LLMClient:
 
         except APIConnectionError as exc:
             raise LLMRequestError(
-                "无法连接模型服务，请检查网络和 OPENAI_BASE_URL。"
+                "无法连接模型服务，请检查网络和 LLM_BASE_URL。"
             ) from exc
 
+        #似乎key的原因，遇到了这个问题得到来自deepseek的401错误
         except APIStatusError as exc:
             raise LLMRequestError(
                 f"模型服务返回错误，状态码：{exc.status_code}。"

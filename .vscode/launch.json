@@ -13,6 +13,14 @@
                 "18000"
             ],
             "cwd": "${workspaceFolder}/backend"
+        },
+        {
+            "name": "Frontend Gradio",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/frontend/app.py",
+            "console": "integratedTerminal"
         }
     ]
 }
+
