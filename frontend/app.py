@@ -136,7 +136,18 @@ with gr.Blocks(
     raw_text = gr.Textbox(
         label="请输入岗位JD",
         lines=10,
-        placeholder="输入岗位说明...",
+        placeholder="""招聘AI应用开发工程师。
+
+岗位职责：
+1. 负责基于大语言模型的应用开发。
+2. 参与RAG知识库问答系统设计与实现。
+3. 使用Python和FastAPI开发后端服务。
+
+岗位要求：
+1. 熟悉Python编程。
+2. 了解LLM应用开发。
+3. 有RAG项目经验。
+4. 具备良好的问题分析和沟通能力。""",
     )
 
 

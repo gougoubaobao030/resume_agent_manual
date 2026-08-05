@@ -4,12 +4,52 @@ from prompts.jd_prompt import (
     build_jd_parse_user_prompt,
 )
 
+import os
+
 from schemas.jd import (
+    JDCategory,
     JDInfo,
     JDRequirement,
+    LLMJDRequirement,
     LLMJDResult,
     JDParseResponse,
 )
+
+
+def _is_jd_mock_enabled() -> bool:
+    """判断是否启用开发测试用的 JD mock 解析。"""
+
+    return os.getenv(
+        "JD_USE_MOCK",
+        "false",
+    ).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _build_mock_jd_result() -> LLMJDResult:
+    """构造符合现有模型输出 schema 的固定 JD 解析结果。"""
+
+    return LLMJDResult(
+        job_title="AI应用开发工程师",
+        requirements=[
+            LLMJDRequirement(
+                name="Python",
+                description="熟悉Python开发",
+                category=JDCategory.TECHNICAL,
+                weight=10,
+            ),
+            LLMJDRequirement(
+                name="RAG",
+                description="有RAG项目经验",
+                category=JDCategory.TECHNICAL,
+                weight=10,
+            ),
+        ],
+    )
 
 #把模型结果转为系统正式用的数据结构
 #转这个过程不是由大模型实现而是由后端实现
@@ -63,14 +103,24 @@ def parse_jd(
     if not cleaned_raw_text:
         raise ValueError("JD 文本不能为空。")
 
-    client = llm_client or LLMClient()
+    if llm_client is not None:
+        llm_result = llm_client.generate_structured(
+            system_prompt=JD_PARSE_SYSTEM_PROMPT,
+            user_prompt=build_jd_parse_user_prompt(cleaned_raw_text),
+            response_model=LLMJDResult,
+            temperature=0.1,
+        )
+    elif _is_jd_mock_enabled():
+        llm_result = _build_mock_jd_result()
+    else:
+        client = LLMClient()
 
-    llm_result = client.generate_structured(
-        system_prompt=JD_PARSE_SYSTEM_PROMPT,
-        user_prompt=build_jd_parse_user_prompt(cleaned_raw_text),
-        response_model=LLMJDResult,
-        temperature=0.1,
-    )
+        llm_result = client.generate_structured(
+            system_prompt=JD_PARSE_SYSTEM_PROMPT,
+            user_prompt=build_jd_parse_user_prompt(cleaned_raw_text),
+            response_model=LLMJDResult,
+            temperature=0.1,
+        )
 
     job = build_jd_info(
         raw_text=cleaned_raw_text,

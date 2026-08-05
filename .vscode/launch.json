@@ -21,6 +21,15 @@
             "program": "${workspaceFolder}/frontend/app.py",
             "console": "integratedTerminal"
         }
+    ],
+    "compounds": [
+        {
+            "name": "Start Full Resume Agent",
+            "configurations": [
+                "Frontend Gradio",
+                "Backend FastAPI"
+            ],
+            "stopAll": true
+        }
     ]
 }
-

@@ -7,6 +7,7 @@ from schemas.jd import (
     LLMJDRequirement,
     LLMJDResult,
 )
+from services import jd_service
 from services.jd_service import parse_jd
 
 
@@ -66,3 +67,40 @@ result = parse_jd(
 )
 
 print(result.model_dump_json(indent=2))
+
+
+class UnexpectedLLMClient:
+    """启用 JD mock 时不应实例化真实模型客户端。"""
+
+    def __init__(self) -> None:
+        raise AssertionError("JD mock 模式不应调用真实 LLM")
+
+
+jd_service.LLMClient = UnexpectedLLMClient
+
+mock_result = jd_service.parse_jd(
+    raw_text=raw_text,
+)
+
+assert mock_result.job.job_title == "AI应用开发工程师"
+assert [
+    item.model_dump(
+        exclude={"id"}
+    )
+    for item in mock_result.job.requirements
+] == [
+    {
+        "name": "Python",
+        "description": "熟悉Python开发",
+        "category": JDCategory.TECHNICAL,
+        "weight": 10.0,
+    },
+    {
+        "name": "RAG",
+        "description": "有RAG项目经验",
+        "category": JDCategory.TECHNICAL,
+        "weight": 10.0,
+    },
+]
+
+print("JD mock 模式测试通过")
