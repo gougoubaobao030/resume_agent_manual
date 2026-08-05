@@ -34,6 +34,7 @@ def parse_button_click(raw_text):
         job["job_title"],
         table,
         job["raw_text"],
+        None,
     )
 
 
@@ -47,14 +48,14 @@ def save_button_click(
     requirements = []
 
 
-    for row in table:
+    for row in table.to_dict(orient="records"):
 
         requirements.append(
             {
-                "name": row[0],
-                "description": row[1],
-                "category": row[2],
-                "weight": row[3],
+                "name": row["要求名称"],
+                "description": row["描述"],
+                "category": row["分类"],
+                "weight": row["权重"],
             }
         )
 
@@ -74,6 +75,47 @@ def save_button_click(
 
 
     return result["job"]["id"]
+
+
+
+def select_requirement(evt: gr.SelectData):
+
+    if not evt.selected:
+        return None
+
+    return evt.index[0]
+
+
+
+def add_requirement(table):
+
+    table = table.copy()
+    table.loc[len(table)] = {
+        "要求名称": "",
+        "描述": "",
+        "分类": "other",
+        "权重": 1,
+    }
+
+    return table, None
+
+
+
+def delete_selected_requirement(
+    table,
+    selected_row,
+):
+
+    if selected_row is None:
+        gr.Warning("请先在表格中选中要删除的要求")
+        return table, None
+
+    if 0 <= selected_row < len(table):
+        table = table.drop(
+            table.index[selected_row]
+        ).reset_index(drop=True)
+
+    return table, None
 
 
 
@@ -131,6 +173,22 @@ with gr.Blocks(
     )
 
 
+    selected_requirement_row = gr.State(
+        value=None
+    )
+
+
+    with gr.Row():
+
+        add_requirement_btn = gr.Button(
+            "新增要求"
+        )
+
+        delete_requirement_btn = gr.Button(
+            "删除选中要求"
+        )
+
+
     save_btn = gr.Button(
         "保存JD"
     )
@@ -150,6 +208,40 @@ with gr.Blocks(
             job_title,
             requirements,
             hidden_raw,
+            selected_requirement_row,
+        ],
+    )
+
+
+    requirements.select(
+        fn=select_requirement,
+        outputs=[
+            selected_requirement_row
+        ],
+    )
+
+
+    add_requirement_btn.click(
+        fn=add_requirement,
+        inputs=[
+            requirements
+        ],
+        outputs=[
+            requirements,
+            selected_requirement_row,
+        ],
+    )
+
+
+    delete_requirement_btn.click(
+        fn=delete_selected_requirement,
+        inputs=[
+            requirements,
+            selected_requirement_row,
+        ],
+        outputs=[
+            requirements,
+            selected_requirement_row,
         ],
     )
 
