@@ -1,6 +1,7 @@
 ﻿from fastapi import FastAPI
 
 from api.jd import router as jd_router
+from api.resume import router as resume_router
 
 
 app = FastAPI(
@@ -12,6 +13,7 @@ app = FastAPI(
 app.include_router(
     jd_router
 )
+app.include_router(resume_router)
 
 
 @app.get("/")
