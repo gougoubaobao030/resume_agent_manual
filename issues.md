@@ -68,3 +68,7 @@ MVP 当前阶段暂不处理。
 `LLMJobMatchResult` 中的 `overall_confidence`、`needs_raw_review`、`raw_review_requirement_ids`、`missing_information` 可暂时保留作为模型辅助输出。
 
 最终业务状态仍以后端根据 `requirement_matches` 聚合结果为准，避免把可确定性计算的逻辑完全交给 LLM。
+
+## issue_011:启动vue
+cd D:\VSProject\Python\resume_agent_manual\frontend
+npm run dev
