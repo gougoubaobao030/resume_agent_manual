@@ -26,6 +26,7 @@ def parse_button_click(raw_text):
                 item["description"],
                 item["category"],
                 item["weight"],
+                item["must_have"],
             ]
         )
 
@@ -56,6 +57,7 @@ def save_button_click(
                 "description": row["描述"],
                 "category": row["分类"],
                 "weight": row["权重"],
+                "must_have": bool(row["必须条件"]),
             }
         )
 
@@ -95,6 +97,7 @@ def add_requirement(table):
         "描述": "",
         "分类": "other",
         "权重": 1,
+        "必须条件": False,
     }
 
     return table, None
@@ -173,12 +176,14 @@ with gr.Blocks(
             "描述",
             "分类",
             "权重",
+            "必须条件",
         ],
         datatype=[
             "str",
             "str",
             "str",
             "number",
+            "bool",
         ],
         interactive=True,
     )

@@ -38,15 +38,17 @@ def _build_mock_jd_result() -> LLMJDResult:
         requirements=[
             LLMJDRequirement(
                 name="Python",
-                description="熟悉Python开发",
+                description="必须熟悉Python开发",
                 category=JDCategory.TECHNICAL,
                 weight=10,
+                must_have=True,
             ),
             LLMJDRequirement(
                 name="RAG",
                 description="有RAG项目经验",
                 category=JDCategory.TECHNICAL,
                 weight=10,
+                must_have=False,
             ),
         ],
     )
@@ -70,6 +72,7 @@ def build_jd_info(
             description=item.description,
             category=item.category,
             weight=item.weight,
+            must_have=item.must_have,
         )
         #这里是把每个岗位里的n个岗位要求逐一给弄出来，是个省略写法
         for item in llm_result.requirements

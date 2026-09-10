@@ -54,3 +54,17 @@ MVP 当前阶段暂不处理。
 不影响当前简历解析主流程开发。
 
 待核心流程跑通后统一进行 API 层规范化。
+
+## ISSUE_007
+* 真实 JD 解析测试中发现，LLM 容易受到“必须 / 优先 / 加分”等措辞影响，将 `must_have` 与 `weight` 自动关联，例如“必须”条件倾向获得较高权重。
+* 当前处理：仅调整 Prompt，要求模型独立判断硬性条件与岗位重要度；最终权重仍允许由 HR 人工调整。
+* 该问题影响有限，因为权重本身属于辅助建议，最终重要度应由实际招聘人员确认。
+
+
+## ISSUE_008 非常重要（我想增加一个其他可能亮点字段）
+## ISSUE_009 非常重要（为了有AI感需要自主反省决策）
+## Issue_010：LLM 汇总字段与后端聚合职责
+
+`LLMJobMatchResult` 中的 `overall_confidence`、`needs_raw_review`、`raw_review_requirement_ids`、`missing_information` 可暂时保留作为模型辅助输出。
+
+最终业务状态仍以后端根据 `requirement_matches` 聚合结果为准，避免把可确定性计算的逻辑完全交给 LLM。

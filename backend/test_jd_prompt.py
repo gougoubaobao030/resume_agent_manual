@@ -13,7 +13,7 @@ raw_text = """
 3. 使用 FastAPI 开发后端接口。
 
 岗位要求：
-1. 熟悉 Python。
+1. 必须熟悉 Python。
 2. 有大语言模型应用开发经验。
 3. 有 RAG 项目经验者优先。
 4. 本科及以上学历。
@@ -26,3 +26,7 @@ print(JD_PARSE_SYSTEM_PROMPT)
 
 print("\n用户提示词：")
 print(build_jd_parse_user_prompt(raw_text))
+
+assert "must_have" in JD_PARSE_SYSTEM_PROMPT
+assert "无法确定时 must_have 必须为 false" in JD_PARSE_SYSTEM_PROMPT
+assert "must_have" in build_jd_parse_user_prompt(raw_text)

@@ -57,6 +57,8 @@ class JDRequirement(BaseModel):
         description="HR 设置的相对权重，不要求总和为 100",
     )
 
+    must_have: bool = False
+
     @field_validator("name", "description")
     @classmethod
     def strip_text(cls, value: str) -> str:
@@ -193,6 +195,8 @@ class LLMJDRequirement(BaseModel):
         le=1000,
         description="模型建议的相对权重",
     )
+
+    must_have: bool = False
 
     @field_validator("name", "description")
     @classmethod

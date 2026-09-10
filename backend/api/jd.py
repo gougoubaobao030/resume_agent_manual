@@ -19,6 +19,7 @@ from services.jd_repository import (
     save_jd,
     get_jd,
     update_jd,
+    #这里全部是增删改查的一部分
 )
 
 #这是一个路由，这个路由文件前面都加"/api/jd"
@@ -79,7 +80,8 @@ def parse_jd_api(
             detail=str(exc),
         )
 
-#增加保存接口    
+#增加保存接口  第一次保存确认下来的JD解析条目 保存到临时数据库  
+#增删改查的一部分
 @router.post(
     "",
     response_model=JDSaveResponse,
@@ -102,7 +104,7 @@ def save_jd_api(
         job=saved_job
     )
 
-#增加查询接口
+#增加查询接口 输入id查询临时数据库已经保存的jd解析 增删改查的一部分
 @router.get(
     "/{job_id}",
     response_model=JDInfo,
@@ -123,7 +125,7 @@ def get_jd_api(
 
     return job
 
-#增加修改接口
+#增加修改接口 针对已经保存过的内容，再次修改保存时使用 增删改查的一部分
 @router.put(
     "/{job_id}",
     response_model=JDInfo,
