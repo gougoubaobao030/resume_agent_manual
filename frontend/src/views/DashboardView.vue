@@ -63,8 +63,8 @@ const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
             <strong>{{ session.currentJob?.job_title ?? '未设置' }}</strong>
             <small v-if="session.currentJob?.id">{{ session.currentJob.id }}</small>
           </div>
-          <div><span>候选人</span><strong>0</strong></div>
-          <div><span>待人工查看</span><strong>0</strong></div>
+          <div><span>候选人</span><strong>{{ session.candidates.length }}</strong></div>
+          <div><span>评分状态</span><strong>待分析</strong></div>
         </div>
         <p class="helper-text">这里只展示当前浏览器会话的数据，不生成虚假历史统计。</p>
       </article>

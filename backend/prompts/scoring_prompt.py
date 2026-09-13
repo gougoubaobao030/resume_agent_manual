@@ -79,6 +79,8 @@ JOB_MATCH_SYSTEM_PROMPT = """
 def get_job_match_response_schema() -> str:
     """获取岗位匹配LLM响应JSON Schema。"""
 
+    #这里之前有疑惑，后来cha宝告诉我dump的时候里面的小结构
+    #比如LLMRequirementMatch也一起dump进去了。
     schema = LLMJobMatchResult.model_json_schema()
 
     return json.dumps(
@@ -123,26 +125,4 @@ def build_job_match_user_prompt(
 - 不得增加 Schema 中不存在的字段。
 - 输出会直接交给 Pydantic 的 LLMJobMatchResult 进行校验。
 
-合法结构示意：
-
-{{
-  "requirement_matches": [
-    {{
-      "requirement_id": "req_xxx",
-      "status": "matched",
-      "score": 80,
-      "confidence": "high",
-      "reason": "简短理由",
-      "evidence": [],
-      "missing_information": [],
-      "needs_raw_review": false,
-      "raw_review_reason": null
-    }}
-  ],
-  "overall_confidence": "medium",
-  "summary": "简短整体总结",
-  "missing_information": [],
-  "needs_raw_review": false,
-  "raw_review_requirement_ids": []
-}}
 """

@@ -63,7 +63,7 @@ MVP 当前阶段暂不处理。
 
 ## ISSUE_008 非常重要（我想增加一个其他可能亮点字段）
 ## ISSUE_009 非常重要（为了有AI感需要自主反省决策）
-## Issue_010：LLM 汇总字段与后端聚合职责
+## Issue_010：LLM 汇总字段与后端聚合职责（可以关闭）
 
 `LLMJobMatchResult` 中的 `overall_confidence`、`needs_raw_review`、`raw_review_requirement_ids`、`missing_information` 可暂时保留作为模型辅助输出。
 
@@ -72,3 +72,22 @@ MVP 当前阶段暂不处理。
 ## issue_011:启动vue
 cd D:\VSProject\Python\resume_agent_manual\frontend
 npm run dev
+
+## issue_012:语义边界
+Issue：`not_matched` 与 `insufficient_evidence` 边界需进一步优化
+
+当前真实 DeepSeek 测试中，RAG 项目经验未在候选人信息中体现，模型输出为：
+
+* `status = not_matched`
+* 同时给出 `missing_information`
+
+该情况更接近“证据不足”，而非已有明确反证。
+
+后续需进一步优化 Prompt / 判定规则，明确：
+
+* **not_matched**：存在明确证据表明不满足要求
+* **insufficient_evidence**：当前信息无法证明满足，但也不能确认不满足
+
+当前不影响 MVP 展示，先记录，后续集中调整评分语义边界。
+
+## issue_013:MatchEvidence万一没有证据怎么办

@@ -37,8 +37,8 @@ class CandidateEvaluationResult(BaseModel):
 - 架构上提前解耦单次 LLM 调用与整体评分流程，未来引入 LangGraph 时主要新增 orchestration 编排层，尽量避免重写现有 schema、service 和评分逻辑。
 
 ## update 
-- 完成LLM影响schema设计
-- 有其他很多schema，主要scheema为：
+- 完成LLM响应schema设计
+- 有其他很多schema，主要schema为：
 ```
 class LLMJobMatchResult(BaseModel):
     """LLM对候选人与岗位整体匹配情况的结构化判断结果。"""
@@ -93,3 +93,11 @@ class RawReviewResult(BaseModel):
 
 ```
 
+### update 完成二次审评Raw Review 预留 Schema
+- 用于发现某关键分数低的有些可疑的时候，去原文找证据而非结构化简历并返回结果
+
+### 2026年9月11日 完成scoring_prompt.py 并完成输出测试
+- 内部prompt采用直接响应schema json注入
+- 新增测试文件 scoring_integration_case.json
+- 新增测试文件
+- test_scoring_integration.py
