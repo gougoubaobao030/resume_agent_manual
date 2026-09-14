@@ -1,0 +1,294 @@
+﻿{
+  "job_id": "job_d52a63fd",
+  "candidate": {
+    "id": "candidate_966ab016",
+    "basic_info": {
+      "name": "勾勾",
+      "email": "gougoubaobao030@gmail.com",
+      "phone": "+86-139-5824-8237"
+    },
+    "education": [
+      {
+        "school": "宁波大学",
+        "degree": "学士学位",
+        "major": "会计学",
+        "start_date": "2010/09",
+        "end_date": "2014/06"
+      },
+      {
+        "school": "日本留学经历",
+        "degree": null,
+        "major": "游戏开发相关学习",
+        "start_date": "2024/09",
+        "end_date": "2025/10"
+      }
+    ],
+    "work_experience": [
+      {
+        "company": "个人开发工作室",
+        "position": "软件开发",
+        "start_date": "2022",
+        "end_date": "2023",
+        "description": "开发阳明心学人员管理系统，使用C#/Winform/.Net/C++/Qt。实现登录系统、CRUD、权限管理、Socket网络通信、数据建模、序列化、ORM对接数据库、数据库设计。应用MVC架构、设计模式，了解SOLID原则。"
+      },
+      {
+        "company": "会计/商务相关工作",
+        "position": null,
+        "start_date": "2014",
+        "end_date": "2021",
+        "description": "积累沟通交流、客户理解和业务场景经验，培养从对方及第三方角度分析问题的能力。"
+      }
+    ],
+    "projects": [
+      {
+        "name": "AI智能简历初筛与潜力发现Agent",
+        "description": "面向招聘场景开发AI简历初筛与潜力发现系统。目标是在大量简历中帮助招聘方快速识别高匹配候选人及值得进一步复核的潜力人才，同时减少候选人因关键词不完全匹配而被过早淘汰。当前围绕JD结构化、简历结构化、岗位匹配评分、证据不足识别及后续人工复核机制进行开发。",
+        "technologies": [
+          "Python",
+          "FastAPI",
+          "Pydantic",
+          "DeepSeek API",
+          "LLM",
+          "Prompt Engineering",
+          "Structured Output",
+          "REST API",
+          "Vue3",
+          "Vite",
+          "Gradio",
+          "Git/GitHub"
+        ],
+        "achievements": [
+          "设计并实现JD解析模块，将非结构化岗位描述转换为结构化JD数据",
+          "为JD requirement增加must_have字段，用于表示岗位中明确声明的硬性条件",
+          "设计并实现简历结构化解析模块，抽取基本信息、教育、工作经历、项目、技能、语言、证书及候选人事实证据",
+          "使用Pydantic Schema约束LLM结构化输出，并区分LLM响应模型与业务模型",
+          "实现单份简历解析，并扩展为10-30份简历批量解析流程，单份失败不影响整体处理",
+          "设计candidate_evidence结构，为岗位匹配、潜力判断和后续人工复核提供事实依据",
+          "设计岗位匹配评分架构，将岗位匹配、候选人潜力和人才画像适配作为不同评价维度",
+          "针对结构化信息不足的场景设计need_raw_evidence判定思路，用于后续回查简历原文",
+          "设计missing_information等字段，用于记录当前判断所缺失的关键信息并支持后续确认",
+          "完成FastAPI后端接口开发，并使用Gradio及Vue3进行前端联调和展示"
+        ]
+      },
+      {
+        "name": "Unity3D 中型RPG",
+        "description": "基于UGUI开发的个人独立中型架构Demo，从0到1实践各大模块基础功能，包括模块化架构、代码解耦、性能优化等。开发过程中大量使用AI辅助与技术资料进行问题分析和实现。",
+        "technologies": [
+          "Unity3D",
+          "C#",
+          "UGUI",
+          "Addressables",
+          "DoTween",
+          "SO数据驱动",
+          "接口抽象",
+          "委托事件",
+          "事件总线",
+          "对象池",
+          "工厂模式",
+          "策略模式",
+          "依赖注入",
+          "单例",
+          "命令模式",
+          "观察者",
+          "状态模式",
+          "NavMeshAgent",
+          "CharacterController",
+          "3D数学",
+          "协程",
+          "物理系统",
+          "动画系统",
+          "Json序列化反序列化",
+          "Gizmos",
+          "OnGUI"
+        ],
+        "achievements": [
+          "实现多类型技能系统：单体、远程、范围、爆炸、投掷、闪现，并支持攻击范围Gizmo可视化",
+          "使用Physics.OverlapSphereNonAlloc减少GC Alloc",
+          "实现公共CD和单体CD双冷却体系",
+          "实现UI拖拽调整技能栏和按键位置",
+          "结合动画事件与CharacterController实现敌人AI攻击判定",
+          "使用点乘、叉乘、四元数进行玩家位置追踪检测和扇形伤害计算",
+          "结合NavMeshAgent和NavMeshObstacle实现动态寻路",
+          "通过EnemyStateMachine和SkillManager管理AI状态和时序调度",
+          "实现IInteractable+Command模式交互系统，并使用Mediator协调UI与逻辑",
+          "实现主角状态机，使用工厂模式注册状态并进行地面与空中策略分离",
+          "实现商店、背包、物品、对话、任务、采集、金币等UGUI模块",
+          "实现UIManager统一管理及中控+组件模式",
+          "实现对象池生命周期管理，支持自动回收和预热",
+          "开发DevToolBox模块化调试工具框架，集成多个调试功能"
+        ]
+      }
+    ],
+    "skills": [
+      "Python: FastAPI、Pydantic、REST API、LLM应用开发",
+      "LLM应用: Prompt Engineering、Structured Output、Schema设计、语义判断、事实证据抽取",
+      "AI工程实践: JD结构化解析、简历结构化解析、批量处理、岗位匹配架构设计、证据不足判断",
+      "前端: Vue3、Vite、Gradio",
+      "C#: OOP、委托、回调、事件、扩展方法、异步编程、泛型、LINQ",
+      "Unity: 3D数学、生命周期函数、协程、物理系统、动画系统、Addressables、UGUI",
+      "C++: STL、Qt/SDL2/OpenGL小Demo",
+      "数据结构与算法: LeetCode 262题",
+      "TCP/IP网络协议基本原理",
+      "MVC架构、SOLID原则",
+      "Json序列化反序列化",
+      "Git/GitHub",
+      "Linux基础"
+    ],
+    "languages": [
+      "英语",
+      "日语"
+    ],
+    "achievements": [
+      "宁波大学阳明班（特优班）特别荣誉"
+    ],
+    "certifications": [
+      "英语四级(2012)",
+      "日语N1证书(2017/12)",
+      "商务日语结业证书(2025/06)"
+    ],
+    "candidate_evidence": [
+      {
+        "category": "AI应用开发经历",
+        "title": "开发AI智能简历初筛与潜力发现Agent",
+        "description": "围绕真实招聘场景，从需求定义、Schema设计、Prompt设计、后端API到前端展示，持续开发AI简历初筛与潜力发现系统。",
+        "evidence": [
+          "使用Python和FastAPI开发后端",
+          "使用Pydantic设计JD、Candidate及LLM响应Schema",
+          "接入DeepSeek API完成LLM结构化处理",
+          "完成JD结构化解析",
+          "完成单份和批量简历结构化解析",
+          "设计岗位匹配评分相关Schema和数据流",
+          "完成Vue3及Gradio前端联调"
+        ]
+      },
+      {
+        "category": "AI可靠性设计",
+        "title": "通过结构化输出和证据机制降低LLM判断风险",
+        "description": "在LLM应用中通过Schema约束、事实证据保留、硬条件标记及证据不足识别等方式，提高模型输出的稳定性、可解释性和可复核性。",
+        "evidence": [
+          "使用Pydantic约束LLM结构化输出",
+          "设计candidate_evidence事实证据字段",
+          "设计must_have硬条件字段",
+          "设计need_raw_evidence判定机制",
+          "设计missing_information缺失信息字段"
+        ]
+      },
+      {
+        "category": "产品思考",
+        "title": "从招聘方与候选人双方价值设计AI产品",
+        "description": "在产品设计中同时考虑招聘效率和候选人机会，希望减少单纯依靠关键词筛选造成的误淘汰，并保留人工复核机制。",
+        "evidence": [
+          "同时设计岗位匹配与候选人潜力维度",
+          "考虑人才画像适配维度",
+          "设计三维评价后的人工复核思路",
+          "针对信息不足情况保留进一步确认入口"
+        ]
+      },
+      {
+        "category": "自主学习经历",
+        "title": "从传统软件开发进一步转向AI应用开发",
+        "description": "在C#/Unity及软件开发基础上继续学习Python、FastAPI、Pydantic、大语言模型结构化输出和AI应用工程，并通过实际项目进行验证。",
+        "evidence": [
+          "Python/FastAPI应用开发",
+          "Pydantic数据建模",
+          "LLM结构化输出",
+          "Prompt Engineering",
+          "AI应用架构设计"
+        ]
+      },
+      {
+        "category": "复杂项目独立开发",
+        "title": "独立开发Unity3D中型RPG项目",
+        "description": "个人从0到1完成中型Unity3D架构Demo，涉及游戏系统、AI、UI、状态机、对象池、架构解耦、性能优化及调试工具等多个模块。",
+        "evidence": [
+          "独立完成多模块游戏Demo",
+          "设计EnemyStateMachine",
+          "设计主角状态机",
+          "实现对象池",
+          "实现技能系统",
+          "实现多个UGUI业务模块",
+          "开发DevToolBox调试框架"
+        ]
+      },
+      {
+        "category": "自主学习经历",
+        "title": "工作后自学编程",
+        "description": "在会计/商务工作后持续自学编程技能，逐步转入软件开发领域，并总结提炼了自己的学习方法。",
+        "evidence": [
+          "工作后自学编程",
+          "从非计算机专业转入软件开发",
+          "提炼学会编程的四大法则"
+        ]
+      },
+      {
+        "category": "跨领域经历",
+        "title": "从会计商务领域转向软件及AI开发",
+        "description": "本科为会计学专业，具有多年会计及商务工作经历，此后转入软件开发，并进一步进入AI应用开发领域。",
+        "evidence": [
+          "会计学学士学位",
+          "2014-2021会计/商务工作经历",
+          "2022-2023软件开发经历",
+          "AI应用开发项目经历"
+        ]
+      },
+      {
+        "category": "持续学习能力",
+        "title": "持续跨技术栈学习",
+        "description": "先后学习并实践C#、Unity、C++、Python及AI应用开发，在不同技术领域中持续进行项目实践。",
+        "evidence": [
+          "C#/Unity项目实践",
+          "C++小型Demo实践",
+          "Python/FastAPI项目实践",
+          "LLM应用开发实践",
+          "LeetCode通过262题"
+        ]
+      },
+      {
+        "category": "特殊培养经历",
+        "title": "宁波大学阳明班（特优班）",
+        "description": "本科进入宁波大学阳明班（特优班），获得特别荣誉。",
+        "evidence": [
+          "阳明班（特优班）特别荣誉"
+        ]
+      },
+      {
+        "category": "国际与跨文化经历",
+        "title": "日本留学及日本市场接触经历",
+        "description": "赴日本学习游戏开发，并参加东京游戏相关展会，对日本学习及工作环境具有实际接触经验。",
+        "evidence": [
+          "日本留学经历",
+          "游戏开发相关学习",
+          "参加多个东京游戏展会活动"
+        ]
+      },
+      {
+        "category": "多语言能力",
+        "title": "具备日语及英语能力",
+        "description": "持有日语N1、商务日语结业证书及英语四级证书，并长期接触英语技术资料。",
+        "evidence": [
+          "日语N1证书",
+          "商务日语结业证书",
+          "英语四级",
+          "计算机学习中使用英语资料"
+        ]
+      }
+    ],
+    "custom_attributes": {
+      "career_direction": "AI应用工程师",
+      "current_focus": [
+        "LLM应用开发",
+        "AI Agent",
+        "招聘AI",
+        "FastAPI后端开发",
+        "结构化输出与Schema设计"
+      ]
+    },
+    "raw_text": "姓名：勾勾 | 求职方向：AI应用工程师\n出生日期：1992-05-31 | 性别：女\n\n教育经历\n2010/09-2014/06 宁波大学，会计学学士，阳明班（特优班）特别荣誉。\n2024/09-2025/10 日本留学，学习游戏开发相关内容，期间参加多个东京游戏展会活动。\n\nAI项目经历\nAI智能简历初筛与潜力发现Agent：面向招聘场景开发AI简历初筛与人才发现系统，目标是帮助招聘方从大量简历中快速识别高匹配候选人及值得复核的潜力人才，同时减少候选人因关键词不完全匹配而被过早淘汰。使用Python、FastAPI、Pydantic、DeepSeek API、Vue3、Gradio等技术。已完成JD结构化解析、must_have硬条件设计、简历结构化解析、10-30份批量解析、candidate_evidence事实证据结构、岗位匹配评分Schema及need_raw_evidence、missing_information等证据不足相关设计。使用Pydantic约束LLM结构化输出，并区分LLM响应模型、业务模型及API数据结构。\n\nUnity3D项目经历\n独立从0到1开发Unity3D中型RPG架构Demo。实现技能系统、敌人AI、主角状态机、商店、背包、物品、对话、任务、采集、金币等模块。使用对象池降低GC压力，使用Physics.OverlapSphereNonAlloc减少GC Alloc，结合NavMeshAgent进行AI寻路，并开发DevToolBox模块化调试工具框架。\n\n工作经历\n2022-2023 个人开发工作室：使用C#/Winform/.Net/C++/Qt开发阳明心学人员管理系统，实现登录、CRUD、权限管理、Socket通信、数据建模、序列化、ORM及数据库设计。\n2014-2021 会计/商务相关工作：积累沟通、客户理解及业务场景经验，培养从对方和第三方角度分析问题的能力。\n\n技能\nPython、FastAPI、Pydantic、REST API、LLM应用开发、Prompt Engineering、Structured Output、Schema设计、DeepSeek API、Vue3、Vite、Gradio、C#、Unity3D、C++、Git/GitHub、Linux、数据结构与算法。\n\n语言与证书\n日语N1证书（2017/12）、商务日语结业证书（2025/06）、英语四级（2012）。",
+    "extraction_metadata": {
+      "source_file": "manual_scoring_test_candidate.json",
+      "parser": "manual_test_data",
+      "model": null,
+      "confidence": null
+    }
+  }
+}

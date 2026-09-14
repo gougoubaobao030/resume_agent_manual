@@ -8,6 +8,22 @@ const route = useRoute()
 const candidate = computed(() =>
   session.candidates.find((item) => item.id === route.params.id),
 )
+const matchResult = computed(() => session.jobMatches[route.params.id])
+const matchStatus = computed(() => session.jobMatchStatuses[route.params.id])
+
+const mustHaveState = computed(() => {
+  const summary = matchResult.value?.must_have_summary
+  if (!summary) return { label: '等待评分', className: 'status-badge--neutral' }
+  if (summary.has_failure) return { label: '硬条件不满足', className: 'status-badge--error' }
+  if (summary.needs_confirmation) return { label: '硬条件需确认', className: 'status-badge--warning' }
+  return { label: '硬条件满足', className: 'status-badge--success' }
+})
+
+const formattedScore = computed(() => {
+  const score = matchResult.value?.score
+  if (typeof score !== 'number') return '—'
+  return Number.isInteger(score) ? String(score) : score.toFixed(1)
+})
 
 function display(value) {
   return value === null || value === undefined || value === '' ? '暂无信息' : value
@@ -38,7 +54,7 @@ function customValue(value) {
         <p v-if="candidate">{{ candidate.extraction_metadata?.source_file || '来源文件名暂无信息' }}</p>
         <p v-else>当前会话中未找到这位候选人。</p>
       </div>
-      <span class="status-badge status-badge--neutral">评分待分析</span>
+      <span class="status-badge" :class="mustHaveState.className">{{ mustHaveState.label }}</span>
     </div>
 
     <article v-if="!candidate" class="panel empty-state">
@@ -59,10 +75,23 @@ function customValue(value) {
         </div>
       </article>
       <article class="panel detail-grid__side">
-        <div class="panel__header"><h3>分析状态</h3></div>
-        <div class="pending-analysis">
-          <span class="status-badge status-badge--neutral">待分析</span>
-          <p>评分后端尚未完成，本区域暂不展示模拟结论。</p>
+        <div class="panel__header"><h3>岗位匹配</h3></div>
+        <div v-if="matchResult" class="match-overview match-overview--compact">
+          <div>
+            <span>岗位匹配分</span>
+            <strong class="match-score">{{ formattedScore }}</strong>
+          </div>
+          <span class="status-badge" :class="mustHaveState.className">{{ mustHaveState.label }}</span>
+          <p>{{ matchResult.summary || '后端未返回总体摘要。' }}</p>
+          <RouterLink class="button button--secondary button--small" :to="`/analysis?candidate_id=${candidate.id}`">
+            查看完整评分依据
+          </RouterLink>
+        </div>
+        <div v-else class="pending-analysis">
+          <span class="status-badge" :class="matchStatus === 'error' ? 'status-badge--error' : 'status-badge--neutral'">
+            {{ matchStatus === 'loading' ? '评分中' : matchStatus === 'error' ? '评分失败' : '暂无评分' }}
+          </span>
+          <p>{{ session.jobMatchErrors[candidate.id] || '当前会话中没有这位候选人的岗位匹配结果。' }}</p>
         </div>
       </article>
       <article class="panel detail-grid__main resume-section">

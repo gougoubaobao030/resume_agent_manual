@@ -1,24 +1,40 @@
 <script setup>
 import { session } from '../state/session'
 
-function joinValues(values) {
-  return values.filter(Boolean).join(' · ')
-}
-
-function educationSummary(candidate) {
-  const education = candidate.education?.[0]
-  if (!education) return '暂无教育信息'
-  return joinValues([education.school, education.degree, education.major]) || '暂无教育信息'
-}
-
-function workSummary(candidate) {
-  const work = candidate.work_experience?.[0]
-  if (!work) return '暂无工作经历'
-  return joinValues([work.company, work.position]) || '暂无工作经历'
-}
-
 function candidateName(candidate) {
   return candidate.basic_info?.name || '姓名未提取'
+}
+
+function matchResult(candidate) {
+  return session.jobMatches[candidate.id]
+}
+
+function formattedScore(candidate) {
+  const score = matchResult(candidate)?.score
+  if (typeof score !== 'number') return '—'
+  return Number.isInteger(score) ? String(score) : score.toFixed(1)
+}
+
+function mustHaveState(candidate) {
+  const summary = matchResult(candidate)?.must_have_summary
+
+  if (!summary) {
+    return { label: '等待评分', className: 'status-badge--neutral' }
+  }
+  if (summary.has_failure) {
+    return { label: '硬条件不满足', className: 'status-badge--error' }
+  }
+  if (summary.needs_confirmation) {
+    return { label: '硬条件需确认', className: 'status-badge--warning' }
+  }
+  return { label: '硬条件满足', className: 'status-badge--success' }
+}
+
+function analysisLabel(candidate) {
+  const status = session.jobMatchStatuses[candidate.id]
+  if (status === 'loading') return '评分中…'
+  if (status === 'error') return '评分失败'
+  return matchResult(candidate)?.summary || '尚无岗位匹配结果'
 }
 </script>
 
@@ -39,7 +55,7 @@ function candidateName(candidate) {
         <span class="status-badge status-badge--neutral">当前会话</span>
       </div>
       <div v-if="session.candidates.length" class="candidate-table candidate-table--header" aria-hidden="true">
-        <span>候选人</span><span>教育 / 经历</span><span>技能 / 语言</span><span>来源文件</span><span>分析</span><span></span>
+        <span>候选人</span><span>岗位匹配分</span><span>硬条件</span><span>判断摘要</span><span></span>
       </div>
       <div v-if="!session.candidates.length" class="empty-state">
         <div class="empty-state__mark">CV</div>
@@ -57,19 +73,13 @@ function candidateName(candidate) {
               <small>{{ candidate.basic_info?.location || '所在地暂无信息' }}</small>
             </div>
           </div>
-          <div class="candidate-summary-cell">
-            <strong>{{ educationSummary(candidate) }}</strong>
-            <small>{{ workSummary(candidate) }}</small>
-          </div>
-          <div class="candidate-summary-cell">
-            <strong>{{ candidate.skills?.slice(0, 4).join(' · ') || '暂无技能信息' }}</strong>
-            <small>{{ candidate.languages?.join(' · ') || '暂无语言信息' }}</small>
-          </div>
-          <div class="candidate-summary-cell">
-            <strong>{{ candidate.extraction_metadata?.source_file || '暂无来源文件名' }}</strong>
-            <small>当前会话</small>
-          </div>
-          <span class="status-badge status-badge--neutral">待分析</span>
+          <strong class="match-score match-score--table">{{ formattedScore(candidate) }}</strong>
+          <span class="status-badge" :class="mustHaveState(candidate).className">
+            {{ mustHaveState(candidate).label }}
+          </span>
+          <p class="candidate-match-summary" :class="{ 'muted-text': !matchResult(candidate) }">
+            {{ analysisLabel(candidate) }}
+          </p>
           <RouterLink v-if="candidate.id" class="text-link" :to="`/candidates/${candidate.id}`">查看详情</RouterLink>
           <span v-else class="muted-text">缺少 ID</span>
         </article>

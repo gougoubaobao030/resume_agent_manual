@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { session } from '../state/session'
 
 const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
+const scoredCandidateCount = computed(() => Object.keys(session.jobMatches).length)
 </script>
 
 <template>
@@ -44,7 +45,7 @@ const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
         </li>
         <li class="workflow-step">
           <span>04</span>
-          <div><strong>分析与人工复核</strong><small>评分模块尚在开发中</small></div>
+          <div><strong>分析与人工复核</strong><small>查看岗位匹配依据与待确认信息</small></div>
         </li>
       </ol>
     </div>
@@ -64,7 +65,7 @@ const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
             <small v-if="session.currentJob?.id">{{ session.currentJob.id }}</small>
           </div>
           <div><span>候选人</span><strong>{{ session.candidates.length }}</strong></div>
-          <div><span>评分状态</span><strong>待分析</strong></div>
+          <div><span>已评分</span><strong>{{ scoredCandidateCount }} / {{ session.candidates.length }}</strong></div>
         </div>
         <p class="helper-text">这里只展示当前浏览器会话的数据，不生成虚假历史统计。</p>
       </article>
@@ -79,7 +80,7 @@ const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
         <ul class="capability-list">
           <li><span class="status-dot"></span>JD 解析与人工确认接口已具备</li>
           <li><span class="status-dot"></span>单份及批量简历解析接口已具备</li>
-          <li><span class="status-dot status-dot--muted"></span>候选人评分暂未接入</li>
+          <li><span class="status-dot"></span>岗位匹配评分接口已接入</li>
         </ul>
       </article>
     </div>

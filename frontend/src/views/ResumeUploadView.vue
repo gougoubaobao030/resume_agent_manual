@@ -5,8 +5,15 @@ import {
   getFriendlyApiError,
   getFriendlyResumeItemError,
   parseResumeBatch,
+  scoreJobMatch,
 } from '../services/api'
-import { session, setCandidates } from '../state/session'
+import {
+  session,
+  setCandidates,
+  setJobMatchError,
+  setJobMatchLoading,
+  setJobMatchResult,
+} from '../state/session'
 
 const fileInput = ref(null)
 const selectedFiles = ref([])
@@ -103,8 +110,29 @@ async function handleParse() {
 
     setCandidates(candidates)
     batchResult.value = result
-    uploadStatus.value = 'success'
-    uploadMessage.value = `解析完成：${result.success_count} 份成功，${result.failed_count} 份失败。`
+    uploadMessage.value = `简历解析完成，正在计算 ${candidates.length} 位候选人的岗位匹配结果……`
+
+    const scoringTasks = candidates.map(async (candidate) => {
+      if (!candidate.id) return false
+
+      setJobMatchLoading(candidate.id)
+      try {
+        const matchResult = await scoreJobMatch(session.currentJob.id, candidate)
+        setJobMatchResult(candidate.id, matchResult)
+        return true
+      } catch (error) {
+        setJobMatchError(candidate.id, getFriendlyApiError(error, '岗位匹配评分'))
+        return false
+      }
+    })
+    const scoringResults = await Promise.all(scoringTasks)
+    const scoredCount = scoringResults.filter(Boolean).length
+    const scoringFailedCount = candidates.length - scoredCount
+
+    uploadStatus.value = scoringFailedCount ? 'error' : 'success'
+    uploadMessage.value = scoringFailedCount
+      ? `简历解析完成；岗位匹配 ${scoredCount} 人成功，${scoringFailedCount} 人失败。可在候选人列表查看。`
+      : `解析与岗位匹配完成：${scoredCount} 位候选人已生成真实评分结果。`
   } catch (error) {
     uploadStatus.value = 'error'
     uploadMessage.value = getFriendlyApiError(error, '简历批量解析')

@@ -1,5 +1,6 @@
 ﻿from enum import Enum
 from pydantic import BaseModel, Field
+from schemas.resume import Candidate
 
 
 class EvaluationLevel(str, Enum):
@@ -73,6 +74,14 @@ class RequirementMatchResult(BaseModel):
         default_factory=list
     )
 
+    missing_information: list[str] = Field(
+        default_factory=list
+    )
+
+    needs_raw_review: bool = False
+
+    raw_review_reason: str | None = None
+
 #硬条件哪几个不对，哪几个需要确认
 class MustHaveSummary(BaseModel):
     """岗位硬性条件的总体判断结果。"""
@@ -110,6 +119,16 @@ class JobMatchResult(BaseModel):
 
     must_have_summary: MustHaveSummary = Field(
         default_factory=MustHaveSummary
+    )
+
+    missing_information: list[str] = Field(
+        default_factory=list
+    )
+
+    needs_raw_review: bool = False
+
+    raw_review_requirement_ids: list[str] = Field(
+        default_factory=list
     )
 
     summary: str | None = None
@@ -301,3 +320,10 @@ class RawReviewBatchResult(BaseModel):
         default_factory=list
     )
 
+# 给api用的request 和 response
+# 不过这里的response暂时复用，不另外闹了
+class JobMatchRequest(BaseModel):
+    """岗位匹配评分请求。"""
+
+    job_id: str
+    candidate: Candidate

@@ -1,0 +1,48 @@
+﻿{
+  "job_title": "AI应用开发工程师",
+  "raw_text": "AI应用开发工程师\n\n【必须条件】\n1. 具备Python开发经验\n2. 本科及以上学历\n\n【优先条件】\n1. 有FastAPI / Flask等后端开发经验\n2. 有RAG / LLM应用开发经验\n3. 有完整项目设计与落地经验\n4. 日语N1或具备日语工作沟通能力\n\n【希望的人才】\n1. 能独立分析问题，而不是只按需求执行\n2. 学习速度快，有跨领域迁移能力\n3. 面对不确定问题能够主动验证和迭代\n4. 重视产品实际价值",
+  "requirements": [
+    {
+      "name": "Python开发经验",
+      "description": "具备Python开发经验",
+      "category": "technical",
+      "weight": 10,
+      "must_have": true
+    },
+    {
+      "name": "学历要求",
+      "description": "本科及以上学历",
+      "category": "education",
+      "weight": 10,
+      "must_have": true
+    },
+    {
+      "name": "后端开发经验",
+      "description": "有FastAPI / Flask等后端开发经验",
+      "category": "technical",
+      "weight": 8,
+      "must_have": false
+    },
+    {
+      "name": "LLM应用经验",
+      "description": "有RAG / LLM应用开发经验",
+      "category": "technical",
+      "weight": 9,
+      "must_have": false
+    },
+    {
+      "name": "完整项目经验",
+      "description": "有完整项目设计与落地经验",
+      "category": "experience",
+      "weight": 8,
+      "must_have": false
+    },
+    {
+      "name": "日语能力",
+      "description": "日语N1或具备日语工作沟通能力",
+      "category": "other",
+      "weight": 6,
+      "must_have": false
+    }
+  ]
+}

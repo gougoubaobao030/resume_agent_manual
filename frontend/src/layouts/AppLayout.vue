@@ -50,7 +50,7 @@ function closeNavigation() {
         <span class="status-dot status-dot--muted"></span>
         <div>
           <strong>MVP 开发阶段</strong>
-          <span>后端状态将在下一阶段接入</span>
+          <span>岗位匹配评分已接入</span>
         </div>
       </div>
     </aside>

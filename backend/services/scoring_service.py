@@ -21,6 +21,7 @@ from schemas.scoring import (
     MatchEvidence,
     MatchStatus,
     MustHaveSummary,
+    RawReviewRequest,
     RequirementMatchResult,
 )
 
@@ -187,6 +188,14 @@ def _build_requirement_results(
             confidence=llm_match.confidence,
             reason=llm_match.reason,
             evidence=_build_match_evidence(llm_match),
+            missing_information=list(llm_match.missing_information),
+            needs_raw_review=llm_match.needs_raw_review,
+            raw_review_reason=(
+                llm_match.raw_review_reason.strip()
+                if llm_match.raw_review_reason
+                and llm_match.raw_review_reason.strip()
+                else None
+            ),
         )
 
         results.append(result)
@@ -237,6 +246,94 @@ def _calculate_job_match_score(
 
     return round(score, 2)
 
+
+def _build_raw_review_summary(
+    requirement_results: list[RequirementMatchResult],
+) -> tuple[list[str], bool, list[str]]:
+    """从逐条领域结果聚合缺失信息和原始简历回查状态。"""
+
+    missing_information: list[str] = []
+    seen_missing_information: set[str] = set()
+    raw_review_requirement_ids: list[str] = []
+
+    for result in requirement_results:
+        for item in result.missing_information:
+            normalized_item = item.strip()
+            if (
+                normalized_item
+                and normalized_item not in seen_missing_information
+            ):
+                seen_missing_information.add(normalized_item)
+                missing_information.append(normalized_item)
+
+        if result.needs_raw_review:
+            raw_review_requirement_ids.append(result.requirement_id)
+
+    return (
+        missing_information,
+        bool(raw_review_requirement_ids),
+        raw_review_requirement_ids,
+    )
+
+
+def _validate_job_match_result_consistency(
+    job_match_result: JobMatchResult,
+) -> None:
+    """校验后端聚合结果中的核心业务不变量。"""
+
+    requirement_ids = {
+        result.requirement_id
+        for result in job_match_result.requirement_results
+    }
+    raw_review_id_set = set(
+        job_match_result.raw_review_requirement_ids
+    )
+
+    unknown_ids = raw_review_id_set - requirement_ids
+    if unknown_ids:
+        raise ValueError(
+            "岗位匹配结果包含不存在的raw review requirement: "
+            f"{sorted(unknown_ids)}"
+        )
+
+    expected_raw_review_ids = [
+        result.requirement_id
+        for result in job_match_result.requirement_results
+        if result.needs_raw_review
+    ]
+    if (
+        job_match_result.raw_review_requirement_ids
+        != expected_raw_review_ids
+    ):
+        raise ValueError(
+            "岗位匹配结果的raw review requirement汇总不一致"
+        )
+
+    if job_match_result.needs_raw_review != bool(expected_raw_review_ids):
+        raise ValueError("岗位匹配结果的needs_raw_review汇总不一致")
+
+
+def build_raw_review_requests(
+    job_match_result: JobMatchResult,
+) -> list[RawReviewRequest]:
+    """根据领域评分结果构造未来编排层可消费的回查请求。"""
+
+    requests: list[RawReviewRequest] = []
+
+    for result in job_match_result.requirement_results:
+        if not result.needs_raw_review:
+            continue
+
+        requests.append(
+            RawReviewRequest(
+                requirement_id=result.requirement_id,
+                reason=result.raw_review_reason or result.reason,
+                search_targets=list(result.missing_information),
+            )
+        )
+
+    return requests
+
 # 核心函数二：终极mapper
 def _build_job_match_result(
     jd: JDInfo,
@@ -261,15 +358,28 @@ def _build_job_match_result(
         requirement_results
     )
 
-    return JobMatchResult(
+    (
+        missing_information,
+        needs_raw_review,
+        raw_review_requirement_ids,
+    ) = _build_raw_review_summary(requirement_results)
+
+    result = JobMatchResult(
         job_id=jd.id,
         candidate_id=candidate.id,
         score=score,
         confidence=llm_result.overall_confidence,
         requirement_results=requirement_results,
         must_have_summary=must_have_summary,
+        missing_information=missing_information,
+        needs_raw_review=needs_raw_review,
+        raw_review_requirement_ids=raw_review_requirement_ids,
         summary=llm_result.summary,
     )
+
+    _validate_job_match_result_consistency(result)
+
+    return result
 
 # 正真的业务函数
 # LLM结果 + Mapper

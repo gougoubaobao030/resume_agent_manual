@@ -60,6 +60,16 @@ export function parseResumeBatch(files) {
   })
 }
 
+export function scoreJobMatch(jobId, candidate) {
+  return request('/api/scoring/job-match', {
+    method: 'POST',
+    body: JSON.stringify({
+      job_id: jobId,
+      candidate,
+    }),
+  })
+}
+
 export function getFriendlyResumeItemError(detail) {
   if (typeof detail !== 'string' || !detail.trim()) {
     return '解析失败，后端未返回具体原因。'
