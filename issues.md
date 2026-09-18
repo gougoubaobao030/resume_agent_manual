@@ -4,7 +4,7 @@
 ## ISSUE-002 Prompt Injection 防护
 类型：Security / Enhancement
 
-## ISSUE-003 批量简历解析
+## ISSUE-003 批量简历解析 (已关闭)
 类型：Enhancement
 
 ## ISSUE-004 OCR / 扫描 PDF 支持
@@ -91,3 +91,21 @@ Issue：`not_matched` 与 `insufficient_evidence` 边界需进一步优化
 当前不影响 MVP 展示，先记录，后续集中调整评分语义边界。
 
 ## issue_013:MatchEvidence万一没有证据怎么办
+
+## issue_014:fastpai 同步请求函数会加入线程池，考虑线程安全
+
+## issue_015: talent module prompt 愚蠢的模型喜欢定量
+- "最初的做了什么有什么效果，过程相对详细，效果也明确"就可以了
+- 降智格式设计又没有
+
+## issue_016: 可以自定义，比如游戏公司呢，忠实粉丝呢
+
+## issue_017 BOM 改成无BOM(已经完成)
+## issue——018 比如自驱力顶你的实在太严了
+- 整体要从宽，只做最低淘汰
+- 高低定性要弄好
+- 个人pr总结考虑中
+- 人才像呢？被吃掉了吗
+- 问题很严重
+- 现在效果很好可以有合理的从事实出发的推理，这个就是我想要的；
+- 但怎么控制是个问题

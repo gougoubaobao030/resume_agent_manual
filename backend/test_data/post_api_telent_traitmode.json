@@ -1,0 +1,126 @@
+﻿{
+  "candidate": {
+    "id": "candidate_966ab016",
+    "basic_info": {
+      "name": "勾勾",
+      "email": "gougoubaobao030@gmail.com",
+      "phone": "+86-139-5824-8237",
+      "location": null
+    },
+    "education": [
+      {
+        "school": "宁波大学",
+        "degree": "学士学位",
+        "major": "会计学",
+        "start_date": "2010/09",
+        "end_date": "2014/06"
+      },
+      {
+        "school": "日本留学经历",
+        "degree": null,
+        "major": "游戏开发相关学习",
+        "start_date": "2024/09",
+        "end_date": "2025/10"
+      }
+    ],
+    "work_experience": [
+      {
+        "company": "个人开发工作室",
+        "position": "软件开发",
+        "start_date": "2022",
+        "end_date": "2023",
+        "description": "使用C#/Winform/.Net/C++/Qt开发人员管理系统，实现登录、CRUD、权限管理、Socket通信、ORM和数据库设计。"
+      }
+    ],
+    "projects": [
+      {
+        "name": "智能简历筛选Agent",
+        "description": "使用Python、FastAPI、Pydantic、DeepSeek与Vue开发AI招聘应用。从需求、Schema、Prompt、后端API到前端展示进行开发。实现JD解析、简历解析、岗位匹配、批量处理及人才能力发现等模块。",
+        "technologies": [
+          "Python",
+          "FastAPI",
+          "Pydantic",
+          "DeepSeek",
+          "Vue3"
+        ],
+        "achievements": [
+          "使用Pydantic约束LLM结构化输出",
+          "设计must_have、candidate_evidence、need_raw_evidence、missing_information等结构",
+          "实现10-30份简历批量解析，单份失败不影响整体",
+          "完成FastAPI与Vue3前后端联调"
+        ]
+      },
+      {
+        "name": "Unity3D RPG Demo",
+        "description": "个人从0到1独立开发多模块Unity3D RPG Demo，实现技能、敌人AI、主角状态机、商店、背包、任务、对话等系统，并开发DevToolBox模块化调试工具。",
+        "technologies": [
+          "C#",
+          "Unity3D"
+        ],
+        "achievements": [
+          "实现多个核心与业务模块",
+          "使用对象池和OverlapSphereNonAlloc进行性能优化",
+          "开发DevToolBox模块化调试工具"
+        ]
+      }
+    ],
+    "skills": [
+      "Python",
+      "FastAPI",
+      "Pydantic",
+      "C#",
+      "C++",
+      "Vue3",
+      "Unity3D"
+    ],
+    "languages": [
+      "日语",
+      "英语"
+    ],
+    "achievements": [
+      "LeetCode通过262题"
+    ],
+    "certifications": [
+      "日语N1证书(2017/12)",
+      "商务日语结业证书(2025/06)",
+      "英语四级(2012)"
+    ],
+    "candidate_evidence": [
+      {
+        "text": "从需求、Schema、Prompt、后端API到前端展示进行开发。",
+        "source_type": "projects",
+        "source_index": 0
+      },
+      {
+        "text": "设计LLM结果约束与证据机制，通过Schema和证据字段提升结果可解释性与可复核性。",
+        "source_type": "projects",
+        "source_index": 0
+      },
+      {
+        "text": "个人从0到1独立开发多模块Unity3D RPG Demo。",
+        "source_type": "projects",
+        "source_index": 1
+      },
+      {
+        "text": "从会计商务领域转向软件开发，再进入AI应用开发；自学C#/Unity、C++、Python/FastAPI，LeetCode通过262题。",
+        "source_type": "custom",
+        "source_index": 0
+      },
+      {
+        "text": "具有日本留学经历及日语能力。",
+        "source_type": "education",
+        "source_index": 1
+      }
+    ],
+    "custom_attributes": {},
+    "raw_text": "",
+    "extraction_metadata": {}
+  },
+  "mode": "specified",
+  "desired_traits": [
+    "认真",
+    "负责",
+    "细致"
+  ]
+}
+

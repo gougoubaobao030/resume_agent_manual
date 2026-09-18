@@ -7,6 +7,10 @@ from schemas.jd import JDInfo
 from schemas.resume import Candidate
 from schemas.scoring import LLMJobMatchResult
 
+import hashlib
+import logging
+import os
+
 from clients.llm_client import LLMClient
 from prompts.scoring_prompt import (
     JOB_MATCH_SYSTEM_PROMPT,
@@ -17,13 +21,115 @@ from schemas.resume import Candidate
 #from schemas.scoring import LLMJobMatchResult
 from schemas.scoring import (
     JobMatchResult,
+    LLMMatchEvidence,
     LLMJobMatchResult,
+    LLMRequirementMatch,
     MatchEvidence,
+    MatchConfidence,
     MatchStatus,
     MustHaveSummary,
     RawReviewRequest,
     RequirementMatchResult,
 )
+
+logger = logging.getLogger("uvicorn.error")
+
+
+def _is_scoring_mock_enabled() -> bool:
+    """判断是否启用岗位匹配评分 Mock。"""
+
+    return os.getenv(
+        "SCORING_USE_MOCK",
+        "false",
+    ).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _build_mock_evidence(candidate: Candidate) -> LLMMatchEvidence:
+    """从本次请求的 Candidate 中选择一条最小合法 Mock 证据。"""
+
+    source_file = (
+        candidate.extraction_metadata.source_file
+        if candidate.extraction_metadata
+        else None
+    )
+    if source_file:
+        return LLMMatchEvidence(
+            text=f"Mock评分输入来源文件：{source_file}",
+            source_type="extraction_metadata",
+        )
+
+    if candidate.basic_info and candidate.basic_info.name:
+        return LLMMatchEvidence(
+            text=f"Mock评分输入候选人：{candidate.basic_info.name}",
+            source_type="basic_info",
+        )
+
+    if candidate.skills:
+        return LLMMatchEvidence(
+            text=f"Mock评分输入技能：{candidate.skills[0]}",
+            source_type="skills",
+            source_index=0,
+        )
+
+    return LLMMatchEvidence(
+        text=f"Mock评分输入 Candidate ID：{candidate.id or '未提供'}",
+        source_type="candidate",
+    )
+
+
+def _build_mock_llm_job_match_result(
+    jd: JDInfo,
+    candidate: Candidate,
+) -> LLMJobMatchResult:
+    """根据实际 JD requirements 构造正式 LLM 评分结果模型。"""
+
+    evidence = _build_mock_evidence(candidate)
+    requirement_matches: list[LLMRequirementMatch] = []
+
+    for requirement in jd.requirements:
+        stable_key = f"{candidate.id}|{requirement.id}".encode("utf-8")
+        score = float(78 + hashlib.sha256(stable_key).digest()[0] % 13)
+        status = (
+            MatchStatus.MATCHED
+            if score >= 84
+            else MatchStatus.PARTIALLY_MATCHED
+        )
+        confidence = (
+            MatchConfidence.HIGH
+            if status == MatchStatus.MATCHED
+            else MatchConfidence.MEDIUM
+        )
+
+        requirement_matches.append(
+            LLMRequirementMatch(
+                requirement_id=requirement.id,
+                status=status,
+                score=score,
+                confidence=confidence,
+                reason=(
+                    "Mock scoring result for async learning: "
+                    f"{requirement.name}"
+                ),
+                evidence=[evidence.model_copy(deep=True)],
+                missing_information=[],
+                needs_raw_review=False,
+                raw_review_reason=None,
+            )
+        )
+
+    return LLMJobMatchResult(
+        requirement_matches=requirement_matches,
+        overall_confidence=MatchConfidence.MEDIUM,
+        summary="Mock岗位匹配结果，用于无真实LLM成本的异步学习。",
+        missing_information=[],
+        needs_raw_review=False,
+        raw_review_requirement_ids=[],
+    )
 
 
 def _build_job_match_prompt(
@@ -89,6 +195,25 @@ def evaluate_job_match_with_llm(
     candidate: Candidate,
 ) -> LLMJobMatchResult:
     """使用LLM对结构化JD和结构化候选人进行岗位匹配判断。"""
+
+    if _is_scoring_mock_enabled():
+        logger.info(
+            "[Scoring Mock] candidate=%s job=%s",
+            candidate.id,
+            jd.id,
+        )
+
+        result = _build_mock_llm_job_match_result(
+            jd=jd,
+            candidate=candidate,
+        )
+
+        _validate_requirement_coverage(
+            jd=jd,
+            llm_result=result,
+        )
+
+        return result
 
     user_prompt = _build_job_match_prompt(
         jd=jd,

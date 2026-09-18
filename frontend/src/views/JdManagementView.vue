@@ -4,6 +4,32 @@ import { computed, ref } from 'vue'
 import { getFriendlyApiError, parseJd, saveJd } from '../services/api'
 import { session, setCurrentJob } from '../state/session'
 
+const DEFAULT_SAMPLE_JD = `职位名称：AI应用开发工程师
+
+岗位职责：
+
+1. 负责基于大语言模型的 AI 应用开发，包括 RAG、智能问答、Agent 等功能。
+2. 使用 Python 开发后端服务及 REST API，并参与接口设计与维护。
+3. 根据业务需求进行 Prompt 设计、模型调用及效果优化。
+4. 参与企业内部知识库、文档检索等 AI 功能的开发。
+5. 与产品及业务人员沟通，持续优化 AI 应用的实际使用效果。
+
+任职要求：
+
+1. 必须熟练掌握 Python，能够独立完成后端功能开发。
+2. 必须具备本科及以上学历。
+3. 熟悉 FastAPI、Flask 等 Python Web 框架，有实际项目经验者优先。
+4. 了解大语言模型、Embedding、向量数据库和 RAG 基本原理。
+5. 有 LangChain、LangGraph 或其他 Agent 开发经验者优先。
+6. 有企业知识库、智能问答或简历筛选类 AI 项目经验者加分。
+7. 具备良好的学习能力、问题分析能力和沟通能力。
+
+加分项：
+
+- 有日语能力，达到 JLPT N1 或能够进行日常工作沟通。
+- 有独立完成 AI 项目从需求分析到实现的经验。
+- 对 AI 产品落地和实际业务价值有较强兴趣。`
+
 const categoryOptions = [
   { value: 'technical', label: '技术能力' },
   { value: 'experience', label: '工作经验' },
@@ -45,13 +71,7 @@ const isBusy = computed(
 )
 
 async function handleParse() {
-  const cleanedText = rawText.value.trim()
-
-  if (!cleanedText) {
-    parseStatus.value = 'error'
-    parseMessage.value = '请先输入岗位说明。'
-    return
-  }
+  const cleanedText = rawText.value.trim() || DEFAULT_SAMPLE_JD
 
   if (cleanedText.length < 10) {
     parseStatus.value = 'error'
@@ -195,8 +215,8 @@ async function handleSave() {
         <textarea
           id="jd-text"
           v-model="rawText"
-          rows="15"
-          placeholder="请粘贴完整的岗位职责、任职要求和加分条件……"
+          rows="26"
+          :placeholder="DEFAULT_SAMPLE_JD"
           :disabled="isBusy"
         ></textarea>
 
@@ -341,3 +361,10 @@ async function handleSave() {
     </div>
   </section>
 </template>
+
+<style scoped>
+#jd-text::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+</style>

@@ -90,27 +90,23 @@ mock_result = jd_service.parse_jd(
 )
 
 assert mock_result.job.job_title == "AI应用开发工程师"
-assert [
-    item.model_dump(
-        exclude={"id"}
+mock_requirements = mock_result.job.requirements
+assert len(mock_requirements) == 10
+assert all(item.weight == 10 for item in mock_requirements)
+assert {item.name for item in mock_requirements if item.must_have} == {
+    "Python 后端开发",
+    "本科及以上学历",
+}
+assert next(item for item in mock_requirements if item.name == "本科及以上学历").category == JDCategory.EDUCATION
+assert all(
+    term in " ".join(item.name + item.description for item in mock_requirements)
+    for term in (
+        "FastAPI", "Flask", "Embedding", "向量数据库", "RAG",
+        "LangChain", "LangGraph", "Agent", "企业知识库", "智能问答",
+        "简历筛选", "JLPT N1", "需求分析", "学习能力", "问题分析能力",
+        "沟通能力", "AI 产品落地", "业务价值",
     )
-    for item in mock_result.job.requirements
-] == [
-    {
-        "name": "Python",
-        "description": "必须熟悉Python开发",
-        "category": JDCategory.TECHNICAL,
-        "weight": 10.0,
-        "must_have": True,
-    },
-    {
-        "name": "RAG",
-        "description": "有RAG项目经验",
-        "category": JDCategory.TECHNICAL,
-        "weight": 10.0,
-        "must_have": False,
-    },
-]
+)
 
 print("JD mock 模式测试通过")
 

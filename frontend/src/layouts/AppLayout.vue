@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 const route = useRoute()
 const mobileNavigationOpen = ref(false)
+const isCollapsed = ref(false)
 
 const navigation = [
   { name: 'dashboard', label: 'Dashboard', shortLabel: '首页', mark: 'D', to: '/' },
@@ -23,15 +24,26 @@ function closeNavigation() {
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'app-shell--collapsed': isCollapsed }">
     <aside class="sidebar" :class="{ 'sidebar--open': mobileNavigationOpen }">
       <div class="brand">
         <div class="brand__mark">RA</div>
-        <div>
+        <div class="brand__text">
           <strong>Resume Agent</strong>
           <span>採用分析ワークスペース</span>
         </div>
       </div>
+
+      <button
+        class="sidebar__toggle"
+        type="button"
+        :aria-label="isCollapsed ? '展开导航栏' : '折叠导航栏'"
+        :aria-expanded="!isCollapsed"
+        @click="isCollapsed = !isCollapsed"
+      >
+        <span aria-hidden="true">{{ isCollapsed ? '»' : '«' }}</span>
+        <span class="sidebar__toggle-label">{{ isCollapsed ? '展开导航' : '收起导航' }}</span>
+      </button>
 
       <nav class="primary-nav" aria-label="主要导航">
         <RouterLink
@@ -39,10 +51,12 @@ function closeNavigation() {
           :key="item.name"
           :to="item.to"
           class="primary-nav__item"
+          :aria-label="item.label"
+          :title="item.label"
           @click="closeNavigation"
         >
           <span class="primary-nav__mark" aria-hidden="true">{{ item.mark }}</span>
-          <span>{{ item.label }}</span>
+          <span class="primary-nav__label">{{ item.label }}</span>
         </RouterLink>
       </nav>
 

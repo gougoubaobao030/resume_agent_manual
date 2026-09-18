@@ -1,0 +1,234 @@
+﻿{
+  "candidate_id": "candidate_966ab016",
+  "mode": "specified",
+  "attention_level": null,
+  "specified_fit_level": "medium_high",
+  "summary": "候选人资料显示其具备较强的独立开发、全栈实现和细节处理证据，对HR指定的“认真”“细致”有中等偏高支持，对“负责”有中等支持；但多数证据来自个人项目，缺少团队交付、生产环境和长期维护等现实验证。",
+  "abilities": [
+    {
+      "ability_name": "独立开发与全栈实现能力",
+      "level": "high",
+      "reason": "候选人在工作经历和个人项目中多次独立承担从需求、数据库、后端到前端或游戏模块的实现工作，覆盖管理软件、AI招聘应用和Unity3D RPG Demo，能够看到较具体的模块成果和独立贡献；但缺少外部生产环境验证与团队协作反馈，因此虽有多项目事实支持，仍应保留一定保守性。",
+      "evidence": [
+        {
+          "text": "使用C#/Winform/.Net/C++/Qt开发人员管理系统，实现登录、CRUD、权限管理、Socket通信、ORM和数据库设计。",
+          "source_type": "work_experience",
+          "source_index": 0
+        },
+        {
+          "text": "使用Python、FastAPI、Pydantic、DeepSeek与Vue开发AI招聘应用。从需求、Schema、Prompt、后端API到前端展示进行开发。",
+          "source_type": "projects",
+          "source_index": 0
+        },
+        {
+          "text": "个人从0到1独立开发多模块Unity3D RPG Demo，实现技能、敌人AI、主角状态机、商店、背包、任务、对话等系统，并开发DevToolBox模块化调试工具。",
+          "source_type": "projects",
+          "source_index": 1
+        }
+      ]
+    },
+    {
+      "ability_name": "学习落地与技能迁移能力",
+      "level": "medium_high",
+      "reason": "候选人从会计学背景转向游戏开发相关学习，并在不同项目中实际使用C#、C++、Python、FastAPI、Pydantic、Vue3、Unity3D等技术完成可运行模块，说明其能为实际任务学习陌生技术并转化为项目产出；但资料未说明学习路径、遇到的具体困难和克服过程，因此判断强度为中等偏高。",
+      "evidence": [
+        {
+          "text": "宁波大学会计学学士学位。",
+          "source_type": "education",
+          "source_index": 0
+        },
+        {
+          "text": "日本留学经历，游戏开发相关学习。",
+          "source_type": "education",
+          "source_index": 1
+        },
+        {
+          "text": "使用C#/Winform/.Net/C++/Qt开发人员管理系统，实现登录、CRUD、权限管理、Socket通信、ORM和数据库设计。",
+          "source_type": "work_experience",
+          "source_index": 0
+        },
+        {
+          "text": "使用Python、FastAPI、Pydantic、DeepSeek与Vue开发AI招聘应用。",
+          "source_type": "projects",
+          "source_index": 0
+        }
+      ]
+    },
+    {
+      "ability_name": "复杂任务拆解与模块化设计能力",
+      "level": "medium_high",
+      "reason": "候选人在Unity3D RPG Demo中拆出技能、敌人AI、主角状态机、商店、背包、任务、对话等多个系统，并开发DevToolBox模块化调试工具；在AI招聘应用中也划分出JD解析、简历解析、岗位匹配、批量处理及人才能力发现等模块，并设计结构化字段。这些事实能支持其面对复杂功能时进行模块拆分和结构设计，但缺少对架构权衡、扩展性或重构过程的说明。",
+      "evidence": [
+        {
+          "text": "个人从0到1独立开发多模块Unity3D RPG Demo，实现技能、敌人AI、主角状态机、商店、背包、任务、对话等系统，并开发DevToolBox模块化调试工具。",
+          "source_type": "projects",
+          "source_index": 1
+        },
+        {
+          "text": "实现JD解析、简历解析、岗位匹配、批量处理及人才能力发现等模块。",
+          "source_type": "projects",
+          "source_index": 0
+        },
+        {
+          "text": "设计must_have、candidate_evidence、need_raw_evidence、missing_information等结构。",
+          "source_type": "projects",
+          "source_index": 0
+        }
+      ]
+    },
+    {
+      "ability_name": "工程健壮性与性能优化意识",
+      "level": "medium_high",
+      "reason": "资料显示候选人使用Pydantic约束LLM结构化输出，在批量解析中实现单份失败不影响整体，并在Unity项目中使用对象池和OverlapSphereNonAlloc进行性能优化。这些事实表明其在开发中会考虑输出稳定性、故障隔离和运行效率；但未提供测试、监控或优化前后对比等更完整的验证证据。",
+      "evidence": [
+        {
+          "text": "使用Pydantic约束LLM结构化输出。",
+          "source_type": "projects",
+          "source_index": 0
+        },
+        {
+          "text": "实现10-30份简历批量解析，单份失败不影响整体。",
+          "source_type": "projects",
+          "source_index": 0
+        },
+        {
+          "text": "使用对象池和OverlapSphereNonAlloc进行性能优化。",
+          "source_type": "projects",
+          "source_index": 1
+        }
+      ]
+    },
+    {
+      "ability_name": "跨领域复合能力",
+      "level": "medium_high",
+      "reason": "候选人具备会计学本科背景、日语N1与商务日语证书，并有日本游戏开发相关学习经历，同时在管理软件、AI应用和Unity游戏Demo中实际使用多种技术栈。这些事实共同支持其在财会、语言、游戏开发、应用开发等不同领域之间迁移和复合；但各领域深度和实际职业化程度仍缺少更多过程与结果说明。",
+      "evidence": [
+        {
+          "text": "会计学学士学位。",
+          "source_type": "education",
+          "source_index": 0
+        },
+        {
+          "text": "日本留学经历，游戏开发相关学习。",
+          "source_type": "education",
+          "source_index": 1
+        },
+        {
+          "text": "日语N1证书(2017/12)。",
+          "source_type": "certifications",
+          "source_index": 0
+        },
+        {
+          "text": "商务日语结业证书(2025/06)。",
+          "source_type": "certifications",
+          "source_index": 1
+        }
+      ]
+    },
+    {
+      "ability_name": "持续算法练习与基础训练",
+      "level": "medium",
+      "reason": "候选人LeetCode通过262题，说明其有持续进行算法练习的事实，可能反映一定的问题拆解和编码训练；但资料未说明题目难度分布、练习持续时间、是否将算法能力应用于实际项目，因此当前只能作为中等强度的辅助证据。",
+      "evidence": [
+        {
+          "text": "LeetCode通过262题。",
+          "source_type": "achievements",
+          "source_index": 0
+        }
+      ]
+    }
+  ],
+  "specified_traits": [
+    {
+      "trait": "认真",
+      "fit_level": "medium_high",
+      "reason": "资料显示候选人能够从0到1独立完成多个开发项目，并持续进行LeetCode练习，这些行为需要持续投入和自我要求；但缺少在团队或生产环境中长期稳定表现、质量检查或他人评价等直接事实，因此支持程度为中等偏高而非高。",
+      "evidence": [
+        {
+          "text": "个人从0到1独立开发多模块Unity3D RPG Demo，实现技能、敌人AI、主角状态机、商店、背包、任务、对话等系统，并开发DevToolBox模块化调试工具。",
+          "source_type": "projects",
+          "source_index": 1
+        },
+        {
+          "text": "使用Python、FastAPI、Pydantic、DeepSeek与Vue开发AI招聘应用。从需求、Schema、Prompt、后端API到前端展示进行开发。",
+          "source_type": "projects",
+          "source_index": 0
+        },
+        {
+          "text": "LeetCode通过262题。",
+          "source_type": "achievements",
+          "source_index": 0
+        }
+      ],
+      "missing_information": [
+        "缺少在团队协作或受监督工作环境中持续认真投入的具体事实",
+        "缺少对任务质量标准的自我要求、检查过程或复盘记录",
+        "缺少他人对其工作态度或投入程度的评价"
+      ]
+    },
+    {
+      "trait": "负责",
+      "fit_level": "medium",
+      "reason": "资料显示候选人独立承担了从需求到实现/联调的多环节开发，并在批量解析中考虑单份失败不影响整体，体现了一定的责任意识；但这些主要发生在个人项目中，缺少对团队交付、生产事故、客户承诺或长期维护责任的直接证据，因此当前支持程度为中等。",
+      "evidence": [
+        {
+          "text": "从需求、Schema、Prompt、后端API到前端展示进行开发。",
+          "source_type": "projects",
+          "source_index": 0
+        },
+        {
+          "text": "实现10-30份简历批量解析，单份失败不影响整体。",
+          "source_type": "projects",
+          "source_index": 0
+        },
+        {
+          "text": "个人从0到1独立开发多模块Unity3D RPG Demo，实现技能、敌人AI、主角状态机、商店、背包、任务、对话等系统，并开发DevToolBox模块化调试工具。",
+          "source_type": "projects",
+          "source_index": 1
+        }
+      ],
+      "missing_information": [
+        "缺少对团队交付、项目deadline或生产环境稳定运行负责的事实",
+        "缺少故障处理、线上问题响应、客户沟通或长期维护责任的具体记录",
+        "缺少他人对其可靠性和责任承担的评价"
+      ]
+    },
+    {
+      "trait": "细致",
+      "fit_level": "medium_high",
+      "reason": "资料中有多项指向细节处理的事实：使用Pydantic约束LLM结构化输出，设计must_have、candidate_evidence、need_raw_evidence、missing_information等结构，批量解析时隔离单份失败，以及使用对象池和OverlapSphereNonAlloc进行性能优化；这些行为需要关注数据结构、边界情况和运行效率。但缺少测试覆盖、代码审查、缺陷追踪等更直接的细致证据，因此为中等偏高。",
+      "evidence": [
+        {
+          "text": "使用Pydantic约束LLM结构化输出。",
+          "source_type": "projects",
+          "source_index": 0
+        },
+        {
+          "text": "设计must_have、candidate_evidence、need_raw_evidence、missing_information等结构。",
+          "source_type": "projects",
+          "source_index": 0
+        },
+        {
+          "text": "实现10-30份简历批量解析，单份失败不影响整体。",
+          "source_type": "projects",
+          "source_index": 0
+        },
+        {
+          "text": "使用对象池和OverlapSphereNonAlloc进行性能优化。",
+          "source_type": "projects",
+          "source_index": 1
+        }
+      ],
+      "missing_information": [
+        "缺少单元测试、集成测试、测试覆盖率或缺陷追踪的具体证据",
+        "缺少代码审查、文档编写、命名规范或长期维护中体现细致的事实",
+        "缺少在复杂生产问题中排查细节错误并解决的记录"
+      ],
+      "notion": [
+        "specified_fit_level 有没有返回specified_traits 是否正好有：认真负责细致有没有漏有没有重复有没有多出HR没指定的traitabilities 是否仍然保留AI自己发现的能力attention_level 是否为 null"
+      ]
+    }
+  ],
+  "warnings": []
+  
+}

@@ -60,6 +60,20 @@ export function parseResumeBatch(files) {
   })
 }
 
+export function createResumeTask(files) {
+  const formData = new FormData()
+  files.forEach((file) => formData.append('files', file))
+
+  return request('/api/resume/tasks', {
+    method: 'POST',
+    body: formData,
+  })
+}
+
+export function getResumeTask(taskId) {
+  return request(`/api/resume/tasks/${encodeURIComponent(taskId)}`)
+}
+
 export function scoreJobMatch(jobId, candidate) {
   return request('/api/scoring/job-match', {
     method: 'POST',

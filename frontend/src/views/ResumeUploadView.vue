@@ -1,15 +1,19 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 
 import {
   getFriendlyApiError,
   getFriendlyResumeItemError,
-  parseResumeBatch,
+  createResumeTask,
+  getResumeTask,
   scoreJobMatch,
 } from '../services/api'
 import {
   session,
+  addCandidate,
+  clearResumeTask,
   setCandidates,
+  setResumeTask,
   setJobMatchError,
   setJobMatchLoading,
   setJobMatchResult,
@@ -19,16 +23,41 @@ const fileInput = ref(null)
 const selectedFiles = ref([])
 const uploadStatus = ref('idle')
 const uploadMessage = ref('')
-const batchResult = ref(null)
+const POLL_INTERVAL_MS = 800
+const terminalTaskStatuses = new Set(['completed', 'completed_with_errors', 'failed'])
+let pollingStopped = false
+let activeJobId = null
 
 const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
 const isParsing = computed(() => uploadStatus.value === 'loading')
 const canSubmit = computed(
   () => hasCurrentJob.value && selectedFiles.value.length > 0 && !isParsing.value,
 )
-const failedResults = computed(() =>
-  (batchResult.value?.results ?? []).filter((item) => !item.success),
-)
+const taskItems = computed(() => session.resumeTaskItems)
+const taskCounts = computed(() => {
+  const counts = { completed: 0, success: 0, failed: 0, running: 0, pending: 0 }
+  taskItems.value.forEach((item) => {
+    if (item.status in counts) counts[item.status] += 1
+    if (item.status === 'success' || item.status === 'failed') counts.completed += 1
+  })
+  return counts
+})
+const failedResults = computed(() => taskItems.value.filter((item) => item.status === 'failed'))
+
+const itemStatusDisplay = {
+  pending: { label: '等待中', className: 'status-badge--neutral' },
+  running: { label: '解析中', className: 'status-badge--loading' },
+  success: { label: '解析成功', className: 'status-badge--success' },
+  failed: { label: '解析失败', className: 'status-badge--error' },
+}
+
+function itemStatus(item) {
+  return itemStatusDisplay[item.status] ?? itemStatusDisplay.pending
+}
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
+}
 
 function formatFileSize(bytes) {
   if (bytes < 1024 * 1024) {
@@ -60,7 +89,7 @@ function acceptFiles(fileList) {
   selectedFiles.value = files
   uploadStatus.value = 'idle'
   uploadMessage.value = ''
-  batchResult.value = null
+  clearResumeTask()
 }
 
 function handleFileInput(event) {
@@ -77,7 +106,68 @@ function removeFile(index) {
   selectedFiles.value.splice(index, 1)
   uploadStatus.value = 'idle'
   uploadMessage.value = ''
-  batchResult.value = null
+  clearResumeTask()
+}
+
+async function startCandidateScoring(candidate) {
+  if (!candidate.id || !activeJobId || session.jobMatchStatuses[candidate.id]) return
+
+  // loading 在请求前写入；后续轮询再次看到同一 candidate 时不会重复评分。
+  setJobMatchLoading(candidate.id)
+  try {
+    const matchResult = await scoreJobMatch(activeJobId, candidate)
+    setJobMatchResult(candidate.id, matchResult)
+  } catch (error) {
+    setJobMatchError(candidate.id, getFriendlyApiError(error, '岗位匹配评分'))
+  }
+}
+
+function applyTaskSnapshot(task) {
+  setResumeTask(task)
+
+  for (const item of task.items ?? []) {
+    if (item.status !== 'success' || !item.candidate) continue
+
+    // success 会在每次轮询重复出现；只有第一次加入 session 才启动评分。
+    if (addCandidate(item.candidate)) {
+      void startCandidateScoring(item.candidate)
+    }
+  }
+}
+
+function finishTask(task) {
+  const successCount = taskCounts.value.success
+  const failedCount = taskCounts.value.failed
+  uploadStatus.value = task.status === 'failed' || failedCount ? 'error' : 'success'
+  uploadMessage.value = task.status === 'failed'
+    ? `批量解析任务失败：${task.error || '后端未返回具体原因。'}`
+    : `简历解析完成：${successCount} 份成功，${failedCount} 份失败。成功候选人的岗位评分已分别启动。`
+}
+
+async function pollResumeTask(taskId) {
+  // 每次 GET 完成后才 sleep 并发起下一次，避免 setInterval 造成请求重叠。
+  while (!pollingStopped) {
+    let task
+    try {
+      task = await getResumeTask(taskId)
+    } catch (error) {
+      if (pollingStopped) return
+      uploadStatus.value = 'error'
+      uploadMessage.value = `${getFriendlyApiError(error, '任务状态查询')} 后台任务可能仍在运行。`
+      return
+    }
+
+    if (pollingStopped) return
+    applyTaskSnapshot(task)
+
+    // 批次到达后端定义的终态后必须退出，否则会永久轮询。
+    if (terminalTaskStatuses.has(task.status)) {
+      finishTask(task)
+      return
+    }
+
+    await sleep(POLL_INTERVAL_MS)
+  }
 }
 
 async function handleParse() {
@@ -95,49 +185,26 @@ async function handleParse() {
 
   uploadStatus.value = 'loading'
   uploadMessage.value = `正在解析 ${selectedFiles.value.length} 份简历，请保持页面打开……`
-  batchResult.value = null
+  clearResumeTask()
+  setCandidates([])
+  activeJobId = session.currentJob.id
+  pollingStopped = false
 
   try {
-    const result = await parseResumeBatch(selectedFiles.value)
-    const results = Array.isArray(result.results) ? result.results : []
-    const candidates = results
-      .filter((item) => item.success && item.candidate)
-      .map((item) => item.candidate)
-
-    results
-      .filter((item) => !item.success)
-      .forEach((item) => console.error(`Resume parse failed: ${item.filename}`, item.error))
-
-    setCandidates(candidates)
-    batchResult.value = result
-    uploadMessage.value = `简历解析完成，正在计算 ${candidates.length} 位候选人的岗位匹配结果……`
-
-    const scoringTasks = candidates.map(async (candidate) => {
-      if (!candidate.id) return false
-
-      setJobMatchLoading(candidate.id)
-      try {
-        const matchResult = await scoreJobMatch(session.currentJob.id, candidate)
-        setJobMatchResult(candidate.id, matchResult)
-        return true
-      } catch (error) {
-        setJobMatchError(candidate.id, getFriendlyApiError(error, '岗位匹配评分'))
-        return false
-      }
-    })
-    const scoringResults = await Promise.all(scoringTasks)
-    const scoredCount = scoringResults.filter(Boolean).length
-    const scoringFailedCount = candidates.length - scoredCount
-
-    uploadStatus.value = scoringFailedCount ? 'error' : 'success'
-    uploadMessage.value = scoringFailedCount
-      ? `简历解析完成；岗位匹配 ${scoredCount} 人成功，${scoringFailedCount} 人失败。可在候选人列表查看。`
-      : `解析与岗位匹配完成：${scoredCount} 位候选人已生成真实评分结果。`
+    const task = await createResumeTask(selectedFiles.value)
+    applyTaskSnapshot(task)
+    uploadMessage.value = `任务已创建，正在解析 ${task.total} 份简历……`
+    await pollResumeTask(task.task_id)
   } catch (error) {
     uploadStatus.value = 'error'
-    uploadMessage.value = getFriendlyApiError(error, '简历批量解析')
+    uploadMessage.value = getFriendlyApiError(error, '创建简历解析任务')
   }
 }
+
+onUnmounted(() => {
+  // 页面离开后停止下一次 GET；后台任务仍由 FastAPI 继续执行。
+  pollingStopped = true
+})
 </script>
 
 <template>
@@ -203,17 +270,32 @@ async function handleParse() {
         <span>{{ uploadMessage }}</span>
       </div>
 
-      <div v-if="batchResult" class="batch-result">
-        <div class="batch-summary">
-          <div><span>处理总数</span><strong>{{ batchResult.total }}</strong></div>
-          <div><span>解析成功</span><strong>{{ batchResult.success_count }}</strong></div>
-          <div><span>解析失败</span><strong>{{ batchResult.failed_count }}</strong></div>
+      <div v-if="session.resumeTaskId" class="batch-result">
+        <div class="batch-summary task-summary">
+          <div><span>已完成</span><strong>{{ taskCounts.completed }} / {{ taskItems.length }}</strong></div>
+          <div><span>解析成功</span><strong>{{ taskCounts.success }}</strong></div>
+          <div><span>解析失败</span><strong>{{ taskCounts.failed }}</strong></div>
+          <div><span>处理中</span><strong>{{ taskCounts.running }}</strong></div>
+          <div><span>等待中</span><strong>{{ taskCounts.pending }}</strong></div>
+        </div>
+
+        <div class="task-files">
+          <div v-for="item in taskItems" :key="item.item_id" class="task-file-row">
+            <div>
+              <strong>{{ item.filename }}</strong>
+              <small v-if="item.status === 'failed'">{{ getFriendlyResumeItemError(item.error) }}</small>
+              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'loading'">岗位评分中…</small>
+              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'error'">岗位评分失败</small>
+              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'success'">岗位评分完成</small>
+            </div>
+            <span class="status-badge" :class="itemStatus(item).className">{{ itemStatus(item).label }}</span>
+          </div>
         </div>
 
         <div v-if="failedResults.length" class="failed-files">
           <h3>未能解析的文件</h3>
           <ul>
-            <li v-for="item in failedResults" :key="item.filename">
+            <li v-for="item in failedResults" :key="item.item_id">
               <strong>{{ item.filename }}</strong>
               <span>{{ getFriendlyResumeItemError(item.error) }}</span>
             </li>

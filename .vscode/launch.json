@@ -20,6 +20,13 @@
             "request": "launch",
             "program": "${workspaceFolder}/frontend/app.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Frontend Vue",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "npm run dev",
+            "cwd": "${workspaceFolder}/frontend"
         }
     ],
     "compounds": [
@@ -28,6 +35,14 @@
             "configurations": [
                 "Frontend Gradio",
                 "Backend FastAPI"
+            ],
+            "stopAll": true
+        },
+        {
+            "name": "Start FastAPI + Vue",
+            "configurations": [
+                "Backend FastAPI",
+                "Frontend Vue"
             ],
             "stopAll": true
         }

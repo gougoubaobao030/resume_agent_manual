@@ -1,6 +1,7 @@
 ﻿from typing import List, Optional
 
 from pydantic import BaseModel, Field
+from typing import Literal
 
 #定义candidate字段的二级基本字段
 class BasicInfo(BaseModel):
@@ -202,3 +203,24 @@ class ResumeBatchParseResponse(BaseModel):
     results: List[ResumeParseItemResult] = Field(
         default_factory=list
     )
+
+
+class ResumeTaskItem(BaseModel):
+    item_id: str
+    filename: str
+    status: Literal["pending", "running", "success", "failed"] = "pending"
+    candidate: Optional[Candidate] = None
+    error: Optional[str] = None
+
+
+class ResumeTaskResponse(BaseModel):
+    task_id: str
+    status: Literal[
+        "pending", "running", "completed", "completed_with_errors", "failed"
+    ] = "pending"
+    total: int
+    success_count: int = 0
+    failed_count: int = 0
+    items: List[ResumeTaskItem] = Field(default_factory=list)
+    # 单项错误放在 item.error；这里仅说明批次 runner 自身的失败。
+    error: Optional[str] = None
