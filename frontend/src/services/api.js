@@ -84,6 +84,13 @@ export function scoreJobMatch(jobId, candidate) {
   })
 }
 
+export function discoverTalent(candidate, mode = 'auto', desiredTraits = []) {
+  return request('/api/talent/discover', {
+    method: 'POST',
+    body: JSON.stringify({ candidate, mode, desired_traits: mode === 'specified' ? desiredTraits : [] }),
+  })
+}
+
 export function getFriendlyResumeItemError(detail) {
   if (typeof detail !== 'string' || !detail.trim()) {
     return '解析失败，后端未返回具体原因。'

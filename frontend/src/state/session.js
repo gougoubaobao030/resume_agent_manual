@@ -6,6 +6,13 @@ export const session = reactive({
   jobMatches: {},
   jobMatchStatuses: {},
   jobMatchErrors: {},
+  talentResults: {},
+  talentStatuses: {},
+  talentErrors: {},
+  talentTiming: 'selected',
+  talentMode: 'auto',
+  desiredTraits: [],
+  selectedTalentCandidateIds: [],
   resumeTaskId: null,
   resumeTaskStatus: null,
   resumeTaskItems: [],
@@ -19,6 +26,10 @@ export function setCurrentJob(job) {
     session.jobMatches = {}
     session.jobMatchStatuses = {}
     session.jobMatchErrors = {}
+    session.talentResults = {}
+    session.talentStatuses = {}
+    session.talentErrors = {}
+    session.selectedTalentCandidateIds = []
   }
 }
 
@@ -27,6 +38,10 @@ export function setCandidates(candidates) {
   session.jobMatches = {}
   session.jobMatchStatuses = {}
   session.jobMatchErrors = {}
+  session.talentResults = {}
+  session.talentStatuses = {}
+  session.talentErrors = {}
+  session.selectedTalentCandidateIds = []
 }
 
 export function clearResumeTask() {
@@ -69,4 +84,21 @@ export function setJobMatchResult(candidateId, result) {
 export function setJobMatchError(candidateId, message) {
   session.jobMatchStatuses[candidateId] = 'error'
   session.jobMatchErrors[candidateId] = message
+}
+
+export function setTalentLoading(candidateId) {
+  delete session.talentResults[candidateId]
+  session.talentStatuses[candidateId] = 'loading'
+  delete session.talentErrors[candidateId]
+}
+
+export function setTalentResult(candidateId, result) {
+  session.talentResults[candidateId] = structuredClone(result)
+  session.talentStatuses[candidateId] = 'success'
+  delete session.talentErrors[candidateId]
+}
+
+export function setTalentError(candidateId, message) {
+  session.talentStatuses[candidateId] = 'error'
+  session.talentErrors[candidateId] = message
 }

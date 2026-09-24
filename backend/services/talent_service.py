@@ -18,6 +18,98 @@ from prompts.talent_prompt import (
 
 from clients.llm_client import LLMClient
 
+import hashlib
+import os
+
+
+def _is_talent_mock_enabled() -> bool:
+    return os.getenv("TALENT_USE_MOCK", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
+_MOCK_PROFILES = (
+    ("high", "项目经历呈现了从主动学习到独立交付的连续过程，值得优先深入了解。", (
+        ("学习落地能力", "high", "能将新知识转化为可交付的项目成果。", ("自主学习新技术并用于实际项目", "完成从方案到交付的完整实践")),
+        ("独立解决问题", "high", "经历体现了独立定位问题和推进方案的能力。", ("独立处理项目中的关键问题", "持续推进项目直至上线")),
+        ("跨领域迁移能力", "medium_high", "有跨技术或业务场景应用既有经验的迹象。", ("将已有技术经验迁移到新业务场景",)),
+    )),
+    ("medium_high", "具备持续投入和沟通协调的迹象，适合进一步核实协作成果。", (
+        ("自驱力", "medium_high", "经历中有主动推进工作的描述。", ("主动承担阶段性目标并跟进结果",)),
+        ("沟通协调", "medium_high", "能够在跨角色合作中推动信息对齐。", ("与不同岗位同事协作完成交付", "协调需求与实施节奏")),
+        ("持续投入", "medium", "有持续参与同一方向工作的记录。", ("持续参与项目迭代与问题处理",)),
+    )),
+    ("medium", "执行和可靠性方面有可读线索，但尚需结合具体成果判断影响范围。", (
+        ("可靠性意识", "medium", "经历强调按要求完成工作和核查结果。", ("按流程完成交付并检查结果",)),
+        ("组织协调", "medium", "有协助安排任务和跟进进度的迹象。", ("协助团队安排任务与跟踪进度",)),
+    )),
+    ("medium_low", "当前资料中的能力描述较笼统，建议先核实具体负责范围。", (
+        ("复杂问题处理", "medium_low", "提到参与复杂任务，但缺少个人决策过程。", ("参与处理项目中的复杂任务",)),
+        ("新人带教", "medium_low", "有协助新人工作的线索，尚不清楚实际带教效果。", ("协助新人熟悉工作流程",)),
+    )),
+    ("low", "资料主要呈现基础岗位职责，额外能力证据有限。", (
+        ("可靠性意识", "medium_low", "有完成日常工作的记录，独立负责范围仍需确认。", ("按要求完成日常岗位工作",)),
+        ("沟通协调", "low", "可见协作经历较少，暂无法判断复杂沟通能力。", ("参与团队日常信息沟通",)),
+    )),
+)
+
+
+def _mock_candidate_evidence(candidate: Candidate) -> LLMTalentEvidence | None:
+    """从候选人已有内容选一条事实，不做关键词推理。"""
+    for source_type, items in (
+        ("projects", candidate.projects),
+        ("work_experience", candidate.work_experience),
+        ("candidate_evidence", candidate.candidate_evidence),
+    ):
+        if items:
+            item = items[0]
+            value = (item.description or getattr(item, "name", None)
+                     or getattr(item, "position", None) or getattr(item, "title", None))
+            if value:
+                return LLMTalentEvidence(text=value[:180], source_type=source_type, source_index=0)
+    if candidate.skills:
+        return LLMTalentEvidence(text="、".join(candidate.skills[:4]), source_type="skills")
+    return None
+
+
+def _build_mock_llm_talent_result(
+    candidate: Candidate, mode: TalentMode, desired_traits: list[str],
+) -> LLMTalentDiscoveryResult:
+    """稳定选择模拟画像并构造正式 LLM DTO。"""
+    key = candidate.id or (candidate.basic_info.name if candidate.basic_info else None)
+    key = key or (candidate.extraction_metadata.source_file if candidate.extraction_metadata else None) or "candidate"
+    profile_index = int.from_bytes(hashlib.sha256(key.encode("utf-8")).digest()[:4], "big") % len(_MOCK_PROFILES)
+    level, summary, ability_data = _MOCK_PROFILES[profile_index]
+    candidate_fact = _mock_candidate_evidence(candidate)
+    abilities = []
+    for name, ability_level, reason, examples in ability_data:
+        evidence = [LLMTalentEvidence(text=text, source_type="mock_profile") for text in examples]
+        if candidate_fact:
+            evidence.insert(0, candidate_fact.model_copy(deep=True))
+        abilities.append(LLMTalentAbility(
+            ability_name=name, level=ability_level, reason=reason, evidence=evidence,
+        ))
+
+    specified_traits = []
+    if mode == "specified":
+        for trait in dict.fromkeys(desired_traits):
+            has_evidence = candidate_fact is not None and profile_index < 3
+            specified_traits.append(LLMSpecifiedTraitResult(
+                trait=trait,
+                fit_level=level,
+                reason=(f"简历中有与「{trait}」相关的事实线索，建议面试核实具体贡献。"
+                        if has_evidence else f"当前资料对「{trait}」的直接支持不足，需进一步确认。"),
+                evidence=[candidate_fact.model_copy(deep=True)] if has_evidence else [],
+                missing_information=[] if has_evidence else [f"请核实「{trait}」的具体行为和结果"],
+            ))
+
+    return LLMTalentDiscoveryResult(
+        mode=mode,
+        attention_level=level if mode == "auto" else None,
+        specified_fit_level=level if mode == "specified" else None,
+        summary=summary,
+        abilities=abilities,
+        specified_traits=specified_traits,
+    )
+
 
 def discover_talent(
     candidate: Candidate,
@@ -33,19 +125,20 @@ def discover_talent(
         desired_traits=traits,
     )
 
-    user_prompt = build_talent_user_prompt(
-        candidate=candidate,
-        mode=mode,
-        desired_traits=traits,
-    )
-
-    llm_clinet = LLMClient()
-
-    llm_result = llm_clinet.generate_structured(
-        system_prompt=TALENT_SYSTEM_PROMPT,
-        user_prompt=user_prompt,
-        response_model=LLMTalentDiscoveryResult,
-    )
+    if _is_talent_mock_enabled():
+        llm_result = _build_mock_llm_talent_result(candidate, mode, traits)
+    else:
+        user_prompt = build_talent_user_prompt(
+            candidate=candidate,
+            mode=mode,
+            desired_traits=traits,
+        )
+        llm_client = LLMClient()
+        llm_result = llm_client.generate_structured(
+            system_prompt=TALENT_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            response_model=LLMTalentDiscoveryResult,
+        )
 
     if mode == "specified":
         _validate_specified_trait_coverage(

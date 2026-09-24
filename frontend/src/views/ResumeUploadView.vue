@@ -18,6 +18,8 @@ import {
   setJobMatchLoading,
   setJobMatchResult,
 } from '../state/session'
+import TalentSettings from '../components/TalentSettings.vue'
+import { analyzeTalent } from '../services/talent'
 
 const fileInput = ref(null)
 const selectedFiles = ref([])
@@ -27,11 +29,15 @@ const POLL_INTERVAL_MS = 800
 const terminalTaskStatuses = new Set(['completed', 'completed_with_errors', 'failed'])
 let pollingStopped = false
 let activeJobId = null
+let activeTalentTiming = 'selected'
+let activeTalentMode = 'auto'
+let activeDesiredTraits = []
 
 const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
 const isParsing = computed(() => uploadStatus.value === 'loading')
 const canSubmit = computed(
-  () => hasCurrentJob.value && selectedFiles.value.length > 0 && !isParsing.value,
+  () => hasCurrentJob.value && selectedFiles.value.length > 0 && !isParsing.value
+    && (session.talentTiming !== 'automatic' || session.talentMode !== 'specified' || session.desiredTraits.length > 0),
 )
 const taskItems = computed(() => session.resumeTaskItems)
 const taskCounts = computed(() => {
@@ -117,6 +123,9 @@ async function startCandidateScoring(candidate) {
   try {
     const matchResult = await scoreJobMatch(activeJobId, candidate)
     setJobMatchResult(candidate.id, matchResult)
+    if (activeTalentTiming === 'automatic') {
+      void analyzeTalent(candidate, activeTalentMode, activeDesiredTraits)
+    }
   } catch (error) {
     setJobMatchError(candidate.id, getFriendlyApiError(error, '岗位匹配评分'))
   }
@@ -188,6 +197,9 @@ async function handleParse() {
   clearResumeTask()
   setCandidates([])
   activeJobId = session.currentJob.id
+  activeTalentTiming = session.talentTiming
+  activeTalentMode = session.talentMode
+  activeDesiredTraits = [...session.desiredTraits]
   pollingStopped = false
 
   try {
@@ -221,6 +233,12 @@ onUnmounted(() => {
     </div>
 
     <article class="panel upload-panel">
+      <div class="talent-upload-options">
+        <h3>人才能力分析时机</h3>
+        <label><input v-model="session.talentTiming" type="radio" value="selected" :disabled="isParsing" /> 先完成岗位匹配，在候选人列表中选人分析（默认）</label>
+        <label><input v-model="session.talentTiming" type="radio" value="automatic" :disabled="isParsing" /> 岗位匹配完成后自动继续分析</label>
+        <TalentSettings v-if="session.talentTiming === 'automatic'" />
+      </div>
       <div
         class="upload-zone"
         :class="{ 'upload-zone--disabled': isParsing }"

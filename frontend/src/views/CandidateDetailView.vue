@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { session } from '../state/session'
+import TalentSettings from '../components/TalentSettings.vue'
+import { analyzeTalent, talentLevelLabel } from '../services/talent'
 
 const route = useRoute()
 const candidate = computed(() =>
@@ -10,6 +12,15 @@ const candidate = computed(() =>
 )
 const matchResult = computed(() => session.jobMatches[route.params.id])
 const matchStatus = computed(() => session.jobMatchStatuses[route.params.id])
+const talentResult = computed(() => session.talentResults[route.params.id])
+const talentStatus = computed(() => session.talentStatuses[route.params.id] || 'idle')
+const canAnalyzeTalent = computed(() => candidate.value && talentStatus.value !== 'loading'
+  && (session.talentMode !== 'specified' || session.desiredTraits.length > 0))
+
+function evidenceSource(evidence) {
+  const source = { projects: '项目经历', work_experience: '工作经历', candidate_evidence: '事实证据', skills: '技能', mock_profile: '模拟示例' }[evidence.source_type] || evidence.source_type
+  return source ? `${source}${evidence.source_index == null ? '' : ` #${evidence.source_index + 1}`}` : ''
+}
 
 const mustHaveState = computed(() => {
   const summary = matchResult.value?.must_have_summary
@@ -92,6 +103,32 @@ function customValue(value) {
             {{ matchStatus === 'loading' ? '评分中' : matchStatus === 'error' ? '评分失败' : '暂无评分' }}
           </span>
           <p>{{ session.jobMatchErrors[candidate.id] || '当前会话中没有这位候选人的岗位匹配结果。' }}</p>
+        </div>
+      </article>
+      <article class="panel detail-grid__full talent-detail">
+        <div class="panel__header"><h3>人才能力发现</h3><span class="status-badge" :class="talentStatus === 'error' ? 'status-badge--error' : talentStatus === 'success' ? 'status-badge--success' : talentStatus === 'loading' ? 'status-badge--loading' : 'status-badge--neutral'">{{ talentStatus === 'loading' ? '分析中' : talentStatus === 'success' ? '已完成' : talentStatus === 'error' ? '分析失败' : '未分析' }}</span></div>
+        <div class="talent-detail__controls"><TalentSettings /><button class="button button--primary button--small" type="button" :disabled="!canAnalyzeTalent" @click="analyzeTalent(candidate)">{{ talentStatus === 'loading' ? '分析中…' : talentResult ? '重新分析' : '分析人才能力' }}</button></div>
+        <p v-if="talentStatus === 'error'" class="talent-error">{{ session.talentErrors[candidate.id] }}</p>
+        <div v-if="talentResult" class="talent-detail__result">
+          <div class="talent-detail__overview"><strong>{{ talentResult.mode === 'specified' ? '指定人才像符合度' : '人才关注度' }}：{{ talentLevelLabel(talentResult.mode === 'specified' ? talentResult.specified_fit_level : talentResult.attention_level) }}</strong><p>{{ talentResult.summary }}</p></div>
+          <section v-if="talentResult.mode === 'specified'" class="talent-detail__section">
+            <h4>HR 指定人才像</h4>
+            <div v-for="item in talentResult.specified_traits" :key="item.trait" class="talent-finding">
+              <div class="talent-finding__heading"><strong>{{ item.trait }}</strong><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.fit_level) }}</span></div>
+              <p>{{ item.reason }}</p>
+              <div v-if="item.evidence.length"><b>主要证据</b><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div>
+              <div v-if="item.missing_information.length"><b>待确认信息</b><ul class="plain-list"><li v-for="info in item.missing_information" :key="info">{{ info }}</li></ul></div>
+            </div>
+          </section>
+          <section class="talent-detail__section"><h4>{{ talentResult.mode === 'specified' ? 'AI 额外发现' : '能力画像' }}</h4>
+            <div v-for="item in talentResult.abilities" :key="item.ability_name" class="talent-finding">
+              <div class="talent-finding__heading"><strong>{{ item.ability_name }}</strong><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.level) }}</span></div>
+              <p>{{ item.reason }}</p>
+              <div v-if="item.evidence.length"><b>主要证据</b><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div>
+            </div>
+            <p v-if="!talentResult.abilities.length" class="empty-copy">暂无明确的额外能力证据。</p>
+          </section>
+          <section v-if="talentResult.warnings.length" class="talent-detail__section"><h4>分析提示</h4><ul class="plain-list"><li v-for="warning in talentResult.warnings" :key="warning">{{ warning }}</li></ul></section>
         </div>
       </article>
       <article class="panel detail-grid__main resume-section">
