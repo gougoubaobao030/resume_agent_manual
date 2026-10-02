@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field, model_validator
 
+from schemas.evidence import EvidenceValidationIssue, EvidenceVerificationStatus
+from schemas.language import AnalysisLanguage
 from schemas.resume import Candidate
 
 
@@ -34,6 +36,12 @@ class TalentEvidence(BaseModel):
         ge=0,
     )
 
+    verification_status: EvidenceVerificationStatus
+
+    source_path: str
+
+    locator_verified: bool
+
 
 class TalentAbility(BaseModel):
     """AI从候选人资料中发现的一项值得关注的能力。"""
@@ -51,6 +59,10 @@ class TalentAbility(BaseModel):
     )
 
     evidence: list[TalentEvidence] = Field(
+        default_factory=list,
+    )
+
+    evidence_validation_issues: list[EvidenceValidationIssue] = Field(
         default_factory=list,
     )
 
@@ -74,6 +86,10 @@ class SpecifiedTraitResult(BaseModel):
         default_factory=list,
     )
 
+    evidence_validation_issues: list[EvidenceValidationIssue] = Field(
+        default_factory=list,
+    )
+
     missing_information: list[str] = Field(
         default_factory=list,
     )
@@ -82,7 +98,9 @@ class SpecifiedTraitResult(BaseModel):
 class TalentDiscoveryRequest(BaseModel):
     """人才能力发现请求。"""
 
-    candidate: Candidate
+    candidate_id: str
+
+    analysis_language: AnalysisLanguage
 
     mode: TalentMode = "auto"
 
@@ -110,6 +128,8 @@ class TalentDiscoveryResult(BaseModel):
 
     candidate_id: str
 
+    analysis_language: AnalysisLanguage
+
     mode: TalentMode
 
     attention_level: TalentLevel | None = None
@@ -130,6 +150,10 @@ class TalentDiscoveryResult(BaseModel):
     )
 
     warnings: list[str] = Field(
+        default_factory=list,
+    )
+
+    evidence_validation_issues: list[EvidenceValidationIssue] = Field(
         default_factory=list,
     )
 

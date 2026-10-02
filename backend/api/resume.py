@@ -2,9 +2,12 @@
 import shutil
 import tempfile
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from typing import Annotated
 from pydantic import WithJsonSchema
+
+from api.auth import get_current_user
+from models import UserModel
 
 from clients.llm_client import (
     LLMConfigError,
@@ -24,6 +27,7 @@ router = APIRouter(
     tags=["Resume"],
 )
 from services.resume_task_service import create_resume_task, get_resume_task
+from services.jd_repository import get_jd
 
 # Swagger UI currently does not render a file picker for arrays whose items use
 # OpenAPI 3.1's ``contentMediaType``. Keep the runtime type as UploadFile while
@@ -180,6 +184,8 @@ async def parse_resume_batch_api(
 @router.post("/tasks", response_model=ResumeTaskResponse, status_code=202)
 async def create_resume_task_api(
     files: list[SwaggerUploadFile] = File(...),
+    job_id: str | None = Form(default=None),
+    current_user: UserModel = Depends(get_current_user),
 ) -> ResumeTaskResponse:
     temp_files = []
     task_created = False
@@ -188,6 +194,8 @@ async def create_resume_task_api(
             raise HTTPException(status_code=400, detail="请至少上传一份简历")
         if len(files) > 30:
             raise HTTPException(status_code=400, detail="一次最多上传30份简历")
+        if job_id is not None and get_jd(job_id) is None:
+            raise HTTPException(status_code=404, detail="岗位不存在")
         for file in files:
             if not file.filename:
                 raise HTTPException(status_code=400, detail="存在未提供文件名的文件")
@@ -200,7 +208,11 @@ async def create_resume_task_api(
                 temp_files.append((file.filename, temp_file.name))
                 shutil.copyfileobj(file.file, temp_file)
 
-        task = create_resume_task(temp_files)
+        task = create_resume_task(
+            temp_files,
+            job_id=job_id,
+            user_id=current_user.id,
+        )
         task_created = True
         return task
     finally:

@@ -1,4 +1,4 @@
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(message, status, detail) {
     super(message)
     this.name = 'ApiError'
@@ -19,6 +19,7 @@ async function request(path, options = {}) {
     response = await fetch(path, {
       ...options,
       headers,
+      credentials: 'include',
     })
   } catch (error) {
     throw new ApiError('Network request failed', 0, error)
@@ -34,6 +35,70 @@ async function request(path, options = {}) {
   }
 
   return body
+}
+
+export function login(username, password) {
+  return request('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  })
+}
+
+export function logout() {
+  return request('/api/auth/logout', { method: 'POST' })
+}
+
+export function getCurrentUser() {
+  return request('/api/auth/me')
+}
+
+export function updatePreferredLanguage(preferredLanguage) {
+  return request('/api/users/me/preferences/language', {
+    method: 'PATCH',
+    body: JSON.stringify({ preferred_language: preferredLanguage }),
+  })
+}
+
+export function changePassword(currentPassword, newPassword) {
+  return request('/api/users/me/password', {
+    method: 'PUT',
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  })
+}
+
+export function getJds() {
+  return request('/api/jd')
+}
+
+export function updateJd(jobId, job) {
+  return request(`/api/jd/${encodeURIComponent(jobId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(job),
+  })
+}
+
+export function deleteJd(jobId) {
+  return request(`/api/jd/${encodeURIComponent(jobId)}`, { method: 'DELETE' })
+}
+
+export function getCandidates(jobId) {
+  return request(`/api/candidates?job_id=${encodeURIComponent(jobId)}`)
+}
+
+export function getCandidate(candidateId) {
+  return request(`/api/candidates/${encodeURIComponent(candidateId)}`)
+}
+
+export function deleteCandidate(candidateId) {
+  return request(`/api/candidates/${encodeURIComponent(candidateId)}`, { method: 'DELETE' })
+}
+
+export function getJobMatches(jobId) {
+  return request(`/api/scoring/job-match?job_id=${encodeURIComponent(jobId)}`)
+}
+
+export function getTalentResult(candidateId) {
+  return request(`/api/talent/discover/${encodeURIComponent(candidateId)}`)
 }
 
 export function parseJd(rawText) {
@@ -60,9 +125,10 @@ export function parseResumeBatch(files) {
   })
 }
 
-export function createResumeTask(files) {
+export function createResumeTask(files, jobId) {
   const formData = new FormData()
   files.forEach((file) => formData.append('files', file))
+  formData.append('job_id', jobId)
 
   return request('/api/resume/tasks', {
     method: 'POST',
@@ -74,20 +140,26 @@ export function getResumeTask(taskId) {
   return request(`/api/resume/tasks/${encodeURIComponent(taskId)}`)
 }
 
-export function scoreJobMatch(jobId, candidate) {
+export function scoreJobMatch(jobId, candidateId, analysisLanguage) {
   return request('/api/scoring/job-match', {
     method: 'POST',
     body: JSON.stringify({
       job_id: jobId,
-      candidate,
+      candidate_id: candidateId,
+      analysis_language: analysisLanguage,
     }),
   })
 }
 
-export function discoverTalent(candidate, mode = 'auto', desiredTraits = []) {
+export function discoverTalent(candidateId, mode = 'auto', desiredTraits = [], analysisLanguage) {
   return request('/api/talent/discover', {
     method: 'POST',
-    body: JSON.stringify({ candidate, mode, desired_traits: mode === 'specified' ? desiredTraits : [] }),
+    body: JSON.stringify({
+      candidate_id: candidateId,
+      mode,
+      desired_traits: mode === 'specified' ? desiredTraits : [],
+      analysis_language: analysisLanguage,
+    }),
   })
 }
 

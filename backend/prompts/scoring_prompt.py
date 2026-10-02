@@ -1,6 +1,7 @@
 ﻿import json
 
 from schemas.scoring import LLMJobMatchResult
+from schemas.language import AnalysisLanguage, get_analysis_language_name
 
 
 JOB_MATCH_SYSTEM_PROMPT = """
@@ -40,8 +41,11 @@ JOB_MATCH_SYSTEM_PROMPT = """
    - medium
    - low
 
-8. evidence 只能引用输入中明确存在的候选人事实。
-   不得把模型自己的推断写入 evidence。
+8. evidence.text 必须逐字引用输入 Candidate 或 raw_text 中明确存在的连续原文片段。
+   不得翻译、改写、归纳、拼接或把模型自己的推断写入 evidence。
+   每条 evidence 必须填写准确的 source_type 和 source_index。
+   source_type 只能使用 basic_info、education、work_experience、projects、skills、languages、achievements、certifications、candidate_evidence、custom_attributes、raw_text。
+   数组类型来源必须提供从 0 开始的 source_index；basic_info、custom_attributes、raw_text 不得提供 source_index。
 
 9. 如果结构化候选人信息不足，
    但原始简历中有较大可能包含影响某个重要 requirement 判断的进一步信息，
@@ -93,10 +97,12 @@ def get_job_match_response_schema() -> str:
 def build_job_match_user_prompt(
     jd_data: dict,
     candidate_data: dict,
+    analysis_language: AnalysisLanguage,
 ) -> str:
     """构建岗位匹配评分User Prompt。"""
 
     response_schema = get_job_match_response_schema()
+    language_name = get_analysis_language_name(analysis_language)
 
     return f"""
 请根据以下岗位信息和候选人信息进行岗位匹配分析。
@@ -124,5 +130,13 @@ def build_job_match_user_prompt(
 - 不得把任何 list 字段输出成 object/dict。
 - 不得增加 Schema 中不存在的字段。
 - 输出会直接交给 Pydantic 的 LLMJobMatchResult 进行校验。
+
+【分析语言要求】
+
+- summary、reason、missing_information、raw_review_reason 等面向 HR 的自然语言分析必须使用 {language_name}（{analysis_language.value}）。
+- requirement_id、status、confidence 等结构化字段必须继续使用 Schema 规定的值。
+- requirement 名称、候选人事实和 evidence 不得为了符合分析语言而翻译或改写。
+- evidence.text 必须是 Candidate 或 raw_text 中可被后端精确校验的连续原文；无法精确引用时返回空 evidence，不得生成近义改写。
+- JD 与候选人资料可能使用不同语言或混合语言；必须直接依据输入原文进行判断。
 
 """

@@ -1,8 +1,12 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-import { getFriendlyApiError, parseJd, saveJd } from '../services/api'
-import { session, setCurrentJob } from '../state/session'
+import { getFriendlyApiError, parseJd, saveJd, updateJd } from '../services/api'
+import { session } from '../state/session'
+import { refreshJobs, selectJob } from '../state/workspace'
+
+const { t } = useI18n()
 
 const DEFAULT_SAMPLE_JD = `职位名称：AI应用开发工程师
 
@@ -31,10 +35,10 @@ const DEFAULT_SAMPLE_JD = `职位名称：AI应用开发工程师
 - 对 AI 产品落地和实际业务价值有较强兴趣。`
 
 const categoryOptions = [
-  { value: 'technical', label: '技术能力' },
-  { value: 'experience', label: '工作经验' },
-  { value: 'education', label: '教育背景' },
-  { value: 'other', label: '其他' },
+  { value: 'technical', labelKey: 'jd.categories.technical' },
+  { value: 'experience', labelKey: 'jd.categories.experience' },
+  { value: 'education', labelKey: 'jd.categories.education' },
+  { value: 'other', labelKey: 'jd.categories.other' },
 ]
 
 let rowSequence = 0
@@ -63,24 +67,47 @@ const savedJobId = ref(session.currentJob?.id ?? '')
 const parseStatus = ref('idle')
 const parseMessage = ref('')
 const saveStatus = ref(session.currentJob ? 'success' : 'idle')
-const saveMessage = ref(session.currentJob ? '当前会话中的 JD 已载入。' : '')
+const saveMessage = ref(session.currentJob ? t('jd.messages.loaded') : '')
 
 const hasParsedJob = computed(() => requirements.value.length > 0)
 const isBusy = computed(
   () => parseStatus.value === 'loading' || saveStatus.value === 'loading',
 )
 
+function loadJobIntoEditor(job) {
+  rawText.value = job?.raw_text ?? ''
+  jobTitle.value = job?.job_title ?? ''
+  requirements.value = (job?.requirements ?? []).map(editableRequirement)
+  savedJobId.value = job?.id ?? ''
+  saveStatus.value = job ? 'success' : 'idle'
+  saveMessage.value = job ? t('jd.messages.loaded') : ''
+}
+
+watch(() => session.currentJob?.id, () => loadJobIntoEditor(session.currentJob))
+
+async function handleJobSelection(event) {
+  const job = session.jobs.find((item) => item.id === event.target.value)
+  if (job) await selectJob(job)
+}
+
+function startNewJob() {
+  loadJobIntoEditor(null)
+  warnings.value = []
+  parseStatus.value = 'idle'
+  parseMessage.value = ''
+}
+
 async function handleParse() {
   const cleanedText = rawText.value.trim() || DEFAULT_SAMPLE_JD
 
   if (cleanedText.length < 10) {
     parseStatus.value = 'error'
-    parseMessage.value = '岗位说明过短，请补充岗位职责或任职要求。'
+    parseMessage.value = t('jd.messages.tooShort')
     return
   }
 
   parseStatus.value = 'loading'
-  parseMessage.value = 'AI 正在解析岗位说明，请稍候……'
+  parseMessage.value = t('jd.messages.parsing')
   saveStatus.value = 'idle'
   saveMessage.value = ''
   savedJobId.value = ''
@@ -94,10 +121,10 @@ async function handleParse() {
     requirements.value = job.requirements.map(editableRequirement)
     warnings.value = result.warnings ?? []
     parseStatus.value = 'success'
-    parseMessage.value = `解析完成，共识别 ${requirements.value.length} 项岗位要求。`
+    parseMessage.value = t('jd.messages.parsed', { count: requirements.value.length })
   } catch (error) {
     parseStatus.value = 'error'
-    parseMessage.value = getFriendlyApiError(error, 'JD 解析')
+    parseMessage.value = getFriendlyApiError(error, t('jd.operations.parse'))
   }
 }
 
@@ -115,16 +142,16 @@ function removeRequirement(index) {
 
 function validateJob() {
   if (!jobTitle.value.trim()) {
-    return '请填写岗位名称。'
+    return t('jd.validation.jobTitle')
   }
 
   if (requirements.value.length === 0) {
-    return '请至少保留一项岗位要求。'
+    return t('jd.validation.requirementRequired')
   }
 
   const invalidNameIndex = requirements.value.findIndex((item) => !item.name.trim())
   if (invalidNameIndex >= 0) {
-    return `第 ${invalidNameIndex + 1} 项要求缺少名称。`
+    return t('jd.validation.requirementName', { index: invalidNameIndex + 1 })
   }
 
   const invalidWeightIndex = requirements.value.findIndex((item) => {
@@ -132,7 +159,7 @@ function validateJob() {
     return !Number.isFinite(weight) || weight < 0 || weight > 1000
   })
   if (invalidWeightIndex >= 0) {
-    return `第 ${invalidWeightIndex + 1} 项的相对权重应为 0–1000 之间的数字。`
+    return t('jd.validation.requirementWeight', { index: invalidWeightIndex + 1 })
   }
 
   return ''
@@ -163,7 +190,7 @@ async function handleSave() {
   }
 
   saveStatus.value = 'loading'
-  saveMessage.value = '正在保存 HR 确认后的 JD……'
+  saveMessage.value = t('jd.messages.saving')
 
   const payload = {
     job_title: jobTitle.value.trim(),
@@ -172,46 +199,56 @@ async function handleSave() {
   }
 
   try {
-    const result = await saveJd(payload)
-    const savedJob = result.job
+    const savedJob = savedJobId.value
+      ? await updateJd(savedJobId.value, {
+          job_title: payload.job_title,
+          requirements: payload.requirements,
+        })
+      : (await saveJd(payload)).job
 
-    setCurrentJob(savedJob)
+    await refreshJobs()
+    await selectJob(savedJob)
     jobTitle.value = savedJob.job_title
     requirements.value = savedJob.requirements.map(editableRequirement)
     savedJobId.value = savedJob.id
     saveStatus.value = 'success'
-    saveMessage.value = 'JD 已保存，可继续用于本次招聘流程。'
+    saveMessage.value = t('jd.messages.saved')
   } catch (error) {
     saveStatus.value = 'error'
-    saveMessage.value = getFriendlyApiError(error, 'JD 保存')
+    saveMessage.value = getFriendlyApiError(error, t('jd.operations.save'))
   }
 }
 </script>
 
 <template>
   <section class="page-stack">
-    <div class="page-heading">
-      <p class="eyebrow">JOB DESCRIPTION</p>
-      <h2>JD 解析与确认</h2>
-      <p>输入岗位说明，由 AI 提取岗位要求，再由 HR 修改并确认保存。</p>
+    <div class="page-heading page-heading--split">
+      <div><p class="eyebrow">{{ t('jd.eyebrow') }}</p><h2>{{ t('jd.title') }}</h2><p>{{ t('jd.description') }}</p></div>
+      <div class="job-selector">
+        <select class="select-input" :value="session.currentJob?.id || ''" @change="handleJobSelection">
+          <option value="" disabled>{{ t('jd.actions.selectJob') }}</option>
+          <option v-for="job in session.jobs" :key="job.id" :value="job.id">{{ job.job_title }}</option>
+        </select>
+        <button class="button button--secondary button--small" type="button" @click="startNewJob">{{ t('jd.actions.newJob') }}</button>
+      </div>
     </div>
 
     <div class="jd-workspace">
       <article class="panel panel--form">
         <div class="panel__header">
           <div>
-            <span class="step-label">STEP 1</span>
-            <h3>输入岗位说明</h3>
+            <span class="step-label">{{ t('jd.step1.label') }}</span>
+            <h3>{{ t('jd.step1.title') }}</h3>
           </div>
           <span
             v-if="parseStatus !== 'idle'"
             class="status-badge"
             :class="`status-badge--${parseStatus}`"
           >
-            {{ parseStatus === 'loading' ? '解析中' : parseStatus === 'success' ? '解析成功' : '需要确认' }}
+            {{ t(parseStatus === 'loading' ? 'jd.status.parsing' : parseStatus === 'success' ? 'jd.status.parseSuccess' : 'jd.status.needsAttention') }}
           </span>
         </div>
-        <label class="field-label" for="jd-text">岗位说明（JD）</label>
+        <label class="field-label" for="jd-text">{{ t('jd.fields.rawText') }}</label>
         <textarea
           id="jd-text"
           v-model="rawText"
@@ -231,14 +268,14 @@ async function handleSave() {
         </div>
 
         <div class="form-footer">
-          <span class="helper-text">建议包含岗位名称、职责、技能和经验要求。</span>
+          <span class="helper-text">{{ t('jd.step1.helper') }}</span>
           <button
             class="button button--primary"
             type="button"
             :disabled="isBusy"
             @click="handleParse"
           >
-            {{ parseStatus === 'loading' ? '正在解析…' : 'AI 解析 JD' }}
+            {{ t(parseStatus === 'loading' ? 'jd.actions.parsing' : 'jd.actions.parse') }}
           </button>
         </div>
       </article>
@@ -246,37 +283,37 @@ async function handleSave() {
       <article class="panel panel--form">
         <div class="panel__header">
           <div>
-            <span class="step-label">STEP 2</span>
-            <h3>HR 确认结果</h3>
+            <span class="step-label">{{ t('jd.step2.label') }}</span>
+            <h3>{{ t('jd.step2.title') }}</h3>
           </div>
-          <span v-if="!hasParsedJob" class="status-badge status-badge--neutral">等待解析</span>
-          <span v-else class="status-badge status-badge--ready">可编辑</span>
+          <span v-if="!hasParsedJob" class="status-badge status-badge--neutral">{{ t('jd.status.waiting') }}</span>
+          <span v-else class="status-badge status-badge--ready">{{ t('jd.status.editable') }}</span>
         </div>
 
         <div v-if="!hasParsedJob" class="empty-state empty-state--compact">
           <div class="empty-state__mark">JD</div>
-          <h3>尚无解析结果</h3>
-          <p>完成解析后，可在这里修改岗位名称、要求、权重及硬性条件。</p>
+          <h3>{{ t('jd.empty.title') }}</h3>
+          <p>{{ t('jd.empty.description') }}</p>
         </div>
 
         <div v-else class="jd-editor">
           <div v-if="warnings.length" class="warning-list">
-            <strong>解析提示</strong>
+            <strong>{{ t('jd.parseWarnings') }}</strong>
             <ul>
               <li v-for="warning in warnings" :key="warning">{{ warning }}</li>
             </ul>
           </div>
 
-          <label class="field-label" for="job-title">岗位名称</label>
+          <label class="field-label" for="job-title">{{ t('jd.fields.jobTitle') }}</label>
           <input id="job-title" v-model="jobTitle" class="text-input" :disabled="isBusy" />
 
           <div class="requirements-heading">
             <div>
-              <h4>岗位要求</h4>
-              <p>权重为相对重要度，保存时不会在前端归一化。</p>
+              <h4>{{ t('jd.requirements.title') }}</h4>
+              <p>{{ t('jd.requirements.weightNote') }}</p>
             </div>
             <button class="button button--secondary button--small" type="button" :disabled="isBusy" @click="addRequirement">
-              ＋ 新增要求
+              {{ t('jd.actions.addRequirement') }}
             </button>
           </div>
 
@@ -287,33 +324,33 @@ async function handleSave() {
               class="requirement-card"
             >
               <div class="requirement-card__header">
-                <strong>要求 {{ index + 1 }}</strong>
+                <strong>{{ t('jd.requirements.item', { index: index + 1 }) }}</strong>
                 <button
                   class="danger-link"
                   type="button"
                   :disabled="isBusy"
-                  :aria-label="`删除第 ${index + 1} 项要求`"
+                  :aria-label="t('jd.actions.deleteRequirementLabel', { index: index + 1 })"
                   @click="removeRequirement(index)"
                 >
-                  删除
+                  {{ t('jd.actions.delete') }}
                 </button>
               </div>
 
               <div class="requirement-fields">
                 <label class="field field--name">
-                  <span>要求名称</span>
+                  <span>{{ t('jd.fields.requirementName') }}</span>
                   <input v-model="requirement.name" class="text-input" :disabled="isBusy" />
                 </label>
                 <label class="field field--category">
-                  <span>分类</span>
+                  <span>{{ t('jd.fields.category') }}</span>
                   <select v-model="requirement.category" class="select-input" :disabled="isBusy">
                     <option v-for="option in categoryOptions" :key="option.value" :value="option.value">
-                      {{ option.label }}
+                      {{ t(option.labelKey) }}
                     </option>
                   </select>
                 </label>
                 <label class="field field--weight">
-                  <span>相对权重</span>
+                  <span>{{ t('jd.fields.weight') }}</span>
                   <input
                     v-model.number="requirement.weight"
                     class="text-input"
@@ -326,10 +363,10 @@ async function handleSave() {
                 </label>
                 <label class="checkbox-field">
                   <input v-model="requirement.must_have" type="checkbox" :disabled="isBusy" />
-                  <span><strong>硬性条件</strong><small>不满足时需要重点确认</small></span>
+                  <span><strong>{{ t('jd.fields.mustHave') }}</strong><small>{{ t('jd.fields.mustHaveHint') }}</small></span>
                 </label>
                 <label class="field field--description">
-                  <span>详细说明</span>
+                  <span>{{ t('jd.fields.description') }}</span>
                   <textarea v-model="requirement.description" rows="3" :disabled="isBusy"></textarea>
                 </label>
               </div>
@@ -348,12 +385,12 @@ async function handleSave() {
                 <span>{{ saveMessage }}</span>
               </div>
               <div v-if="savedJobId" class="saved-job-id">
-                <span>Job ID</span>
+                <span>{{ t('jd.fields.jobId') }}</span>
                 <code>{{ savedJobId }}</code>
               </div>
             </div>
             <button class="button button--primary" type="button" :disabled="isBusy" @click="handleSave">
-              {{ saveStatus === 'loading' ? '正在保存…' : '保存确认后的 JD' }}
+              {{ t(saveStatus === 'loading' ? 'jd.actions.saving' : 'jd.actions.save') }}
             </button>
           </div>
         </div>
@@ -367,4 +404,5 @@ async function handleSave() {
   color: #94a3b8;
   opacity: 1;
 }
+.job-selector { display: flex; align-items: center; gap: 10px; }
 </style>

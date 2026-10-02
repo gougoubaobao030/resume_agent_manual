@@ -1,9 +1,11 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { session } from '../state/session'
 import TalentSettings from '../components/TalentSettings.vue'
 import { analyzeTalent, talentLevelLabel } from '../services/talent'
 
+const { locale, t } = useI18n()
 const sortDirection = ref('desc')
 const sortedCandidates = computed(() => [...session.candidates].sort((a, b) => {
   const first = session.jobMatches[a.id]?.score
@@ -33,10 +35,10 @@ function analyzeSelected() {
   const mode = session.talentMode
   const traits = [...session.desiredTraits]
   const selected = sortedCandidates.value.filter((item) => selectedIds.value.includes(item.id))
-  void Promise.allSettled(selected.map((item) => analyzeTalent(item, mode, traits)))
+  void Promise.allSettled(selected.map((item) => analyzeTalent(item, mode, traits, locale.value)))
 }
 
-function candidateName(candidate) { return candidate.basic_info?.name || '姓名未提取' }
+function candidateName(candidate) { return candidate.basic_info?.name || t('common.candidateNameMissing') }
 function matchResult(candidate) { return session.jobMatches[candidate.id] }
 function formattedScore(candidate) {
   const score = matchResult(candidate)?.score
@@ -45,10 +47,10 @@ function formattedScore(candidate) {
 }
 function mustHaveState(candidate) {
   const summary = matchResult(candidate)?.must_have_summary
-  if (!summary) return { label: '等待评分', className: 'status-badge--neutral' }
-  if (summary.has_failure) return { label: '硬条件不满足', className: 'status-badge--error' }
-  if (summary.needs_confirmation) return { label: '硬条件需确认', className: 'status-badge--warning' }
-  return { label: '硬条件满足', className: 'status-badge--success' }
+  if (!summary) return { label: t('common.match.waiting'), className: 'status-badge--neutral' }
+  if (summary.has_failure) return { label: t('common.match.mustHaveFailed'), className: 'status-badge--error' }
+  if (summary.needs_confirmation) return { label: t('common.match.mustHaveConfirmation'), className: 'status-badge--warning' }
+  return { label: t('common.match.mustHavePassed'), className: 'status-badge--success' }
 }
 function talentResult(candidate) { return session.talentResults[candidate.id] }
 function talentStatus(candidate) { return session.talentStatuses[candidate.id] || 'idle' }
@@ -56,9 +58,9 @@ function talentLabel(candidate) {
   const result = talentResult(candidate)
   if (!result) {
     const status = talentStatus(candidate)
-    return status === 'loading' ? '分析中' : status === 'error' ? '分析失败' : '未分析'
+    return t(status === 'loading' ? 'common.talent.analyzing' : status === 'error' ? 'common.talent.failed' : 'common.talent.notAnalyzed')
   }
-  const label = result.mode === 'specified' ? '指定人才像符合度' : '人才关注度'
+  const label = t(result.mode === 'specified' ? 'common.talent.specifiedFit' : 'common.talent.attention')
   return `${label}：${talentLevelLabel(result.mode === 'specified' ? result.specified_fit_level : result.attention_level)}`
 }
 </script>
@@ -66,38 +68,38 @@ function talentLabel(candidate) {
 <template>
   <section class="page-stack">
     <div class="page-heading page-heading--split">
-      <div><p class="eyebrow">CANDIDATES</p><h2>候选人列表</h2><p>先查看岗位匹配，再选择值得进一步了解的人才。</p></div>
-      <RouterLink class="button button--secondary" to="/resumes">导入简历</RouterLink>
+      <div><p class="eyebrow">{{ t('candidates.eyebrow') }}</p><h2>{{ t('candidates.title') }}</h2><p>{{ t('candidates.description') }}</p></div>
+      <RouterLink class="button button--secondary" to="/resumes">{{ t('candidates.importResumes') }}</RouterLink>
     </div>
     <article class="panel panel--candidate-list">
       <div class="table-toolbar">
-        <div><strong>当前候选人</strong><span>{{ session.candidates.length }} 人</span></div>
-        <label class="sort-control">岗位匹配分
-          <select v-model="sortDirection" class="select-input" aria-label="岗位匹配分排序"><option value="desc">从高到低</option><option value="asc">从低到高</option></select>
+        <div><strong>{{ t('candidates.currentCandidates') }}</strong><span>{{ t('candidates.personCount', { count: session.candidates.length }) }}</span></div>
+        <label class="sort-control">{{ t('candidates.matchScore') }}
+          <select v-model="sortDirection" class="select-input" :aria-label="t('candidates.sortLabel')"><option value="desc">{{ t('candidates.sortDescending') }}</option><option value="asc">{{ t('candidates.sortAscending') }}</option></select>
         </label>
       </div>
       <div v-if="session.candidates.length" class="talent-batch-controls">
         <TalentSettings />
         <div class="talent-batch-actions">
-          <label><input type="checkbox" :checked="allSelected" @change="toggleAll" /> 全选当前候选人</label>
-          <button class="button button--secondary button--small" type="button" :disabled="!selectedIds.length" @click="session.selectedTalentCandidateIds = []">取消选择</button>
-          <span>已选 {{ selectedIds.length }} 人</span>
-          <button class="button button--primary button--small" type="button" :disabled="!canAnalyze" @click="analyzeSelected">分析已选候选人能力</button>
+          <label><input type="checkbox" :checked="allSelected" @change="toggleAll" /> {{ t('candidates.selectAll') }}</label>
+          <button class="button button--secondary button--small" type="button" :disabled="!selectedIds.length" @click="session.selectedTalentCandidateIds = []">{{ t('candidates.clearSelection') }}</button>
+          <span>{{ t('candidates.selectedCount', { count: selectedIds.length }) }}</span>
+          <button class="button button--primary button--small" type="button" :disabled="!canAnalyze" @click="analyzeSelected">{{ t('candidates.analyzeSelected') }}</button>
         </div>
       </div>
       <div v-if="session.candidates.length" class="candidate-table candidate-table--header" aria-hidden="true">
-        <span>选择</span><span>候选人</span><span>岗位匹配分</span><span>硬条件</span><span>岗位判断</span><span>人才能力</span><span></span>
+        <span>{{ t('candidates.table.select') }}</span><span>{{ t('candidates.table.candidate') }}</span><span>{{ t('candidates.table.matchScore') }}</span><span>{{ t('candidates.table.mustHave') }}</span><span>{{ t('candidates.table.assessment') }}</span><span>{{ t('candidates.table.talent') }}</span><span></span>
       </div>
-      <div v-if="!session.candidates.length" class="empty-state"><div class="empty-state__mark">CV</div><h3>还没有候选人</h3><p>完成简历导入后，解析成功的候选人会出现在这里。</p><RouterLink class="text-link" to="/resumes">前往简历导入 →</RouterLink></div>
+      <div v-if="!session.candidates.length" class="empty-state"><div class="empty-state__mark">CV</div><h3>{{ t('candidates.empty.title') }}</h3><p>{{ t('candidates.empty.description') }}</p><RouterLink class="text-link" to="/resumes">{{ t('candidates.empty.action') }}</RouterLink></div>
       <div v-else class="candidate-rows">
         <article v-for="candidate in sortedCandidates" :key="candidate.id" class="candidate-row">
-          <input type="checkbox" :checked="selectedIds.includes(candidate.id)" :aria-label="`选择 ${candidateName(candidate)}`" @change="toggleCandidate(candidate.id)" />
-          <div class="candidate-identity"><span class="candidate-avatar">{{ candidateName(candidate).slice(0, 1) }}</span><div><strong>{{ candidateName(candidate) }}</strong><small>{{ candidate.basic_info?.location || '所在地暂无信息' }}</small></div></div>
+          <input type="checkbox" :checked="selectedIds.includes(candidate.id)" :aria-label="t('candidates.selectCandidate', { name: candidateName(candidate) })" @change="toggleCandidate(candidate.id)" />
+          <div class="candidate-identity"><span class="candidate-avatar">{{ candidateName(candidate).slice(0, 1) }}</span><div><strong>{{ candidateName(candidate) }}</strong><small>{{ candidate.basic_info?.location || t('candidates.locationMissing') }}</small></div></div>
           <strong class="match-score match-score--table">{{ formattedScore(candidate) }}</strong>
           <span class="status-badge" :class="mustHaveState(candidate).className">{{ mustHaveState(candidate).label }}</span>
-          <p class="candidate-match-summary" :class="{ 'muted-text': !matchResult(candidate) }">{{ session.jobMatchStatuses[candidate.id] === 'loading' ? '评分中…' : session.jobMatchStatuses[candidate.id] === 'error' ? '评分失败' : matchResult(candidate)?.summary || '尚无岗位匹配结果' }}</p>
-          <div class="talent-list-summary"><strong>{{ talentLabel(candidate) }}</strong><small v-if="talentResult(candidate)">能力亮点：{{ talentResult(candidate).abilities.slice(0, 3).map((item) => item.ability_name).join(' · ') || '暂无明确亮点' }}</small><small v-else-if="talentStatus(candidate) === 'error'" class="talent-error">{{ session.talentErrors[candidate.id] }}</small></div>
-          <RouterLink v-if="candidate.id" class="text-link" :to="`/candidates/${candidate.id}`">查看详情</RouterLink>
+          <p class="candidate-match-summary" :class="{ 'muted-text': !matchResult(candidate) }">{{ session.jobMatchStatuses[candidate.id] === 'loading' ? t('common.match.scoring') : session.jobMatchStatuses[candidate.id] === 'error' ? t('common.match.scoringFailed') : matchResult(candidate)?.summary || t('common.match.noResult') }}</p>
+          <div class="talent-list-summary"><strong>{{ talentLabel(candidate) }}</strong><small v-if="talentResult(candidate)">{{ t('candidates.highlights') }}{{ talentResult(candidate).abilities.slice(0, 3).map((item) => item.ability_name).join(' · ') || t('candidates.noHighlights') }}</small><small v-else-if="talentStatus(candidate) === 'error'" class="talent-error">{{ session.talentErrors[candidate.id] }}</small></div>
+          <RouterLink v-if="candidate.id" class="text-link" :to="`/candidates/${candidate.id}`">{{ t('candidates.viewDetails') }}</RouterLink>
         </article>
       </div>
     </article>

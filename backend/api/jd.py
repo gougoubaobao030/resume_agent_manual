@@ -5,6 +5,10 @@ from clients.llm_client import (
     LLMRequestError,
     LLMResponseError,
 )
+from fastapi import Depends
+
+from api.auth import get_current_user
+from models import UserModel
 from schemas.jd import (
     JDParseRequest,
     JDParseResponse,
@@ -19,6 +23,8 @@ from services.jd_repository import (
     save_jd,
     get_jd,
     update_jd,
+    list_jds,
+    delete_jd,
     #这里全部是增删改查的一部分
 )
 
@@ -27,6 +33,11 @@ router = APIRouter(
     prefix="/api/jd",
     tags=["JD"],
 )
+
+
+@router.get("", response_model=list[JDInfo])
+def list_jds_api() -> list[JDInfo]:
+    return list_jds()
 
 
 @router.post(
@@ -88,6 +99,7 @@ def parse_jd_api(
 )
 def save_jd_api(
     request: JDSaveRequest,
+    current_user: UserModel = Depends(get_current_user),
 ):
 
     job = JDInfo(
@@ -97,7 +109,7 @@ def save_jd_api(
     )
 
 
-    saved_job = save_jd(job)
+    saved_job = save_jd(job, created_by=getattr(current_user, "id", None))
 
 
     return JDSaveResponse(
@@ -157,3 +169,10 @@ def update_jd_api(
         job_id,
         updated_job,
     )
+
+
+@router.delete("/{job_id}", status_code=204)
+def delete_jd_api(job_id: str):
+    if not delete_jd(job_id):
+        raise HTTPException(status_code=404, detail="JD不存在")
+    return None

@@ -11,41 +11,41 @@ const scoredCandidateCount = computed(() => Object.keys(session.jobMatches).leng
   <section class="page-stack">
     <div class="page-heading page-heading--split">
       <div>
-        <p class="eyebrow">Overview</p>
-        <h2>开始本次候选人筛选</h2>
-        <p>从岗位说明开始，依次完成 JD 确认、简历导入与候选人查看。</p>
+        <p class="eyebrow">{{ $t('dashboard.eyebrow') }}</p>
+        <h2>{{ $t('dashboard.title') }}</h2>
+        <p>{{ $t('dashboard.description') }}</p>
       </div>
       <RouterLink class="button button--primary" to="/jobs">
-        {{ hasCurrentJob ? '查看当前 JD' : '创建并解析 JD' }}
+        {{ $t(hasCurrentJob ? 'dashboard.actions.viewJob' : 'dashboard.actions.createJob') }}
       </RouterLink>
     </div>
 
     <div class="workflow-card">
       <div class="workflow-card__header">
         <div>
-          <span class="section-kicker">CORE FLOW</span>
-          <h3>当前招聘流程</h3>
+          <span class="section-kicker">{{ $t('dashboard.flow.eyebrow') }}</span>
+          <h3>{{ $t('dashboard.flow.title') }}</h3>
         </div>
         <span class="status-badge" :class="hasCurrentJob ? 'status-badge--success' : 'status-badge--neutral'">
-          {{ hasCurrentJob ? 'JD 已确认' : '尚未开始' }}
+          {{ $t(hasCurrentJob ? 'dashboard.flow.confirmed' : 'dashboard.flow.notStarted') }}
         </span>
       </div>
       <ol class="workflow-steps">
         <li class="workflow-step workflow-step--current">
           <span>01</span>
-          <div><strong>确认岗位要求</strong><small>输入并解析 JD，由 HR 修改确认</small></div>
+          <div><strong>{{ $t('dashboard.flow.steps.confirm.title') }}</strong><small>{{ $t('dashboard.flow.steps.confirm.description') }}</small></div>
         </li>
         <li class="workflow-step">
           <span>02</span>
-          <div><strong>批量导入简历</strong><small>上传 1–30 份文本型 PDF</small></div>
+          <div><strong>{{ $t('dashboard.flow.steps.import.title') }}</strong><small>{{ $t('dashboard.flow.steps.import.description') }}</small></div>
         </li>
         <li class="workflow-step">
           <span>03</span>
-          <div><strong>查看候选人</strong><small>检查结构化资料与解析结果</small></div>
+          <div><strong>{{ $t('dashboard.flow.steps.candidates.title') }}</strong><small>{{ $t('dashboard.flow.steps.candidates.description') }}</small></div>
         </li>
         <li class="workflow-step">
           <span>04</span>
-          <div><strong>分析与人工复核</strong><small>查看岗位匹配依据与待确认信息</small></div>
+          <div><strong>{{ $t('dashboard.flow.steps.review.title') }}</strong><small>{{ $t('dashboard.flow.steps.review.description') }}</small></div>
         </li>
       </ol>
     </div>
@@ -54,33 +54,33 @@ const scoredCandidateCount = computed(() => Object.keys(session.jobMatches).leng
       <article class="panel">
         <div class="panel__header">
           <div>
-            <span class="section-kicker">CURRENT SESSION</span>
-            <h3>本次处理</h3>
+            <span class="section-kicker">{{ $t('dashboard.session.eyebrow') }}</span>
+            <h3>{{ $t('dashboard.session.title') }}</h3>
           </div>
         </div>
         <div class="session-summary">
           <div>
-            <span>当前 JD</span>
-            <strong>{{ session.currentJob?.job_title ?? '未设置' }}</strong>
+            <span>{{ $t('dashboard.session.currentJob') }}</span>
+            <strong>{{ session.currentJob?.job_title ?? $t('dashboard.session.notSet') }}</strong>
             <small v-if="session.currentJob?.id">{{ session.currentJob.id }}</small>
           </div>
-          <div><span>候选人</span><strong>{{ session.candidates.length }}</strong></div>
-          <div><span>已评分</span><strong>{{ scoredCandidateCount }} / {{ session.candidates.length }}</strong></div>
+          <div><span>{{ $t('dashboard.session.candidates') }}</span><strong>{{ session.candidates.length }}</strong></div>
+          <div><span>{{ $t('dashboard.session.scored') }}</span><strong>{{ scoredCandidateCount }} / {{ session.candidates.length }}</strong></div>
         </div>
-        <p class="helper-text">这里只展示当前浏览器会话的数据，不生成虚假历史统计。</p>
+        <p class="helper-text">{{ $t('dashboard.session.note') }}</p>
       </article>
 
       <article class="panel">
         <div class="panel__header">
           <div>
-            <span class="section-kicker">SYSTEM SCOPE</span>
-            <h3>当前可用范围</h3>
+            <span class="section-kicker">{{ $t('dashboard.scope.eyebrow') }}</span>
+            <h3>{{ $t('dashboard.scope.title') }}</h3>
           </div>
         </div>
         <ul class="capability-list">
-          <li><span class="status-dot"></span>JD 解析与人工确认接口已具备</li>
-          <li><span class="status-dot"></span>单份及批量简历解析接口已具备</li>
-          <li><span class="status-dot"></span>岗位匹配评分接口已接入</li>
+          <li><span class="status-dot"></span>{{ $t('dashboard.scope.jd') }}</li>
+          <li><span class="status-dot"></span>{{ $t('dashboard.scope.resume') }}</li>
+          <li><span class="status-dot"></span>{{ $t('dashboard.scope.scoring') }}</li>
         </ul>
       </article>
     </div>

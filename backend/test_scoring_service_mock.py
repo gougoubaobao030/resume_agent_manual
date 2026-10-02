@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from schemas.jd import JDInfo, JDRequirement
+from schemas.language import AnalysisLanguage
 from schemas.resume import BasicInfo, Candidate, ExtractionMetadata
 from schemas.scoring import (
     JobMatchResult,
@@ -80,7 +81,7 @@ class ScoringMockTest(unittest.TestCase):
                 wraps=scoring_service._validate_job_match_result_consistency,
             ) as consistency_mock,
         ):
-            result = scoring_service.evaluate_job_match(jd, candidate)
+            result = scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.ZH_CN)
 
         coverage_mock.assert_called_once()
         consistency_mock.assert_called_once()
@@ -98,8 +99,8 @@ class ScoringMockTest(unittest.TestCase):
         candidate = _build_test_candidate()
 
         with patch.dict(os.environ, {"SCORING_USE_MOCK": "true"}):
-            first = scoring_service.evaluate_job_match(jd, candidate)
-            second = scoring_service.evaluate_job_match(jd, candidate)
+            first = scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.JA_JP)
+            second = scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.JA_JP)
 
         self.assertEqual(first, second)
 
@@ -141,12 +142,17 @@ class ScoringMockTest(unittest.TestCase):
                 wraps=scoring_service._build_job_match_prompt,
             ) as prompt_mock,
         ):
-            result = scoring_service.evaluate_job_match(jd, candidate)
+            result = scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.EN_US)
 
         client_class_mock.assert_called_once_with()
-        prompt_mock.assert_called_once_with(jd=jd, candidate=candidate)
+        prompt_mock.assert_called_once_with(
+            jd=jd,
+            candidate=candidate,
+            analysis_language=AnalysisLanguage.EN_US,
+        )
         client.generate_structured.assert_called_once()
         self.assertEqual(result.candidate_id, candidate.id)
+        self.assertEqual(result.analysis_language, AnalysisLanguage.EN_US)
 
 
 if __name__ == "__main__":

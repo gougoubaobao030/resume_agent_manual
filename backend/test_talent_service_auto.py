@@ -1,4 +1,5 @@
 ﻿from schemas.resume import Candidate
+from schemas.language import AnalysisLanguage
 from services.talent_service import discover_talent
 
 # 放了现成测试Candidate版
@@ -202,6 +203,7 @@ candidate = Candidate.model_validate(
 
 result = discover_talent(
     candidate=candidate,
+    analysis_language=AnalysisLanguage.ZH_CN,
     mode="auto",
 )
 

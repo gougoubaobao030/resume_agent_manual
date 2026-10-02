@@ -1,5 +1,6 @@
 ﻿from pathlib import Path
 from uuid import uuid4
+from collections.abc import Awaitable, Callable
 
 import asyncio
 import hashlib
@@ -12,7 +13,7 @@ from clients.llm_client import LLMClient
 
 from prompts.resume_prompt import (
     RESUME_SYSTEM_PROMPT,
-    RESUME_USER_PROMPT_TEMPLATE,
+    build_resume_user_prompt,
 )
 from schemas.resume import (
     BasicInfo,
@@ -186,9 +187,7 @@ def parse_resume_text(
             "简历文本为空，无法解析"
         )
 
-    user_prompt = RESUME_USER_PROMPT_TEMPLATE.format(
-        resume_text=cleaned_text
-    )
+    user_prompt = build_resume_user_prompt(cleaned_text)
 
     #以后要批量的
     #llm_client = LLMClient()
@@ -284,6 +283,7 @@ async def _parse_resume_item(
     pdf_path: str,
     semaphore: asyncio.Semaphore,
     task_item: ResumeTaskItem | None = None,
+    on_candidate_parsed: Callable[[Candidate], Awaitable[None]] | None = None,
 ) -> ResumeParseItemResult:
 
     async with semaphore:
@@ -295,6 +295,10 @@ async def _parse_resume_item(
                 pdf_path=pdf_path,
                 source_file=filename,
             )
+
+            # 数据库提交成功后，任务项才对轮询端显示 success。
+            if on_candidate_parsed is not None:
+                await on_candidate_parsed(candidate)
 
             if task_item is not None:
                 task_item.candidate = candidate
@@ -325,6 +329,7 @@ async def parse_resume_batch(
     files: list[tuple[str, str]],
     *,
     task_items: list[ResumeTaskItem] | None = None,
+    on_candidate_parsed: Callable[[Candidate], Awaitable[None]] | None = None,
 ) -> ResumeBatchParseResponse:
 
     if task_items is not None and len(task_items) != len(files):
@@ -339,6 +344,7 @@ async def parse_resume_batch(
             pdf_path=pdf_path,
             semaphore=semaphore,
             task_item=task_items[index] if task_items is not None else None,
+            on_candidate_parsed=on_candidate_parsed,
         )
         for index, (filename, pdf_path) in enumerate(files)
     ]

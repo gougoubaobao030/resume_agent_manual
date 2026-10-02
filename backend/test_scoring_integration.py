@@ -9,6 +9,7 @@ from prompts.scoring_prompt import (
     build_job_match_user_prompt,
 )
 from schemas.jd import JDParseResponse
+from schemas.language import AnalysisLanguage
 from schemas.resume import Candidate
 from schemas.scoring import (
     LLMJobMatchResult,
@@ -55,6 +56,7 @@ def test_real_deepseek_job_match_structured_output() -> None:
     user_prompt = build_job_match_user_prompt(
         jd_data=jd.model_dump(mode="json"),
         candidate_data=candidate.model_dump(mode="json"),
+        analysis_language=AnalysisLanguage.ZH_CN,
     )
 
     client = LLMClient()

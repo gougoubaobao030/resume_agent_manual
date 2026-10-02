@@ -112,3 +112,13 @@ Issue：`not_matched` 与 `insufficient_evidence` 边界需进一步优化
 
 ## issue_019 潜力分和指定分分开
 ## issue_020 唉，储存列表
+## issue_021 响应超时重连
+
+## issue_022 中文表达解决
+## issue_023 数据库文件另外放reposti
+## issue_024 评分结果都要留下来
+## issue_025 hr文字什么的改一下
+
+- jd切换，内容没有跟着切换
+- 简历分析处也没有显示
+- 退出登录跳转登录页面

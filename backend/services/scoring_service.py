@@ -4,6 +4,8 @@ from prompts.scoring_prompt import (
     build_job_match_user_prompt,
 )
 from schemas.jd import JDInfo
+from schemas.evidence import EvidenceValidationIssue
+from schemas.language import AnalysisLanguage
 from schemas.resume import Candidate
 from schemas.scoring import LLMJobMatchResult
 
@@ -31,6 +33,7 @@ from schemas.scoring import (
     RawReviewRequest,
     RequirementMatchResult,
 )
+from services.evidence_validation import verify_candidate_evidence
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -49,46 +52,99 @@ def _is_scoring_mock_enabled() -> bool:
     }
 
 
-def _build_mock_evidence(candidate: Candidate) -> LLMMatchEvidence:
+def _build_mock_evidence(candidate: Candidate) -> LLMMatchEvidence | None:
     """从本次请求的 Candidate 中选择一条最小合法 Mock 证据。"""
 
-    source_file = (
-        candidate.extraction_metadata.source_file
-        if candidate.extraction_metadata
-        else None
-    )
-    if source_file:
-        return LLMMatchEvidence(
-            text=f"Mock评分输入来源文件：{source_file}",
-            source_type="extraction_metadata",
-        )
-
-    if candidate.basic_info and candidate.basic_info.name:
-        return LLMMatchEvidence(
-            text=f"Mock评分输入候选人：{candidate.basic_info.name}",
-            source_type="basic_info",
-        )
+    for source_type, items in (
+        ("projects", candidate.projects),
+        ("work_experience", candidate.work_experience),
+        ("candidate_evidence", candidate.candidate_evidence),
+    ):
+        for index, item in enumerate(items):
+            value = (
+                getattr(item, "description", None)
+                or getattr(item, "name", None)
+                or getattr(item, "position", None)
+                or getattr(item, "title", None)
+            )
+            if value:
+                return LLMMatchEvidence(
+                    text=value,
+                    source_type=source_type,
+                    source_index=index,
+                )
 
     if candidate.skills:
         return LLMMatchEvidence(
-            text=f"Mock评分输入技能：{candidate.skills[0]}",
+            text=candidate.skills[0],
             source_type="skills",
             source_index=0,
         )
 
-    return LLMMatchEvidence(
-        text=f"Mock评分输入 Candidate ID：{candidate.id or '未提供'}",
-        source_type="candidate",
-    )
+    if candidate.basic_info and candidate.basic_info.name:
+        return LLMMatchEvidence(
+            text=candidate.basic_info.name,
+            source_type="basic_info",
+        )
+
+    if candidate.raw_text:
+        return LLMMatchEvidence(
+            text=candidate.raw_text[:180],
+            source_type="raw_text",
+        )
+
+    return None
+
+
+_SCORING_MOCK_TEXT = {
+    AnalysisLanguage.ZH_CN: {
+        "reason": "Mock 岗位匹配结果：{requirement_name}",
+        "summary": "Mock 岗位匹配结果，用于无真实 LLM 成本的异步学习。",
+    },
+    AnalysisLanguage.JA_JP: {
+        "reason": "Mock 求人マッチング結果：{requirement_name}",
+        "summary": "実際の LLM コストを使わずに非同期処理を確認するための Mock 求人マッチング結果です。",
+    },
+    AnalysisLanguage.EN_US: {
+        "reason": "Mock job-match result: {requirement_name}",
+        "summary": "Mock job-match result for testing asynchronous behavior without real LLM cost.",
+    },
+}
+
+_SCORING_EVIDENCE_TEXT = {
+    AnalysisLanguage.ZH_CN: {
+        "missing": "当前结论缺少可从候选人资料精确确认的证据，需要人工复核。",
+        "review": "模型返回的证据未能全部通过原文校验，建议回查候选人资料。",
+        "warning": "部分岗位匹配证据未能通过原文或来源定位校验，相关结论的可信度已降低。",
+        "unsupported_reason": "模型给出了匹配判断，但其引用内容无法从候选人资料中精确确认，因此该结论需要人工复核。",
+        "unsupported_summary": "当前岗位匹配结论缺少可验证证据，分数仅供参考，需要人工复核候选人原始资料。",
+    },
+    AnalysisLanguage.JA_JP: {
+        "missing": "現在の結論には候補者資料から正確に確認できる根拠がなく、人による確認が必要です。",
+        "review": "モデルが返した根拠の一部が原文照合を通過しなかったため、候補者資料を再確認してください。",
+        "warning": "一部の求人マッチング根拠は原文または出典位置を確認できず、関連する結論の信頼度を下げました。",
+        "unsupported_reason": "モデルはマッチング判定を返しましたが、引用内容を候補者資料から正確に確認できないため、人による確認が必要です。",
+        "unsupported_summary": "現在の求人マッチング結論には検証可能な根拠が不足しています。スコアは参考情報として扱い、候補者の原資料を確認してください。",
+    },
+    AnalysisLanguage.EN_US: {
+        "missing": "This conclusion lacks evidence that can be confirmed exactly in the candidate material and requires human review.",
+        "review": "Some model-provided evidence did not pass source-text validation; review the candidate material.",
+        "warning": "Some job-match evidence failed source-text or locator validation, so confidence in the related conclusions was reduced.",
+        "unsupported_reason": "The model returned a match judgment, but its cited content could not be confirmed exactly in the candidate material, so human review is required.",
+        "unsupported_summary": "The current job-match conclusions lack verifiable evidence. Treat the score as provisional and review the original candidate material.",
+    },
+}
 
 
 def _build_mock_llm_job_match_result(
     jd: JDInfo,
     candidate: Candidate,
+    analysis_language: AnalysisLanguage,
 ) -> LLMJobMatchResult:
     """根据实际 JD requirements 构造正式 LLM 评分结果模型。"""
 
     evidence = _build_mock_evidence(candidate)
+    messages = _SCORING_MOCK_TEXT[analysis_language]
     requirement_matches: list[LLMRequirementMatch] = []
 
     for requirement in jd.requirements:
@@ -112,10 +168,11 @@ def _build_mock_llm_job_match_result(
                 score=score,
                 confidence=confidence,
                 reason=(
-                    "Mock scoring result for async learning: "
-                    f"{requirement.name}"
+                    messages["reason"].format(
+                        requirement_name=requirement.name,
+                    )
                 ),
-                evidence=[evidence.model_copy(deep=True)],
+                evidence=[evidence.model_copy(deep=True)] if evidence else [],
                 missing_information=[],
                 needs_raw_review=False,
                 raw_review_reason=None,
@@ -125,7 +182,7 @@ def _build_mock_llm_job_match_result(
     return LLMJobMatchResult(
         requirement_matches=requirement_matches,
         overall_confidence=MatchConfidence.MEDIUM,
-        summary="Mock岗位匹配结果，用于无真实LLM成本的异步学习。",
+        summary=messages["summary"],
         missing_information=[],
         needs_raw_review=False,
         raw_review_requirement_ids=[],
@@ -135,12 +192,14 @@ def _build_mock_llm_job_match_result(
 def _build_job_match_prompt(
     jd: JDInfo,
     candidate: Candidate,
+    analysis_language: AnalysisLanguage,
 ) -> str:
     """将业务模型转换为岗位匹配Prompt输入。"""
 
     return build_job_match_user_prompt(
         jd_data=jd.model_dump(),
         candidate_data=candidate.model_dump(),
+        analysis_language=analysis_language,
     )
 
 # 这里学到了很重要的一点
@@ -193,6 +252,7 @@ def _validate_requirement_coverage(
 def evaluate_job_match_with_llm(
     jd: JDInfo,
     candidate: Candidate,
+    analysis_language: AnalysisLanguage,
 ) -> LLMJobMatchResult:
     """使用LLM对结构化JD和结构化候选人进行岗位匹配判断。"""
 
@@ -206,6 +266,7 @@ def evaluate_job_match_with_llm(
         result = _build_mock_llm_job_match_result(
             jd=jd,
             candidate=candidate,
+            analysis_language=analysis_language,
         )
 
         _validate_requirement_coverage(
@@ -218,6 +279,7 @@ def evaluate_job_match_with_llm(
     user_prompt = _build_job_match_prompt(
         jd=jd,
         candidate=candidate,
+        analysis_language=analysis_language,
     )
 
     llm_client = LLMClient()
@@ -271,24 +333,46 @@ def _normalize_requirement_weights(
 # 这里其实有问题：万一没有证据的时候怎么办...写入issue
 def _build_match_evidence(
     llm_result,
-) -> list[MatchEvidence]:
-    """将LLM证据DTO转换为系统内部证据模型。"""
+    candidate: Candidate,
+    location: str,
+) -> tuple[list[MatchEvidence], list[EvidenceValidationIssue]]:
+    """只把可从 Candidate 或 raw_text 精确确认的文本转为正式证据。"""
 
-    return [
-        MatchEvidence(
+    verified: list[MatchEvidence] = []
+    issues: list[EvidenceValidationIssue] = []
+
+    for index, evidence in enumerate(llm_result.evidence):
+        check = verify_candidate_evidence(
+            candidate=candidate,
             text=evidence.text,
             source_type=evidence.source_type,
             source_index=evidence.source_index,
+            location=f"{location}.evidence[{index}]",
         )
-        for evidence in llm_result.evidence
-    ]
+        if check.issue:
+            issues.append(check.issue)
+        if not check.is_verified:
+            continue
+
+        verified.append(MatchEvidence(
+            text=evidence.text,
+            source_type=check.source_type,
+            source_index=check.source_index,
+            verification_status=check.verification_status,
+            source_path=check.source_path,
+            locator_verified=check.locator_verified,
+        ))
+
+    return verified, issues
 
 # 转换requriement，注意一个原则Authoritative Data Source / 权威数据源
 # 就是只取模型能给的，而其他要从jdinfo中拿
 def _build_requirement_results(
     jd: JDInfo,
+    candidate: Candidate,
     llm_result: LLMJobMatchResult,
     normalized_weights: dict[str, float],
+    analysis_language: AnalysisLanguage,
 ) -> list[RequirementMatchResult]:
     """将LLM逐条匹配结果转换为系统内部评分结果。"""
 
@@ -301,6 +385,35 @@ def _build_requirement_results(
 
     for llm_match in llm_result.requirement_matches:
         requirement = requirement_map[llm_match.requirement_id]
+        evidence, evidence_issues = _build_match_evidence(
+            llm_match,
+            candidate,
+            f"requirement[{requirement.id}]",
+        )
+        support_gap = (
+            not evidence
+            and llm_match.status != MatchStatus.INSUFFICIENT_EVIDENCE
+        )
+        confidence = llm_match.confidence
+        if support_gap:
+            confidence = MatchConfidence.LOW
+        elif evidence_issues and confidence == MatchConfidence.HIGH:
+            confidence = MatchConfidence.MEDIUM
+
+        messages = _SCORING_EVIDENCE_TEXT[analysis_language]
+        missing_information = list(llm_match.missing_information)
+        if support_gap and messages["missing"] not in missing_information:
+            missing_information.append(messages["missing"])
+
+        needs_raw_review = llm_match.needs_raw_review or support_gap
+        raw_review_reason = (
+            llm_match.raw_review_reason.strip()
+            if llm_match.raw_review_reason
+            and llm_match.raw_review_reason.strip()
+            else None
+        )
+        if support_gap and not raw_review_reason:
+            raw_review_reason = messages["review"]
 
         result = RequirementMatchResult(
             requirement_id=requirement.id,
@@ -310,17 +423,13 @@ def _build_requirement_results(
             normalized_weight=normalized_weights[requirement.id],
             status=llm_match.status,
             score=llm_match.score,
-            confidence=llm_match.confidence,
-            reason=llm_match.reason,
-            evidence=_build_match_evidence(llm_match),
-            missing_information=list(llm_match.missing_information),
-            needs_raw_review=llm_match.needs_raw_review,
-            raw_review_reason=(
-                llm_match.raw_review_reason.strip()
-                if llm_match.raw_review_reason
-                and llm_match.raw_review_reason.strip()
-                else None
-            ),
+            confidence=confidence,
+            reason=(messages["unsupported_reason"] if support_gap else llm_match.reason),
+            evidence=evidence,
+            evidence_validation_issues=evidence_issues,
+            missing_information=missing_information,
+            needs_raw_review=needs_raw_review,
+            raw_review_reason=raw_review_reason,
         )
 
         results.append(result)
@@ -464,6 +573,7 @@ def _build_job_match_result(
     jd: JDInfo,
     candidate: Candidate,
     llm_result: LLMJobMatchResult,
+    analysis_language: AnalysisLanguage,
 ) -> JobMatchResult:
     """将LLM岗位匹配结果转换为系统最终岗位匹配结果。"""
 
@@ -471,8 +581,10 @@ def _build_job_match_result(
 
     requirement_results = _build_requirement_results(
         jd=jd,
+        candidate=candidate,
         llm_result=llm_result,
         normalized_weights=normalized_weights,
+        analysis_language=analysis_language,
     )
 
     must_have_summary = _build_must_have_summary(
@@ -489,17 +601,49 @@ def _build_job_match_result(
         raw_review_requirement_ids,
     ) = _build_raw_review_summary(requirement_results)
 
+    has_evidence_issues = any(
+        item.evidence_validation_issues
+        for item in requirement_results
+    )
+    decisive_results = [
+        item
+        for item in requirement_results
+        if item.status != MatchStatus.INSUFFICIENT_EVIDENCE
+    ]
+    all_decisive_results_lack_evidence = bool(decisive_results) and all(
+        not item.evidence
+        for item in decisive_results
+    )
+    overall_confidence = llm_result.overall_confidence
+    if decisive_results and all(
+        item.confidence == MatchConfidence.LOW
+        for item in decisive_results
+    ):
+        overall_confidence = MatchConfidence.LOW
+    elif has_evidence_issues and overall_confidence == MatchConfidence.HIGH:
+        overall_confidence = MatchConfidence.MEDIUM
+
     result = JobMatchResult(
         job_id=jd.id,
         candidate_id=candidate.id,
+        analysis_language=analysis_language,
         score=score,
-        confidence=llm_result.overall_confidence,
+        confidence=overall_confidence,
         requirement_results=requirement_results,
         must_have_summary=must_have_summary,
         missing_information=missing_information,
         needs_raw_review=needs_raw_review,
         raw_review_requirement_ids=raw_review_requirement_ids,
-        summary=llm_result.summary,
+        summary=(
+            _SCORING_EVIDENCE_TEXT[analysis_language]["unsupported_summary"]
+            if all_decisive_results_lack_evidence
+            else llm_result.summary
+        ),
+        warnings=(
+            [_SCORING_EVIDENCE_TEXT[analysis_language]["warning"]]
+            if has_evidence_issues
+            else []
+        ),
     )
 
     _validate_job_match_result_consistency(result)
@@ -511,16 +655,19 @@ def _build_job_match_result(
 def evaluate_job_match(
     jd: JDInfo,
     candidate: Candidate,
+    analysis_language: AnalysisLanguage,
 ) -> JobMatchResult:
     """完成候选人与岗位的完整岗位匹配评分。"""
 
     llm_result = evaluate_job_match_with_llm(
         jd=jd,
         candidate=candidate,
+        analysis_language=analysis_language,
     )
 
     return _build_job_match_result(
         jd=jd,
         candidate=candidate,
         llm_result=llm_result,
+        analysis_language=analysis_language,
     )

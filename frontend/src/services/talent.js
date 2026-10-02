@@ -9,13 +9,18 @@ export function talentLevelLabel(level) {
   return talentLevelLabels[level] || '—'
 }
 
-export async function analyzeTalent(candidate, mode = session.talentMode, desiredTraits = session.desiredTraits) {
+export async function analyzeTalent(
+  candidate,
+  mode = session.talentMode,
+  desiredTraits = session.desiredTraits,
+  analysisLanguage,
+) {
   if (!candidate?.id || session.talentStatuses[candidate.id] === 'loading') return
   if (mode === 'specified' && !desiredTraits.length) return
 
   setTalentLoading(candidate.id)
   try {
-    const result = await discoverTalent(candidate, mode, [...desiredTraits])
+    const result = await discoverTalent(candidate.id, mode, [...desiredTraits], analysisLanguage)
     setTalentResult(candidate.id, result)
   } catch (error) {
     setTalentError(candidate.id, getFriendlyApiError(error, '人才能力分析'))

@@ -46,6 +46,7 @@ class ExtractionMetadata(BaseModel):
     parser: Optional[str] = None
     model: Optional[str] = None
     confidence: Optional[float] = None
+    source_language: str | None = None
 
 #最终内部使用的格式
 class Candidate(BaseModel):

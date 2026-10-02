@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 
 export const session = reactive({
+  jobs: [],
   currentJob: null,
   candidates: [],
   jobMatches: {},
@@ -19,16 +20,13 @@ export const session = reactive({
 })
 
 export function setCurrentJob(job) {
-  const jobChanged = session.currentJob?.id && session.currentJob.id !== job.id
-  session.currentJob = structuredClone(job)
+  const jobChanged = session.currentJob?.id && session.currentJob.id !== job?.id
+  session.currentJob = job ? structuredClone(job) : null
 
   if (jobChanged) {
     session.jobMatches = {}
     session.jobMatchStatuses = {}
     session.jobMatchErrors = {}
-    session.talentResults = {}
-    session.talentStatuses = {}
-    session.talentErrors = {}
     session.selectedTalentCandidateIds = []
   }
 }

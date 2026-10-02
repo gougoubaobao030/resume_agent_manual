@@ -7,8 +7,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 import httpx
+from types import SimpleNamespace
 
 from app.main import app
+from api.auth import get_current_user
 from schemas.resume import Candidate
 from services import resume_service, resume_task_service
 
@@ -17,6 +19,8 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp_dir.cleanup)
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=None)
+        self.addCleanup(app.dependency_overrides.clear)
 
     def make_files(self, names):
         files = []

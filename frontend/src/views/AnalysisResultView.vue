@@ -1,11 +1,13 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import { session } from '../state/session'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const scoredCandidates = computed(() =>
   session.candidates.filter((candidate) => session.jobMatches[candidate.id]),
@@ -23,37 +25,37 @@ const matchResult = computed(() =>
 )
 
 const candidateName = computed(() =>
-  selectedCandidate.value?.basic_info?.name || '姓名未提取',
+  selectedCandidate.value?.basic_info?.name || t('common.candidateNameMissing'),
 )
 
 const mustHaveState = computed(() => {
   const summary = matchResult.value?.must_have_summary
-  if (!summary) return { label: '暂无判断', className: 'status-badge--neutral' }
-  if (summary.has_failure) return { label: '硬条件不满足', className: 'status-badge--error' }
-  if (summary.needs_confirmation) return { label: '硬条件需确认', className: 'status-badge--warning' }
-  return { label: '硬条件满足', className: 'status-badge--success' }
+  if (!summary) return { label: t('common.match.noAssessment'), className: 'status-badge--neutral' }
+  if (summary.has_failure) return { label: t('common.match.mustHaveFailed'), className: 'status-badge--error' }
+  if (summary.needs_confirmation) return { label: t('common.match.mustHaveConfirmation'), className: 'status-badge--warning' }
+  return { label: t('common.match.mustHavePassed'), className: 'status-badge--success' }
 })
 
 const statusLabels = {
-  matched: '满足',
-  partially_matched: '部分满足',
-  not_matched: '不满足',
-  insufficient_evidence: '证据不足',
+  matched: 'common.requirementStatus.matched',
+  partially_matched: 'common.requirementStatus.partiallyMatched',
+  not_matched: 'common.requirementStatus.notMatched',
+  insufficient_evidence: 'common.requirementStatus.insufficientEvidence',
 }
 
-const confidenceLabels = { high: '高', medium: '中', low: '低' }
+const confidenceLabels = { high: 'common.confidence.high', medium: 'common.confidence.medium', low: 'common.confidence.low' }
 
 const sourceLabels = {
-  work_experience: '工作经历',
-  projects: '项目经历',
-  project: '项目经历',
-  education: '教育经历',
-  skills: '技能',
-  languages: '语言能力',
-  certifications: '证书',
-  achievements: '成果',
-  candidate_evidence: '事实证据',
-  raw_text: '简历原文',
+  work_experience: 'common.sources.workExperience',
+  projects: 'common.sources.projects',
+  project: 'common.sources.projects',
+  education: 'common.sources.education',
+  skills: 'common.sources.skills',
+  languages: 'common.sources.languages',
+  certifications: 'common.sources.certifications',
+  achievements: 'common.sources.achievements',
+  candidate_evidence: 'common.sources.candidateEvidence',
+  raw_text: 'common.sources.rawText',
 }
 
 function formattedScore(score) {
@@ -62,7 +64,7 @@ function formattedScore(score) {
 }
 
 function requirementStatus(status) {
-  return statusLabels[status] || status
+  return statusLabels[status] ? t(statusLabels[status]) : status
 }
 
 function statusClass(status) {
@@ -73,16 +75,18 @@ function statusClass(status) {
 }
 
 function confidenceLabel(confidence) {
-  return confidenceLabels[confidence] || confidence
+  return confidenceLabels[confidence] ? t(confidenceLabels[confidence]) : confidence
 }
 
 function evidenceSource(evidence) {
   if (!evidence.source_type && evidence.source_index === null) return ''
   if (!evidence.source_type && evidence.source_index === undefined) return ''
-  const source = sourceLabels[evidence.source_type] || evidence.source_type || '简历'
+  const source = sourceLabels[evidence.source_type]
+    ? t(sourceLabels[evidence.source_type])
+    : evidence.source_type || t('common.sources.resume')
   return evidence.source_index === null || evidence.source_index === undefined
-    ? `来源：${source}`
-    : `来源：${source} #${evidence.source_index + 1}`
+    ? t('common.sourceLabel', { source })
+    : t('common.sourceWithIndex', { source, index: evidence.source_index + 1 })
 }
 
 function selectCandidate(event) {
@@ -94,16 +98,16 @@ function selectCandidate(event) {
   <section class="page-stack">
     <div class="page-heading page-heading--split">
       <div>
-        <p class="eyebrow">JOB MATCH</p>
-        <h2>岗位匹配分析</h2>
-        <p v-if="matchResult">{{ candidateName }} · {{ session.currentJob?.job_title || '当前岗位' }}</p>
-        <p v-else>展示当前会话中后端已完成的真实岗位匹配结果。</p>
+        <p class="eyebrow">{{ t('analysis.eyebrow') }}</p>
+        <h2>{{ t('analysis.title') }}</h2>
+        <p v-if="matchResult">{{ candidateName }} · {{ session.currentJob?.job_title || t('analysis.currentJob') }}</p>
+        <p v-else>{{ t('analysis.description') }}</p>
       </div>
       <label v-if="scoredCandidates.length > 1" class="analysis-candidate-select">
-        <span>候选人</span>
+        <span>{{ t('analysis.candidate') }}</span>
         <select :value="selectedCandidate?.id" class="select-input" @change="selectCandidate">
           <option v-for="candidate in scoredCandidates" :key="candidate.id" :value="candidate.id">
-            {{ candidate.basic_info?.name || '姓名未提取' }}
+            {{ candidate.basic_info?.name || t('common.candidateNameMissing') }}
           </option>
         </select>
       </label>
@@ -111,25 +115,25 @@ function selectCandidate(event) {
 
     <article v-if="!matchResult" class="panel empty-state">
       <div class="empty-state__mark">AI</div>
-      <h3>暂无岗位匹配结果</h3>
-      <p>请先保存 JD 并导入简历，系统会调用现有岗位匹配接口。</p>
-      <RouterLink class="text-link" to="/resumes">前往简历导入 →</RouterLink>
+      <h3>{{ t('analysis.empty.title') }}</h3>
+      <p>{{ t('analysis.empty.description') }}</p>
+      <RouterLink class="text-link" to="/resumes">{{ t('analysis.empty.action') }}</RouterLink>
     </article>
 
     <template v-else>
       <article class="panel match-hero">
         <div class="match-hero__score">
-          <span>岗位匹配分</span>
+          <span>{{ t('analysis.matchScore') }}</span>
           <strong>{{ formattedScore(matchResult.score) }}</strong>
           <small>/ 100</small>
         </div>
         <div class="match-hero__summary">
           <span class="status-badge" :class="mustHaveState.className">{{ mustHaveState.label }}</span>
-          <h3>总体判断</h3>
-          <p>{{ matchResult.summary || '后端未返回总体摘要。' }}</p>
+          <h3>{{ t('analysis.overallAssessment') }}</h3>
+          <p>{{ matchResult.summary || t('common.match.noSummary') }}</p>
           <div v-if="matchResult.needs_raw_review" class="raw-review-notice">
-            <strong>建议回查原始简历</strong>
-            <span>部分要求需要结合原始简历进一步确认。</span>
+            <strong>{{ t('analysis.rawReview.title') }}</strong>
+            <span>{{ t('analysis.rawReview.description') }}</span>
           </div>
         </div>
       </article>
@@ -144,9 +148,9 @@ function selectCandidate(event) {
             <div>
               <div class="requirement-title-line">
                 <h3>{{ requirement.requirement_name }}</h3>
-                <span v-if="requirement.must_have" class="must-have-label">硬性条件</span>
+                <span v-if="requirement.must_have" class="must-have-label">{{ t('analysis.mustHave') }}</span>
               </div>
-              <span class="requirement-confidence">判断可信度：{{ confidenceLabel(requirement.confidence) }}</span>
+              <span class="requirement-confidence">{{ t('analysis.confidence', { value: confidenceLabel(requirement.confidence) }) }}</span>
             </div>
             <div class="requirement-score-block">
               <strong>{{ formattedScore(requirement.score) }}</strong>
@@ -157,12 +161,12 @@ function selectCandidate(event) {
           </div>
 
           <div class="match-reason">
-            <strong>判断理由</strong>
+            <strong>{{ t('analysis.reason') }}</strong>
             <p>{{ requirement.reason }}</p>
           </div>
 
           <div v-if="requirement.evidence.length" class="match-section">
-            <h4>简历证据</h4>
+            <h4>{{ t('analysis.resumeEvidence') }}</h4>
             <div class="match-evidence-list">
               <div v-for="(evidence, index) in requirement.evidence" :key="index" class="match-evidence">
                 <p>{{ evidence.text }}</p>
@@ -172,21 +176,21 @@ function selectCandidate(event) {
           </div>
 
           <div v-if="requirement.missing_information.length" class="match-section confirmation-block">
-            <h4>待确认信息</h4>
+            <h4>{{ t('analysis.missingInformation') }}</h4>
             <ul class="plain-list">
               <li v-for="item in requirement.missing_information" :key="item">{{ item }}</li>
             </ul>
           </div>
 
           <div v-if="requirement.needs_raw_review" class="requirement-raw-review">
-            <strong>建议回查原始简历</strong>
+            <strong>{{ t('analysis.rawReview.title') }}</strong>
             <p v-if="requirement.raw_review_reason">{{ requirement.raw_review_reason }}</p>
           </div>
         </article>
       </div>
 
       <article v-if="matchResult.missing_information.length" class="panel overall-confirmation">
-        <div class="panel__header"><h3>整体待确认信息</h3></div>
+        <div class="panel__header"><h3>{{ t('analysis.overallMissingInformation') }}</h3></div>
         <ul class="plain-list">
           <li v-for="item in matchResult.missing_information" :key="item">{{ item }}</li>
         </ul>

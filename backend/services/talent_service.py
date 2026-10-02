@@ -1,4 +1,6 @@
 ﻿from schemas.resume import Candidate
+from schemas.language import AnalysisLanguage
+from schemas.evidence import EvidenceValidationIssue
 from schemas.talent import (
     TalentMode,
     TalentEvidence,
@@ -17,6 +19,7 @@ from prompts.talent_prompt import (
 )
 
 from clients.llm_client import LLMClient
+from services.evidence_validation import verify_candidate_evidence
 
 import hashlib
 import os
@@ -26,30 +29,52 @@ def _is_talent_mock_enabled() -> bool:
     return os.getenv("TALENT_USE_MOCK", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
-_MOCK_PROFILES = (
-    ("high", "项目经历呈现了从主动学习到独立交付的连续过程，值得优先深入了解。", (
-        ("学习落地能力", "high", "能将新知识转化为可交付的项目成果。", ("自主学习新技术并用于实际项目", "完成从方案到交付的完整实践")),
-        ("独立解决问题", "high", "经历体现了独立定位问题和推进方案的能力。", ("独立处理项目中的关键问题", "持续推进项目直至上线")),
-        ("跨领域迁移能力", "medium_high", "有跨技术或业务场景应用既有经验的迹象。", ("将已有技术经验迁移到新业务场景",)),
-    )),
-    ("medium_high", "具备持续投入和沟通协调的迹象，适合进一步核实协作成果。", (
-        ("自驱力", "medium_high", "经历中有主动推进工作的描述。", ("主动承担阶段性目标并跟进结果",)),
-        ("沟通协调", "medium_high", "能够在跨角色合作中推动信息对齐。", ("与不同岗位同事协作完成交付", "协调需求与实施节奏")),
-        ("持续投入", "medium", "有持续参与同一方向工作的记录。", ("持续参与项目迭代与问题处理",)),
-    )),
-    ("medium", "执行和可靠性方面有可读线索，但尚需结合具体成果判断影响范围。", (
-        ("可靠性意识", "medium", "经历强调按要求完成工作和核查结果。", ("按流程完成交付并检查结果",)),
-        ("组织协调", "medium", "有协助安排任务和跟进进度的迹象。", ("协助团队安排任务与跟踪进度",)),
-    )),
-    ("medium_low", "当前资料中的能力描述较笼统，建议先核实具体负责范围。", (
-        ("复杂问题处理", "medium_low", "提到参与复杂任务，但缺少个人决策过程。", ("参与处理项目中的复杂任务",)),
-        ("新人带教", "medium_low", "有协助新人工作的线索，尚不清楚实际带教效果。", ("协助新人熟悉工作流程",)),
-    )),
-    ("low", "资料主要呈现基础岗位职责，额外能力证据有限。", (
-        ("可靠性意识", "medium_low", "有完成日常工作的记录，独立负责范围仍需确认。", ("按要求完成日常岗位工作",)),
-        ("沟通协调", "low", "可见协作经历较少，暂无法判断复杂沟通能力。", ("参与团队日常信息沟通",)),
-    )),
+_MOCK_PROFILE_LEVELS = (
+    "high",
+    "medium_high",
+    "medium",
+    "medium_low",
+    "low",
 )
+
+_TALENT_LANGUAGE_TEXT = {
+    AnalysisLanguage.ZH_CN: {
+        "summary": "Mock 人才能力分析已完成；当前等级为 {level}，请结合原始资料人工复核。",
+        "ability_name": "事实归纳能力",
+        "ability_reason": "候选人资料中存在可供进一步核实的事实线索。",
+        "specified_supported": "资料中存在与「{trait}」相关的事实线索，建议面试核实具体贡献。",
+        "specified_missing": "当前资料对「{trait}」的直接支持不足，需要进一步确认。",
+        "missing_information": "请核实「{trait}」的具体行为和结果",
+        "no_abilities": "当前候选人资料中未发现足够明确的额外能力证据",
+        "missing_traits": "以下指定人才特征当前资料证据不足: {traits}",
+        "evidence_warning": "部分人才分析证据未能通过原文或来源定位校验；无有效证据的能力结论已移除，相关指定人才像支持度已降低。",
+        "unsupported_summary": "当前人才分析结论缺少可验证证据，已按证据不足处理，需要人工复核候选人原始资料。",
+    },
+    AnalysisLanguage.JA_JP: {
+        "summary": "Mock 人材能力分析が完了しました。現在のレベルは {level} です。原資料と照合して確認してください。",
+        "ability_name": "事実整理力",
+        "ability_reason": "候補者資料には、さらに確認できる事実上の手がかりがあります。",
+        "specified_supported": "資料には「{trait}」に関連する事実上の手がかりがあります。面接で具体的な貢献を確認してください。",
+        "specified_missing": "現在の資料では「{trait}」を直接裏付ける情報が不足しているため、追加確認が必要です。",
+        "missing_information": "「{trait}」に関する具体的な行動と結果を確認してください",
+        "no_abilities": "現在の候補者資料では、明確な追加能力の根拠を十分に確認できませんでした",
+        "missing_traits": "次の指定人材特性は現在の資料で根拠が不足しています: {traits}",
+        "evidence_warning": "一部の人材分析根拠は原文または出典位置を確認できませんでした。有効な根拠のない能力結論を除外し、関連する指定人材像の支持度を下げました。",
+        "unsupported_summary": "現在の人材分析結論には検証可能な根拠が不足しているため、根拠不足として扱い、候補者の原資料を人が確認する必要があります。",
+    },
+    AnalysisLanguage.EN_US: {
+        "summary": "Mock capability analysis completed at level {level}; review it against the original candidate material.",
+        "ability_name": "Fact synthesis",
+        "ability_reason": "The candidate material contains factual signals that can be verified further.",
+        "specified_supported": "The material contains factual signals related to “{trait}”; verify the candidate's specific contribution in an interview.",
+        "specified_missing": "The current material does not directly support “{trait}” and needs further confirmation.",
+        "missing_information": "Confirm the specific behavior and outcome related to “{trait}”",
+        "no_abilities": "No sufficiently clear evidence of additional capabilities was found in the current candidate material",
+        "missing_traits": "The current material has insufficient evidence for these target traits: {traits}",
+        "evidence_warning": "Some talent-analysis evidence failed source-text or locator validation; unsupported capability findings were removed and related target-trait support was reduced.",
+        "unsupported_summary": "The current talent-analysis conclusions lack verifiable evidence and were treated as insufficiently supported; review the original candidate material.",
+    },
+}
 
 
 def _mock_candidate_evidence(candidate: Candidate) -> LLMTalentEvidence | None:
@@ -66,27 +91,40 @@ def _mock_candidate_evidence(candidate: Candidate) -> LLMTalentEvidence | None:
             if value:
                 return LLMTalentEvidence(text=value[:180], source_type=source_type, source_index=0)
     if candidate.skills:
-        return LLMTalentEvidence(text="、".join(candidate.skills[:4]), source_type="skills")
+        return LLMTalentEvidence(
+            text=candidate.skills[0],
+            source_type="skills",
+            source_index=0,
+        )
+    if candidate.raw_text:
+        return LLMTalentEvidence(
+            text=candidate.raw_text[:180],
+            source_type="raw_text",
+        )
     return None
 
 
 def _build_mock_llm_talent_result(
-    candidate: Candidate, mode: TalentMode, desired_traits: list[str],
+    candidate: Candidate,
+    mode: TalentMode,
+    desired_traits: list[str],
+    analysis_language: AnalysisLanguage,
 ) -> LLMTalentDiscoveryResult:
     """稳定选择模拟画像并构造正式 LLM DTO。"""
     key = candidate.id or (candidate.basic_info.name if candidate.basic_info else None)
     key = key or (candidate.extraction_metadata.source_file if candidate.extraction_metadata else None) or "candidate"
-    profile_index = int.from_bytes(hashlib.sha256(key.encode("utf-8")).digest()[:4], "big") % len(_MOCK_PROFILES)
-    level, summary, ability_data = _MOCK_PROFILES[profile_index]
+    profile_index = int.from_bytes(hashlib.sha256(key.encode("utf-8")).digest()[:4], "big") % len(_MOCK_PROFILE_LEVELS)
+    level = _MOCK_PROFILE_LEVELS[profile_index]
+    messages = _TALENT_LANGUAGE_TEXT[analysis_language]
     candidate_fact = _mock_candidate_evidence(candidate)
-    abilities = []
-    for name, ability_level, reason, examples in ability_data:
-        evidence = [LLMTalentEvidence(text=text, source_type="mock_profile") for text in examples]
-        if candidate_fact:
-            evidence.insert(0, candidate_fact.model_copy(deep=True))
-        abilities.append(LLMTalentAbility(
-            ability_name=name, level=ability_level, reason=reason, evidence=evidence,
-        ))
+    abilities = [
+        LLMTalentAbility(
+            ability_name=messages["ability_name"],
+            level=level,
+            reason=messages["ability_reason"],
+            evidence=[candidate_fact.model_copy(deep=True)],
+        )
+    ] if candidate_fact else []
 
     specified_traits = []
     if mode == "specified":
@@ -95,17 +133,17 @@ def _build_mock_llm_talent_result(
             specified_traits.append(LLMSpecifiedTraitResult(
                 trait=trait,
                 fit_level=level,
-                reason=(f"简历中有与「{trait}」相关的事实线索，建议面试核实具体贡献。"
-                        if has_evidence else f"当前资料对「{trait}」的直接支持不足，需进一步确认。"),
+                reason=(messages["specified_supported"].format(trait=trait)
+                        if has_evidence else messages["specified_missing"].format(trait=trait)),
                 evidence=[candidate_fact.model_copy(deep=True)] if has_evidence else [],
-                missing_information=[] if has_evidence else [f"请核实「{trait}」的具体行为和结果"],
+                missing_information=[] if has_evidence else [messages["missing_information"].format(trait=trait)],
             ))
 
     return LLMTalentDiscoveryResult(
         mode=mode,
         attention_level=level if mode == "auto" else None,
         specified_fit_level=level if mode == "specified" else None,
-        summary=summary,
+        summary=messages["summary"].format(level=level),
         abilities=abilities,
         specified_traits=specified_traits,
     )
@@ -113,6 +151,7 @@ def _build_mock_llm_talent_result(
 
 def discover_talent(
     candidate: Candidate,
+    analysis_language: AnalysisLanguage,
     mode: TalentMode = "auto",
     desired_traits: list[str] | None = None,
 ) -> TalentDiscoveryResult:
@@ -126,11 +165,17 @@ def discover_talent(
     )
 
     if _is_talent_mock_enabled():
-        llm_result = _build_mock_llm_talent_result(candidate, mode, traits)
+        llm_result = _build_mock_llm_talent_result(
+            candidate,
+            mode,
+            traits,
+            analysis_language,
+        )
     else:
         user_prompt = build_talent_user_prompt(
             candidate=candidate,
             mode=mode,
+            analysis_language=analysis_language,
             desired_traits=traits,
         )
         llm_client = LLMClient()
@@ -146,30 +191,74 @@ def discover_talent(
             llm_result=llm_result,
         )
 
-    abilities = [
-        _build_talent_ability(ability)
-        for ability in llm_result.abilities
-    ]
+    abilities: list[TalentAbility] = []
+    evidence_validation_issues: list[EvidenceValidationIssue] = []
+    for index, ability in enumerate(llm_result.abilities):
+        built_ability = _build_talent_ability(
+            ability,
+            candidate,
+            f"abilities[{index}]",
+        )
+        evidence_validation_issues.extend(built_ability.evidence_validation_issues)
+        # 人才能力结论必须有可验证事实；否则不作为正式能力发现返回。
+        if built_ability.evidence:
+            abilities.append(built_ability)
 
-    specified_traits = [
-        _build_specified_trait_result(trait_result)
-        for trait_result in llm_result.specified_traits
-    ]
+    specified_traits: list[SpecifiedTraitResult] = []
+    for index, trait_result in enumerate(llm_result.specified_traits):
+        built_trait = _build_specified_trait_result(
+            trait_result,
+            candidate,
+            f"specified_traits[{index}]",
+            analysis_language,
+        )
+        evidence_validation_issues.extend(built_trait.evidence_validation_issues)
+        specified_traits.append(built_trait)
 
     warnings = _build_warnings(
         mode=mode,
-        llm_result=llm_result,
+        abilities=abilities,
+        specified_traits=specified_traits,
+        evidence_issue_count=len(evidence_validation_issues),
+        analysis_language=analysis_language,
     )
+
+    attention_level = llm_result.attention_level
+    if mode == "auto" and not abilities:
+        attention_level = "low"
+
+    specified_fit_level = llm_result.specified_fit_level
+    if mode == "specified" and specified_traits and not any(
+        item.evidence for item in specified_traits
+    ):
+        specified_fit_level = "low"
+
+    summary = llm_result.summary
+    if (
+        (
+            mode == "auto"
+            and not abilities
+            and evidence_validation_issues
+        )
+        or (
+            mode == "specified"
+            and specified_traits
+            and not any(item.evidence for item in specified_traits)
+        )
+    ):
+        summary = _TALENT_LANGUAGE_TEXT[analysis_language]["unsupported_summary"]
 
     return TalentDiscoveryResult(
         candidate_id=candidate.id,
+        analysis_language=analysis_language,
         mode=mode,
-        attention_level=llm_result.attention_level,
-        specified_fit_level=llm_result.specified_fit_level,
-        summary=llm_result.summary,
+        attention_level=attention_level,
+        specified_fit_level=specified_fit_level,
+        summary=summary,
         abilities=abilities,
         specified_traits=specified_traits,
         warnings=warnings,
+        evidence_validation_issues=evidence_validation_issues,
     )
 
 
@@ -227,61 +316,111 @@ def _validate_specified_trait_coverage(
 
 
 def _build_talent_evidence(
-    llm_evidence: LLMTalentEvidence,
-) -> TalentEvidence:
-    """将LLM证据DTO转换为系统内部证据模型。"""
+    evidence_items: list[LLMTalentEvidence],
+    candidate: Candidate,
+    location: str,
+) -> tuple[list[TalentEvidence], list[EvidenceValidationIssue]]:
+    """只保留可从 Candidate 或 raw_text 精确确认的人才分析证据。"""
 
-    return TalentEvidence(
-        text=llm_evidence.text,
-        source_type=llm_evidence.source_type,
-        source_index=llm_evidence.source_index,
-    )
+    verified: list[TalentEvidence] = []
+    issues: list[EvidenceValidationIssue] = []
+    for index, evidence in enumerate(evidence_items):
+        check = verify_candidate_evidence(
+            candidate=candidate,
+            text=evidence.text,
+            source_type=evidence.source_type,
+            source_index=evidence.source_index,
+            location=f"{location}.evidence[{index}]",
+        )
+        if check.issue:
+            issues.append(check.issue)
+        if not check.is_verified:
+            continue
+        verified.append(TalentEvidence(
+            text=evidence.text,
+            source_type=check.source_type,
+            source_index=check.source_index,
+            verification_status=check.verification_status,
+            source_path=check.source_path,
+            locator_verified=check.locator_verified,
+        ))
+    return verified, issues
 
 
 def _build_talent_ability(
     llm_ability: LLMTalentAbility,
+    candidate: Candidate,
+    location: str,
 ) -> TalentAbility:
     """将LLM能力发现结果转换为正式业务模型。"""
 
+    evidence, issues = _build_talent_evidence(
+        llm_ability.evidence,
+        candidate,
+        location,
+    )
     return TalentAbility(
         ability_name=llm_ability.ability_name,
         level=llm_ability.level,
         reason=llm_ability.reason,
-        evidence=[
-            _build_talent_evidence(evidence)
-            for evidence in llm_ability.evidence
-        ],
+        evidence=evidence,
+        evidence_validation_issues=issues,
     )
 
 
 def _build_specified_trait_result(
     llm_result: LLMSpecifiedTraitResult,
+    candidate: Candidate,
+    location: str,
+    analysis_language: AnalysisLanguage,
 ) -> SpecifiedTraitResult:
     """将LLM指定人才像分析结果转换为正式业务模型。"""
 
+    evidence, issues = _build_talent_evidence(
+        llm_result.evidence,
+        candidate,
+        location,
+    )
+    fit_level = llm_result.fit_level if evidence else "low"
+    missing_information = list(llm_result.missing_information)
+    if not evidence:
+        message = _TALENT_LANGUAGE_TEXT[analysis_language]["missing_information"].format(
+            trait=llm_result.trait,
+        )
+        if message not in missing_information:
+            missing_information.append(message)
+
     return SpecifiedTraitResult(
         trait=llm_result.trait,
-        fit_level=llm_result.fit_level,
-        reason=llm_result.reason,
-        evidence=[
-            _build_talent_evidence(evidence)
-            for evidence in llm_result.evidence
-        ],
-        missing_information=llm_result.missing_information,
+        fit_level=fit_level,
+        reason=(
+            llm_result.reason
+            if evidence
+            else _TALENT_LANGUAGE_TEXT[analysis_language]["specified_missing"].format(
+                trait=llm_result.trait,
+            )
+        ),
+        evidence=evidence,
+        evidence_validation_issues=issues,
+        missing_information=missing_information,
     )
 
 
 def _build_warnings(
     mode: TalentMode,
-    llm_result: LLMTalentDiscoveryResult,
+    abilities: list[TalentAbility],
+    specified_traits: list[SpecifiedTraitResult],
+    evidence_issue_count: int,
+    analysis_language: AnalysisLanguage,
 ) -> list[str]:
     """根据分析结果生成系统提示。"""
 
     warnings: list[str] = []
+    messages = _TALENT_LANGUAGE_TEXT[analysis_language]
 
-    if not llm_result.abilities:
+    if not abilities:
         warnings.append(
-            "当前候选人资料中未发现足够明确的额外能力证据"
+            messages["no_abilities"]
         )
 
     # 指定当中任意一条不满足就会加入warnings
@@ -289,14 +428,18 @@ def _build_warnings(
     if mode == "specified":
         evidence_missing_traits = [
             result.trait
-            for result in llm_result.specified_traits
+            for result in specified_traits
             if not result.evidence
         ]
 
         if evidence_missing_traits:
             warnings.append(
-                "以下指定人才特征当前资料证据不足: "
-                + "、".join(evidence_missing_traits)
+                messages["missing_traits"].format(
+                    traits="、".join(evidence_missing_traits),
+                )
             )
+
+    if evidence_issue_count:
+        warnings.append(messages["evidence_warning"])
 
     return warnings

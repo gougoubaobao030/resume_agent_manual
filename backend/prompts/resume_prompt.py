@@ -1,103 +1,16 @@
-﻿RESUME_SYSTEM_PROMPT = """
+﻿import json
+
+from schemas.resume import ResumeLLMResult
+
+
+RESUME_SYSTEM_PROMPT = """
 你是一名专业的简历信息抽取助手。
 
 ## 输出结构约束（必须严格遵守）
 
 你的输出将直接被后端程序解析和校验，不是提供给人阅读的自由文本。
 
-后端已经定义并固定使用以下 Schema：
-
-class LLMBasicInfo(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    location: Optional[str] = None
-
-class LLMEducation(BaseModel):
-    school: Optional[str] = None
-    degree: Optional[str] = None
-    major: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-
-class LLMWorkExperience(BaseModel):
-    company: Optional[str] = None
-    position: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    description: Optional[str] = None
-
-class LLMProject(BaseModel):
-
-    name: Optional[str] = None
-
-    description: Optional[str] = None
-
-    technologies: List[str] = Field(
-        default_factory=list
-    )
-
-    achievements: List[str] = Field(
-        default_factory=list
-    )
-
-class LLMCandidateEvidence(BaseModel):
-
-    category: Optional[str] = None
-
-    title: Optional[str] = None
-
-    description: Optional[str] = None
-
-    evidence: List[str] = Field(
-        default_factory=list
-    )
-
-class ResumeLLMResult(BaseModel):
-
-    basic_info: Optional[LLMBasicInfo] = None
-
-
-    education: List[LLMEducation] = Field(
-        default_factory=list
-    )
-
-
-    work_experience: List[LLMWorkExperience] = Field(
-        default_factory=list
-    )
-
-
-    projects: List[LLMProject] = Field(
-        default_factory=list
-    )
-
-
-    skills: List[str] = Field(
-        default_factory=list
-    )
-
-
-    languages: List[str] = Field(
-        default_factory=list
-    )
-
-
-    achievements: List[str] = Field(
-        default_factory=list
-    )
-
-
-    certifications: List[str] = Field(
-        default_factory=list
-    )
-
-
-    candidate_evidence: List[LLMCandidateEvidence] = Field(
-        default_factory=list
-    )
-
-
+后端已经定义并固定使用响应 Schema，具体 JSON Schema 将在用户提示词中提供。
 该 Schema 已由后端程序实现并确定，本任务中不允许修改、扩展、优化或重新设计。
 
 你必须严格按照既定 Schema 返回数据, 所有数组字段如果没有内容，必须返回 []，
@@ -124,8 +37,19 @@ class ResumeLLMResult(BaseModel):
 4. 不进行候选人评价。
 5. 不进行岗位匹配分析。
 
-你的输出将用于后续人才分析系统。
+## 语言规则
 
+1. 支持中文、日文、英文及其他语言的简历，包括混合语言和完整多语言对照简历。总体目标为简历是哪种语言，提取出来的结构化信息就是哪种语言。例如输入简历文本总体为日语，输出的结构化简历同样为日语。结构化提取不受提示词语言、界面语言或 JD 语言影响，输出语言以简历原文为准。
+
+2. 忠实提取简历中的事实信息，保留原文语言，不主动翻译。对于非完整多语言对照简历，以简历主体语言组织结构化内容，专业术语、技术名称、公司名称等保留原始写法，不强制统一语言。
+
+3. 对于完整的双语或多语言对照简历，将不同语言描述的同一事实合并为同一条结构化记录，不得因语言不同而重复创建工作经历、教育经历或其他记录。同一字段中，各语言的原文应完整保留，并使用换行符 `\n` 分隔。
+
+4. 多语言描述不完全一致时，保留各语言中独有的事实信息，不得为了合并而遗漏、推测或改写内容。仅合并能够确认属于同一事实的信息，无法确认时不得强行合并。
+
+5. 不得因语言差异而遗漏事实，不得将翻译、语言统一或格式规范化作为删减原文信息的理由。结构化阶段保留原始事实，供后续按 HR 选择的语言进行翻译和展示。
+
+你的输出将用于后续人才分析系统。
 请根据简历文本生成结构化候选人信息。
 
 ## 抽取规则：
@@ -259,6 +183,18 @@ class ResumeLLMResult(BaseModel):
 
 """
 
+def get_resume_response_schema() -> str:
+    """获取简历结构化解析LLM响应JSON Schema。"""
+
+    schema = ResumeLLMResult.model_json_schema()
+
+    return json.dumps(
+        schema,
+        ensure_ascii=False,
+        indent=2,
+    )
+
+
 RESUME_USER_PROMPT_TEMPLATE = """
 请解析下面这份简历：
 
@@ -268,5 +204,21 @@ RESUME_USER_PROMPT_TEMPLATE = """
 
 ----------------
 
+【必须严格遵守的JSON Schema】
+{response_schema}
+
+请严格按照该Schema输出JSON。
+
 请按照要求输出结构化JSON。
 """
+
+
+def build_resume_user_prompt(resume_text: str) -> str:
+    """根据原始简历文本构建用户提示词。"""
+
+    response_schema = get_resume_response_schema()
+
+    return RESUME_USER_PROMPT_TEMPLATE.format(
+        resume_text=resume_text,
+        response_schema=response_schema,
+    )

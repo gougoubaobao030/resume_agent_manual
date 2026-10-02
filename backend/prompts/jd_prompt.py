@@ -1,4 +1,9 @@
-﻿#这个是到时候给系统用的系统提示词, 长期规则
+﻿import json
+
+from schemas.jd import LLMJDResult
+
+
+#这个是到时候给系统用的系统提示词, 长期规则
 JD_PARSE_SYSTEM_PROMPT = """
 你是一名负责招聘岗位分析的专业人力资源助手。
 
@@ -31,7 +36,7 @@ category 只能使用以下四个值之一：
 2. 可以对原文进行简洁归纳，但不能改变原意。
 3. 含义明显不同的要求应拆成不同条目。
 4. 含义高度重复的要求应合并，避免重复条目。
-5. name 应简短，通常不超过 20 个汉字。
+5. name 应简短清晰，字段长度限制为最大50字符。
 6. description 应保留原始要求中的重要限制和条件。
 7. must_have 只判断该 requirement 是否被 JD 明确声明为必须满足、硬性或必要条件，主要依据“必须”“必須”“必要”“必备”“要求具备”“不可缺少”“required”“mandatory”等明确语义。
 8. “优先”“加分”“最好”“有经验者优先”等非必要条件的 must_have 必须为 false；不允许根据常识、岗位名称或重要程度推测硬性条件，无法确定时必须为 false。
@@ -42,11 +47,34 @@ category 只能使用以下四个值之一：
 13. 反例 2：“有大规模 RAG 系统架构经验者优先”应为 must_have=false；如果 RAG 架构是岗位核心能力，weight 可以较高，例如 9。
 14. 不要输出岗位 ID、条目 ID、原始 JD 或任何额外解释。
 15. 只输出符合指定结构的 JSON 数据。
+
+语言规则
+
+1. 输入JD可能为中文、日文、英文等各国语言或混合语言。
+2. 输出语言应保持与JD主要语言一致。
+3. 不主动翻译JD内容。
+4. 专业技术名词、框架名称、工具名称、语言名称等保持原写法。
+5. 如果JD包含多种语言，应以JD主体语言作为输出语言；无法明确判断时保持原文表达。
+6. 不得为了统一格式而翻译职位名称、要求名称或description。
 """
+
+def get_jd_parse_response_schema() -> str:
+    """获取JD解析LLM响应JSON Schema。"""
+
+    schema = LLMJDResult.model_json_schema()
+
+    return json.dumps(
+        schema,
+        ensure_ascii=False,
+        indent=2,
+    )
+
 
 #用户提示词
 def build_jd_parse_user_prompt(raw_text: str) -> str:
     """根据原始 JD 构建用户提示词。"""
+
+    response_schema = get_jd_parse_response_schema()
 
     return f"""
 请解析下面的岗位说明。
@@ -69,6 +97,11 @@ requirements 中每个条目包含：
 - category
 - weight
 - must_have
+
+【必须严格遵守的JSON Schema】
+{response_schema}
+
+请严格按照该Schema输出JSON。
 """.strip()
 
 #模型最危险的是凭借经验自动补充，当然这在平时是好事

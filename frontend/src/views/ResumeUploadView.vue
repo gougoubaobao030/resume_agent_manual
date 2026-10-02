@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
   getFriendlyApiError,
@@ -12,7 +13,6 @@ import {
   session,
   addCandidate,
   clearResumeTask,
-  setCandidates,
   setResumeTask,
   setJobMatchError,
   setJobMatchLoading,
@@ -20,6 +20,8 @@ import {
 } from '../state/session'
 import TalentSettings from '../components/TalentSettings.vue'
 import { analyzeTalent } from '../services/talent'
+
+const { locale, t } = useI18n()
 
 const fileInput = ref(null)
 const selectedFiles = ref([])
@@ -32,6 +34,7 @@ let activeJobId = null
 let activeTalentTiming = 'selected'
 let activeTalentMode = 'auto'
 let activeDesiredTraits = []
+let activeAnalysisLanguage = 'zh-CN'
 
 const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
 const isParsing = computed(() => uploadStatus.value === 'loading')
@@ -51,14 +54,15 @@ const taskCounts = computed(() => {
 const failedResults = computed(() => taskItems.value.filter((item) => item.status === 'failed'))
 
 const itemStatusDisplay = {
-  pending: { label: '等待中', className: 'status-badge--neutral' },
-  running: { label: '解析中', className: 'status-badge--loading' },
-  success: { label: '解析成功', className: 'status-badge--success' },
-  failed: { label: '解析失败', className: 'status-badge--error' },
+  pending: { labelKey: 'resumeUpload.status.pending', className: 'status-badge--neutral' },
+  running: { labelKey: 'resumeUpload.status.running', className: 'status-badge--loading' },
+  success: { labelKey: 'resumeUpload.status.success', className: 'status-badge--success' },
+  failed: { labelKey: 'resumeUpload.status.failed', className: 'status-badge--error' },
 }
 
 function itemStatus(item) {
-  return itemStatusDisplay[item.status] ?? itemStatusDisplay.pending
+  const status = itemStatusDisplay[item.status] ?? itemStatusDisplay.pending
+  return { ...status, label: t(status.labelKey) }
 }
 
 function sleep(milliseconds) {
@@ -82,13 +86,13 @@ function acceptFiles(fileList) {
   const nonPdf = files.find((file) => !file.name.toLowerCase().endsWith('.pdf'))
   if (nonPdf) {
     uploadStatus.value = 'error'
-    uploadMessage.value = `${nonPdf.name} 不是 PDF 文件，请重新选择。`
+    uploadMessage.value = t('resumeUpload.messages.notPdf', { filename: nonPdf.name })
     return
   }
 
   if (files.length > 30) {
     uploadStatus.value = 'error'
-    uploadMessage.value = '一次最多选择 30 份简历。'
+    uploadMessage.value = t('resumeUpload.messages.tooMany')
     return
   }
 
@@ -121,13 +125,13 @@ async function startCandidateScoring(candidate) {
   // loading 在请求前写入；后续轮询再次看到同一 candidate 时不会重复评分。
   setJobMatchLoading(candidate.id)
   try {
-    const matchResult = await scoreJobMatch(activeJobId, candidate)
+    const matchResult = await scoreJobMatch(activeJobId, candidate.id, activeAnalysisLanguage)
     setJobMatchResult(candidate.id, matchResult)
     if (activeTalentTiming === 'automatic') {
-      void analyzeTalent(candidate, activeTalentMode, activeDesiredTraits)
+      void analyzeTalent(candidate, activeTalentMode, activeDesiredTraits, activeAnalysisLanguage)
     }
   } catch (error) {
-    setJobMatchError(candidate.id, getFriendlyApiError(error, '岗位匹配评分'))
+    setJobMatchError(candidate.id, getFriendlyApiError(error, t('resumeUpload.operations.scoring')))
   }
 }
 
@@ -149,8 +153,8 @@ function finishTask(task) {
   const failedCount = taskCounts.value.failed
   uploadStatus.value = task.status === 'failed' || failedCount ? 'error' : 'success'
   uploadMessage.value = task.status === 'failed'
-    ? `批量解析任务失败：${task.error || '后端未返回具体原因。'}`
-    : `简历解析完成：${successCount} 份成功，${failedCount} 份失败。成功候选人的岗位评分已分别启动。`
+    ? t('resumeUpload.messages.taskFailed', { reason: task.error || t('resumeUpload.messages.noBackendReason') })
+    : t('resumeUpload.messages.completed', { success: successCount, failed: failedCount })
 }
 
 async function pollResumeTask(taskId) {
@@ -162,7 +166,7 @@ async function pollResumeTask(taskId) {
     } catch (error) {
       if (pollingStopped) return
       uploadStatus.value = 'error'
-      uploadMessage.value = `${getFriendlyApiError(error, '任务状态查询')} 后台任务可能仍在运行。`
+      uploadMessage.value = t('resumeUpload.messages.pollFailed', { error: getFriendlyApiError(error, t('resumeUpload.operations.taskStatus')) })
       return
     }
 
@@ -182,34 +186,34 @@ async function pollResumeTask(taskId) {
 async function handleParse() {
   if (!hasCurrentJob.value) {
     uploadStatus.value = 'error'
-    uploadMessage.value = '请先完成并保存 JD。'
+    uploadMessage.value = t('resumeUpload.messages.jobRequired')
     return
   }
 
   if (!selectedFiles.value.length) {
     uploadStatus.value = 'error'
-    uploadMessage.value = '请先选择至少一份 PDF 简历。'
+    uploadMessage.value = t('resumeUpload.messages.fileRequired')
     return
   }
 
   uploadStatus.value = 'loading'
-  uploadMessage.value = `正在解析 ${selectedFiles.value.length} 份简历，请保持页面打开……`
+  uploadMessage.value = t('resumeUpload.messages.starting', { count: selectedFiles.value.length })
   clearResumeTask()
-  setCandidates([])
   activeJobId = session.currentJob.id
   activeTalentTiming = session.talentTiming
   activeTalentMode = session.talentMode
   activeDesiredTraits = [...session.desiredTraits]
+  activeAnalysisLanguage = locale.value
   pollingStopped = false
 
   try {
-    const task = await createResumeTask(selectedFiles.value)
+    const task = await createResumeTask(selectedFiles.value, activeJobId)
     applyTaskSnapshot(task)
-    uploadMessage.value = `任务已创建，正在解析 ${task.total} 份简历……`
+    uploadMessage.value = t('resumeUpload.messages.taskCreated', { count: task.total })
     await pollResumeTask(task.task_id)
   } catch (error) {
     uploadStatus.value = 'error'
-    uploadMessage.value = getFriendlyApiError(error, '创建简历解析任务')
+    uploadMessage.value = getFriendlyApiError(error, t('resumeUpload.operations.createTask'))
   }
 }
 
@@ -223,20 +227,20 @@ onUnmounted(() => {
   <section class="page-stack">
     <div class="page-heading page-heading--split">
       <div>
-        <p class="eyebrow">RESUME IMPORT</p>
-        <h2>批量导入候选人</h2>
-        <p>选择当前岗位后，上传 1–30 份文本型 PDF 简历。</p>
+        <p class="eyebrow">{{ t('resumeUpload.eyebrow') }}</p>
+        <h2>{{ t('resumeUpload.title') }}</h2>
+        <p>{{ t('resumeUpload.description') }}</p>
       </div>
       <span class="status-badge" :class="hasCurrentJob ? 'status-badge--success' : 'status-badge--warning'">
-        {{ hasCurrentJob ? session.currentJob.job_title : '请先完成 JD' }}
+        {{ hasCurrentJob ? session.currentJob.job_title : t('resumeUpload.jobRequired') }}
       </span>
     </div>
 
     <article class="panel upload-panel">
       <div class="talent-upload-options">
-        <h3>人才能力分析时机</h3>
-        <label><input v-model="session.talentTiming" type="radio" value="selected" :disabled="isParsing" /> 先完成岗位匹配，在候选人列表中选人分析（默认）</label>
-        <label><input v-model="session.talentTiming" type="radio" value="automatic" :disabled="isParsing" /> 岗位匹配完成后自动继续分析</label>
+        <h3>{{ t('resumeUpload.talentTiming.title') }}</h3>
+        <label><input v-model="session.talentTiming" type="radio" value="selected" :disabled="isParsing" /> {{ t('resumeUpload.talentTiming.selected') }}</label>
+        <label><input v-model="session.talentTiming" type="radio" value="automatic" :disabled="isParsing" /> {{ t('resumeUpload.talentTiming.automatic') }}</label>
         <TalentSettings v-if="session.talentTiming === 'automatic'" />
       </div>
       <div
@@ -246,8 +250,8 @@ onUnmounted(() => {
         @drop.prevent="handleDrop"
       >
         <div class="upload-zone__mark">PDF</div>
-        <h3>拖放简历到此处</h3>
-        <p>仅支持文本型 PDF，单次最多 30 份。扫描版 PDF 暂不支持。</p>
+        <h3>{{ t('resumeUpload.dropzone.title') }}</h3>
+        <p>{{ t('resumeUpload.dropzone.description') }}</p>
         <input
           ref="fileInput"
           class="visually-hidden"
@@ -258,22 +262,22 @@ onUnmounted(() => {
           @change="handleFileInput"
         />
         <button class="button button--secondary" type="button" :disabled="isParsing" @click="fileInput.click()">
-          选择 PDF 文件
+          {{ t('resumeUpload.actions.selectFiles') }}
         </button>
       </div>
 
       <div v-if="selectedFiles.length" class="selected-files">
         <div class="selected-files__header">
-          <div><strong>已选择文件</strong><span>{{ selectedFiles.length }} / 30</span></div>
+          <div><strong>{{ t('resumeUpload.selectedFiles') }}</strong><span>{{ selectedFiles.length }} / 30</span></div>
           <button class="button button--primary" type="button" :disabled="!canSubmit" @click="handleParse">
-            {{ isParsing ? '解析中…' : '开始批量解析' }}
+            {{ t(isParsing ? 'resumeUpload.actions.parsing' : 'resumeUpload.actions.start') }}
           </button>
         </div>
         <ul>
           <li v-for="(file, index) in selectedFiles" :key="`${file.name}-${file.size}-${file.lastModified}`">
             <span class="file-type-mark">PDF</span>
             <div><strong>{{ file.name }}</strong><small>{{ formatFileSize(file.size) }}</small></div>
-            <button type="button" :disabled="isParsing" :aria-label="`移除 ${file.name}`" @click="removeFile(index)">移除</button>
+            <button type="button" :disabled="isParsing" :aria-label="t('resumeUpload.actions.removeLabel', { filename: file.name })" @click="removeFile(index)">{{ t('resumeUpload.actions.remove') }}</button>
           </li>
         </ul>
       </div>
@@ -290,11 +294,11 @@ onUnmounted(() => {
 
       <div v-if="session.resumeTaskId" class="batch-result">
         <div class="batch-summary task-summary">
-          <div><span>已完成</span><strong>{{ taskCounts.completed }} / {{ taskItems.length }}</strong></div>
-          <div><span>解析成功</span><strong>{{ taskCounts.success }}</strong></div>
-          <div><span>解析失败</span><strong>{{ taskCounts.failed }}</strong></div>
-          <div><span>处理中</span><strong>{{ taskCounts.running }}</strong></div>
-          <div><span>等待中</span><strong>{{ taskCounts.pending }}</strong></div>
+          <div><span>{{ t('resumeUpload.summary.completed') }}</span><strong>{{ taskCounts.completed }} / {{ taskItems.length }}</strong></div>
+          <div><span>{{ t('resumeUpload.summary.success') }}</span><strong>{{ taskCounts.success }}</strong></div>
+          <div><span>{{ t('resumeUpload.summary.failed') }}</span><strong>{{ taskCounts.failed }}</strong></div>
+          <div><span>{{ t('resumeUpload.summary.running') }}</span><strong>{{ taskCounts.running }}</strong></div>
+          <div><span>{{ t('resumeUpload.summary.pending') }}</span><strong>{{ taskCounts.pending }}</strong></div>
         </div>
 
         <div class="task-files">
@@ -302,16 +306,16 @@ onUnmounted(() => {
             <div>
               <strong>{{ item.filename }}</strong>
               <small v-if="item.status === 'failed'">{{ getFriendlyResumeItemError(item.error) }}</small>
-              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'loading'">岗位评分中…</small>
-              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'error'">岗位评分失败</small>
-              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'success'">岗位评分完成</small>
+              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'loading'">{{ t('resumeUpload.scoring.running') }}</small>
+              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'error'">{{ t('resumeUpload.scoring.failed') }}</small>
+              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'success'">{{ t('resumeUpload.scoring.completed') }}</small>
             </div>
             <span class="status-badge" :class="itemStatus(item).className">{{ itemStatus(item).label }}</span>
           </div>
         </div>
 
         <div v-if="failedResults.length" class="failed-files">
-          <h3>未能解析的文件</h3>
+          <h3>{{ t('resumeUpload.failedFiles') }}</h3>
           <ul>
             <li v-for="item in failedResults" :key="item.item_id">
               <strong>{{ item.filename }}</strong>
@@ -321,14 +325,14 @@ onUnmounted(() => {
         </div>
 
         <div class="batch-result__footer">
-          <span>成功解析的候选人已保存到当前前端运行会话。</span>
-          <RouterLink class="button button--primary" to="/candidates">查看候选人</RouterLink>
+          <span>{{ t('resumeUpload.sessionNote') }}</span>
+          <RouterLink class="button button--primary" to="/candidates">{{ t('resumeUpload.actions.viewCandidates') }}</RouterLink>
         </div>
       </div>
 
       <div class="upload-note">
-        <strong>处理说明</strong>
-        <span>每份简历独立解析；单份失败不会中断其他文件。</span>
+        <strong>{{ t('resumeUpload.note.title') }}</strong>
+        <span>{{ t('resumeUpload.note.description') }}</span>
       </div>
     </article>
   </section>

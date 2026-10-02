@@ -7,3 +7,8 @@ other/
 frontend/node_modules/
 frontend/dist/
 .npm-cache/
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/avatars/*
+!data/avatars/.gitkeep

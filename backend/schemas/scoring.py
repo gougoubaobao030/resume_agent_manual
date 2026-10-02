@@ -1,5 +1,7 @@
 ﻿from enum import Enum
 from pydantic import BaseModel, Field
+from schemas.evidence import EvidenceValidationIssue, EvidenceVerificationStatus
+from schemas.language import AnalysisLanguage
 from schemas.resume import Candidate
 
 
@@ -37,6 +39,9 @@ class MatchEvidence(BaseModel):
     text: str = Field(..., min_length=1)
     source_type: str | None = None
     source_index: int | None = Field(default=None, ge=0)
+    verification_status: EvidenceVerificationStatus
+    source_path: str
+    locator_verified: bool
 
 #单条汇总 硬条件评价
 class RequirementMatchResult(BaseModel):
@@ -74,6 +79,10 @@ class RequirementMatchResult(BaseModel):
         default_factory=list
     )
 
+    evidence_validation_issues: list[EvidenceValidationIssue] = Field(
+        default_factory=list
+    )
+
     missing_information: list[str] = Field(
         default_factory=list
     )
@@ -104,6 +113,7 @@ class JobMatchResult(BaseModel):
 
     job_id: str
     candidate_id: str
+    analysis_language: AnalysisLanguage
 
     score: float = Field(
         ...,
@@ -132,6 +142,8 @@ class JobMatchResult(BaseModel):
     )
 
     summary: str | None = None
+
+    warnings: list[str] = Field(default_factory=list)
 
 # 其他各项分数
 class PotentialResult(BaseModel):
@@ -326,4 +338,5 @@ class JobMatchRequest(BaseModel):
     """岗位匹配评分请求。"""
 
     job_id: str
-    candidate: Candidate
+    candidate_id: str
+    analysis_language: AnalysisLanguage

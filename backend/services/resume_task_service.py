@@ -4,6 +4,7 @@ import os
 from uuid import uuid4
 
 from schemas.resume import ResumeTaskItem, ResumeTaskResponse
+from services.candidate_repository import save_candidate_for_job
 from services.resume_service import parse_resume_batch
 
 logger = logging.getLogger("uvicorn.error")
@@ -14,7 +15,11 @@ task_store: dict[str, ResumeTaskResponse] = {}
 _background_tasks: dict[str, asyncio.Task] = {}
 
 
-def create_resume_task(files: list[tuple[str, str]]) -> ResumeTaskResponse:
+def create_resume_task(
+    files: list[tuple[str, str]],
+    job_id: str | None = None,
+    user_id: str | None = None,
+) -> ResumeTaskResponse:
     if not files:
         raise ValueError("请至少提供一份简历")
 
@@ -39,7 +44,9 @@ def create_resume_task(files: list[tuple[str, str]]) -> ResumeTaskResponse:
     # 状态管理是实现了，但是状态查询呢？
     # 移出去的协程不是另一个线程去做，是事件循环的会看看有没有空做(说的好凌乱)
     # 异步也是有要等和不用等随它去的
-    background_task = asyncio.create_task(run_resume_task(task_id, files))
+    background_task = asyncio.create_task(
+        run_resume_task(task_id, files, job_id=job_id, user_id=user_id)
+    )
     #保存正在执行的业务对象
     #后台保存的是协程不是线程
     _background_tasks[task_id] = background_task
@@ -64,13 +71,33 @@ def get_resume_task(task_id: str) -> ResumeTaskResponse | None:
 
 # runner
 # 负责总状态、结果汇总、批次级异常、临时文件清理。
-async def run_resume_task(task_id: str, files: list[tuple[str, str]]) -> None:
+async def run_resume_task(
+    task_id: str,
+    files: list[tuple[str, str]],
+    *,
+    job_id: str | None = None,
+    user_id: str | None = None,
+) -> None:
     task = task_store[task_id]
     task.status = "running"
     logger.info("[Resume Task] START %s total=%s", task_id, task.total)
     try:
         # 复用前四步：同一个 gather、Semaphore(3) 和单文件失败隔离 worker。
-        result = await parse_resume_batch(files, task_items=task.items)
+        async def persist_candidate(candidate) -> None:
+            if job_id is None:
+                return
+            await asyncio.to_thread(
+                save_candidate_for_job,
+                candidate,
+                job_id,
+                user_id,
+            )
+
+        result = await parse_resume_batch(
+            files,
+            task_items=task.items,
+            on_candidate_parsed=persist_candidate,
+        )
         task.success_count = result.success_count
         task.failed_count = result.failed_count
         task.status = "completed_with_errors" if result.failed_count else "completed"

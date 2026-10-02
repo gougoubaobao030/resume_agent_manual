@@ -1,6 +1,7 @@
 ﻿import json
 
 from schemas.resume import Candidate
+from schemas.language import AnalysisLanguage, get_analysis_language_name
 from schemas.talent import (
     TalentMode,
     LLMTalentDiscoveryResult,
@@ -394,8 +395,12 @@ evidence必须尽可能引用候选人资料中真实存在的事实。
 * source_type
 * source_index
 
-text应描述或引用实际事实，
-不得把你的判断本身当成事实证据。
+text必须逐字引用 Candidate 或 raw_text 中实际存在的连续原文片段，
+不得翻译、改写、归纳、拼接，也不得把你的判断本身当成事实证据。
+
+source_type只能使用basic_info、education、work_experience、projects、skills、languages、achievements、certifications、candidate_evidence、custom_attributes、raw_text。
+数组类型来源必须提供从0开始的source_index；basic_info、custom_attributes、raw_text不得提供source_index。
+如果无法给出可精确校验的原文引用，应返回空evidence，不得生成近义改写。
 
 错误示例：
 
@@ -524,6 +529,7 @@ def get_talent_response_schema() -> str:
 def build_talent_user_prompt(
     candidate: Candidate,
     mode: TalentMode,
+    analysis_language: AnalysisLanguage,
     desired_traits: list[str] | None = None,
 ) -> str:
     """构造人才能力发现 User Prompt。"""
@@ -535,6 +541,7 @@ def build_talent_user_prompt(
     )
 
     response_schema = get_talent_response_schema()
+    language_name = get_analysis_language_name(analysis_language)
 
     if mode == "auto":
         return f"""
@@ -579,6 +586,8 @@ auto
 - 每个ability中的evidence必须是JSON array/list。
 - ability_name、level、reason必须符合Schema。
 - evidence中的text必须来自候选人资料中的真实事实。
+- summary、ability_name、reason、missing_information 等自然语言分析必须使用 {language_name}（{analysis_language.value}）。
+- evidence.text 必须保持候选人资料中的原始语言，不得翻译或改写。
 - 不得把任何list字段输出成object/dict。
 - 不得增加Schema中不存在的字段。
 - 不得修改字段名。
@@ -657,6 +666,9 @@ specified
 - HR没有指定但主动发现出的其他能力，只能放入abilities。
 
 - evidence中的text必须来自候选人资料中的真实事实。
+- summary、ability_name、reason、missing_information 等自然语言分析必须使用 {language_name}（{analysis_language.value}）。
+- HR 指定的 trait 必须原样返回，不得翻译或改写。
+- evidence.text 必须保持候选人资料中的原始语言，不得翻译或改写。
 - 不得把任何list字段输出成object/dict。
 - 不得增加Schema中不存在的字段。
 - 不得修改字段名。
