@@ -10,7 +10,6 @@ export const session = reactive({
   talentResults: {},
   talentStatuses: {},
   talentErrors: {},
-  talentTiming: 'selected',
   talentMode: 'auto',
   desiredTraits: [],
   selectedTalentCandidateIds: [],

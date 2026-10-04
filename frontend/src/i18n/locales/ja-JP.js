@@ -77,9 +77,8 @@ export default {
   },
   resumeUpload: {
     eyebrow: '履歴書インポート', title: '候補者を一括インポート', description: '現在の求人を選択し、テキスト形式の PDF 履歴書を 1～30 件アップロードします。', jobRequired: '先に JD を完了してください',
-    talentTiming: {
-      title: '人材能力を分析するタイミング', selected: '求人マッチング後、候補者一覧で対象者を選んで分析（デフォルト）',
-      automatic: '求人マッチング完了後に能力分析を自動で続行',
+    talentExecution: {
+      title: 'この一括処理で実行する評価', jobMatch: '求人マッチング：常に実行',
     },
     dropzone: { title: 'ここに履歴書をドロップ', description: 'テキスト形式の PDF のみ、1 回につき最大 30 件。スキャン PDF は現在未対応です。' },
     selectedFiles: '選択済みファイル',
@@ -105,7 +104,7 @@ export default {
     sortLabel: '求人マッチ度で並べ替え', sortDescending: '高い順', sortAscending: '低い順', selectAll: '現在の候補者をすべて選択',
     clearSelection: '選択を解除', selectedCount: '{count} 人を選択中', analyzeSelected: '選択した候補者の能力を分析', selectCandidate: '{name} を選択',
     locationMissing: '所在地情報なし', highlights: '能力の強み：', noHighlights: '明確な強みなし', viewDetails: '詳細を表示',
-    table: { select: '選択', candidate: '候補者', matchScore: '求人マッチ度', mustHave: '必須条件', assessment: '求人判定', talent: '人材能力' },
+    table: { select: '選択', candidate: '候補者', matchScore: '求人マッチ度', mustHave: '必須条件', assessment: '求人判定', autoTalent: 'AI 自動能力', specifiedTalent: 'HR 指定人材像' },
     empty: { title: '候補者はまだいません', description: '履歴書のインポート後、解析に成功した候補者がここに表示されます。', action: '履歴書インポートへ →' },
   },
   candidateDetail: {

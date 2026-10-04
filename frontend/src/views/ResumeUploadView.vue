@@ -31,16 +31,16 @@ const POLL_INTERVAL_MS = 800
 const terminalTaskStatuses = new Set(['completed', 'completed_with_errors', 'failed'])
 let pollingStopped = false
 let activeJobId = null
-let activeTalentTiming = 'selected'
-let activeTalentMode = 'auto'
+let activeTalentModes = []
 let activeDesiredTraits = []
 let activeAnalysisLanguage = 'zh-CN'
+const selectedTalentModes = ref([])
 
 const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
 const isParsing = computed(() => uploadStatus.value === 'loading')
 const canSubmit = computed(
   () => hasCurrentJob.value && selectedFiles.value.length > 0 && !isParsing.value
-    && (session.talentTiming !== 'automatic' || session.talentMode !== 'specified' || session.desiredTraits.length > 0),
+    && (!selectedTalentModes.value.includes('specified') || session.desiredTraits.length > 0),
 )
 const taskItems = computed(() => session.resumeTaskItems)
 const taskCounts = computed(() => {
@@ -127,9 +127,9 @@ async function startCandidateScoring(candidate) {
   try {
     const matchResult = await scoreJobMatch(activeJobId, candidate.id, activeAnalysisLanguage)
     setJobMatchResult(candidate.id, matchResult)
-    if (activeTalentTiming === 'automatic') {
-      void analyzeTalent(candidate, activeTalentMode, activeDesiredTraits, activeAnalysisLanguage)
-    }
+    void Promise.allSettled(activeTalentModes.map((mode) =>
+      analyzeTalent(candidate, mode, activeDesiredTraits, activeAnalysisLanguage),
+    ))
   } catch (error) {
     setJobMatchError(candidate.id, getFriendlyApiError(error, t('resumeUpload.operations.scoring')))
   }
@@ -200,8 +200,7 @@ async function handleParse() {
   uploadMessage.value = t('resumeUpload.messages.starting', { count: selectedFiles.value.length })
   clearResumeTask()
   activeJobId = session.currentJob.id
-  activeTalentTiming = session.talentTiming
-  activeTalentMode = session.talentMode
+  activeTalentModes = [...selectedTalentModes.value]
   activeDesiredTraits = [...session.desiredTraits]
   activeAnalysisLanguage = locale.value
   pollingStopped = false
@@ -238,10 +237,9 @@ onUnmounted(() => {
 
     <article class="panel upload-panel">
       <div class="talent-upload-options">
-        <h3>{{ t('resumeUpload.talentTiming.title') }}</h3>
-        <label><input v-model="session.talentTiming" type="radio" value="selected" :disabled="isParsing" /> {{ t('resumeUpload.talentTiming.selected') }}</label>
-        <label><input v-model="session.talentTiming" type="radio" value="automatic" :disabled="isParsing" /> {{ t('resumeUpload.talentTiming.automatic') }}</label>
-        <TalentSettings v-if="session.talentTiming === 'automatic'" />
+        <h3>{{ t('resumeUpload.talentExecution.title') }}</h3>
+        <strong>{{ t('resumeUpload.talentExecution.jobMatch') }}</strong>
+        <TalentSettings v-model="selectedTalentModes" multiple :disabled="isParsing" />
       </div>
       <div
         class="upload-zone"

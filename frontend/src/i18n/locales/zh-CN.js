@@ -139,10 +139,9 @@ export default {
     title: '批量导入候选人',
     description: '选择当前岗位后，上传 1–30 份文本型 PDF 简历。',
     jobRequired: '请先完成 JD',
-    talentTiming: {
-      title: '人才能力分析时机',
-      selected: '先完成岗位匹配，在候选人列表中选人分析（默认）',
-      automatic: '岗位匹配完成后自动继续分析',
+    talentExecution: {
+      title: '本批简历执行哪些评价',
+      jobMatch: '岗位匹配：默认执行',
     },
     dropzone: { title: '拖放简历到此处', description: '仅支持文本型 PDF，单次最多 30 份。扫描版 PDF 暂不支持。' },
     selectedFiles: '已选择文件',
@@ -190,7 +189,7 @@ export default {
     highlights: '能力亮点：',
     noHighlights: '暂无明确亮点',
     viewDetails: '查看详情',
-    table: { select: '选择', candidate: '候选人', matchScore: '岗位匹配分', mustHave: '硬条件', assessment: '岗位判断', talent: '人才能力' },
+    table: { select: '选择', candidate: '候选人', matchScore: '岗位匹配分', mustHave: '硬条件', assessment: '岗位判断', autoTalent: 'AI 自动能力', specifiedTalent: 'HR 指定人才像' },
     empty: { title: '还没有候选人', description: '完成简历导入后，解析成功的候选人会出现在这里。', action: '前往简历导入 →' },
   },
   candidateDetail: {

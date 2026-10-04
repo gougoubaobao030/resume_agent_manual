@@ -77,9 +77,8 @@ export default {
   },
   resumeUpload: {
     eyebrow: 'Resume Import', title: 'Import Candidates in Bulk', description: 'Select the current job, then upload 1–30 text-based PDF resumes.', jobRequired: 'Complete the JD first',
-    talentTiming: {
-      title: 'When to Analyze Capabilities', selected: 'Complete job matching first, then select candidates for analysis (default)',
-      automatic: 'Continue with capability analysis automatically after job matching',
+    talentExecution: {
+      title: 'Evaluations for This Batch', jobMatch: 'Job matching: always included',
     },
     dropzone: { title: 'Drop Resumes Here', description: 'Text-based PDFs only, up to 30 at a time. Scanned PDFs are not supported yet.' },
     selectedFiles: 'Selected Files',
@@ -105,7 +104,7 @@ export default {
     sortLabel: 'Sort by match score', sortDescending: 'High to Low', sortAscending: 'Low to High', selectAll: 'Select All Current Candidates',
     clearSelection: 'Clear Selection', selectedCount: '{count} selected', analyzeSelected: 'Analyze Selected Candidates', selectCandidate: 'Select {name}',
     locationMissing: 'Location unavailable', highlights: 'Highlights: ', noHighlights: 'No clear highlights', viewDetails: 'View Details',
-    table: { select: 'Select', candidate: 'Candidate', matchScore: 'Match Score', mustHave: 'Must-haves', assessment: 'Job Assessment', talent: 'Capabilities' },
+    table: { select: 'Select', candidate: 'Candidate', matchScore: 'Match Score', mustHave: 'Must-haves', assessment: 'Job Assessment', autoTalent: 'AI Capabilities', specifiedTalent: 'HR Target Profile' },
     empty: { title: 'No Candidates Yet', description: 'Candidates whose resumes are parsed successfully will appear here.', action: 'Go to Resume Import →' },
   },
   candidateDetail: {

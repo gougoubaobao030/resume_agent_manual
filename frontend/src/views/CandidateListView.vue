@@ -7,6 +7,7 @@ import { analyzeTalent, talentLevelLabel } from '../services/talent'
 
 const { locale, t } = useI18n()
 const sortDirection = ref('desc')
+const selectedTalentModes = ref([])
 const sortedCandidates = computed(() => [...session.candidates].sort((a, b) => {
   const first = session.jobMatches[a.id]?.score
   const second = session.jobMatches[b.id]?.score
@@ -18,8 +19,11 @@ const selectedIds = computed(() => session.selectedTalentCandidateIds)
 const allSelected = computed(() => sortedCandidates.value.length > 0
   && sortedCandidates.value.every((item) => selectedIds.value.includes(item.id)))
 const canAnalyze = computed(() => selectedIds.value.length > 0
-  && (session.talentMode !== 'specified' || session.desiredTraits.length > 0)
-  && selectedIds.value.some((id) => session.talentStatuses[id]?.[session.talentMode] !== 'loading'))
+  && selectedTalentModes.value.length > 0
+  && (!selectedTalentModes.value.includes('specified') || session.desiredTraits.length > 0)
+  && selectedIds.value.some((id) => selectedTalentModes.value.some(
+    (mode) => session.talentStatuses[id]?.[mode] !== 'loading',
+  )))
 
 function toggleAll() {
   session.selectedTalentCandidateIds = allSelected.value ? [] : sortedCandidates.value.map((item) => item.id)
@@ -32,10 +36,12 @@ function toggleCandidate(id) {
 }
 
 function analyzeSelected() {
-  const mode = session.talentMode
+  const modes = [...selectedTalentModes.value]
   const traits = [...session.desiredTraits]
   const selected = sortedCandidates.value.filter((item) => selectedIds.value.includes(item.id))
-  void Promise.allSettled(selected.map((item) => analyzeTalent(item, mode, traits, locale.value)))
+  void Promise.allSettled(selected.flatMap((item) =>
+    modes.map((mode) => analyzeTalent(item, mode, traits, locale.value)),
+  ))
 }
 
 function candidateName(candidate) { return candidate.basic_info?.name || t('common.candidateNameMissing') }
@@ -52,16 +58,15 @@ function mustHaveState(candidate) {
   if (summary.needs_confirmation) return { label: t('common.match.mustHaveConfirmation'), className: 'status-badge--warning' }
   return { label: t('common.match.mustHavePassed'), className: 'status-badge--success' }
 }
-function talentResult(candidate) { return session.talentResults[candidate.id]?.[session.talentMode] }
-function talentStatus(candidate) { return session.talentStatuses[candidate.id]?.[session.talentMode] || 'idle' }
-function talentLabel(candidate) {
-  const result = talentResult(candidate)
+function talentResult(candidate, mode) { return session.talentResults[candidate.id]?.[mode] }
+function talentStatus(candidate, mode) { return session.talentStatuses[candidate.id]?.[mode] || 'idle' }
+function talentLabel(candidate, mode) {
+  const result = talentResult(candidate, mode)
   if (!result) {
-    const status = talentStatus(candidate)
+    const status = talentStatus(candidate, mode)
     return t(status === 'loading' ? 'common.talent.analyzing' : status === 'error' ? 'common.talent.failed' : 'common.talent.notAnalyzed')
   }
-  const label = t(result.mode === 'specified' ? 'common.talent.specifiedFit' : 'common.talent.attention')
-  return `${label}：${talentLevelLabel(result.mode === 'specified' ? result.specified_fit_level : result.attention_level)}`
+  return talentLevelLabel(mode === 'specified' ? result.specified_fit_level : result.attention_level)
 }
 </script>
 
@@ -79,7 +84,7 @@ function talentLabel(candidate) {
         </label>
       </div>
       <div v-if="session.candidates.length" class="talent-batch-controls">
-        <TalentSettings />
+        <TalentSettings v-model="selectedTalentModes" multiple />
         <div class="talent-batch-actions">
           <label><input type="checkbox" :checked="allSelected" @change="toggleAll" /> {{ t('candidates.selectAll') }}</label>
           <button class="button button--secondary button--small" type="button" :disabled="!selectedIds.length" @click="session.selectedTalentCandidateIds = []">{{ t('candidates.clearSelection') }}</button>
@@ -88,7 +93,7 @@ function talentLabel(candidate) {
         </div>
       </div>
       <div v-if="session.candidates.length" class="candidate-table candidate-table--header" aria-hidden="true">
-        <span>{{ t('candidates.table.select') }}</span><span>{{ t('candidates.table.candidate') }}</span><span>{{ t('candidates.table.matchScore') }}</span><span>{{ t('candidates.table.mustHave') }}</span><span>{{ t('candidates.table.assessment') }}</span><span>{{ t('candidates.table.talent') }}</span><span></span>
+        <span>{{ t('candidates.table.select') }}</span><span>{{ t('candidates.table.candidate') }}</span><span>{{ t('candidates.table.matchScore') }}</span><span>{{ t('candidates.table.mustHave') }}</span><span>{{ t('candidates.table.assessment') }}</span><span>{{ t('candidates.table.autoTalent') }}</span><span>{{ t('candidates.table.specifiedTalent') }}</span><span></span>
       </div>
       <div v-if="!session.candidates.length" class="empty-state"><div class="empty-state__mark">CV</div><h3>{{ t('candidates.empty.title') }}</h3><p>{{ t('candidates.empty.description') }}</p><RouterLink class="text-link" to="/resumes">{{ t('candidates.empty.action') }}</RouterLink></div>
       <div v-else class="candidate-rows">
@@ -98,7 +103,8 @@ function talentLabel(candidate) {
           <strong class="match-score match-score--table">{{ formattedScore(candidate) }}</strong>
           <span class="status-badge" :class="mustHaveState(candidate).className">{{ mustHaveState(candidate).label }}</span>
           <p class="candidate-match-summary" :class="{ 'muted-text': !matchResult(candidate) }">{{ session.jobMatchStatuses[candidate.id] === 'loading' ? t('common.match.scoring') : session.jobMatchStatuses[candidate.id] === 'error' ? t('common.match.scoringFailed') : matchResult(candidate)?.summary || t('common.match.noResult') }}</p>
-          <div class="talent-list-summary"><strong>{{ talentLabel(candidate) }}</strong><small v-if="talentResult(candidate)">{{ t('candidates.highlights') }}{{ talentResult(candidate).abilities.slice(0, 3).map((item) => item.ability_name).join(' · ') || t('candidates.noHighlights') }}</small><small v-else-if="talentStatus(candidate) === 'error'" class="talent-error">{{ session.talentErrors[candidate.id]?.[session.talentMode] }}</small></div>
+          <div class="talent-list-summary"><strong>{{ talentLabel(candidate, 'auto') }}</strong></div>
+          <div class="talent-list-summary"><strong>{{ talentLabel(candidate, 'specified') }}</strong></div>
           <RouterLink v-if="candidate.id" class="text-link" :to="`/candidates/${candidate.id}`">{{ t('candidates.viewDetails') }}</RouterLink>
         </article>
       </div>
