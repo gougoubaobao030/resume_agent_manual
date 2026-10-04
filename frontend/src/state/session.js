@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, toRaw } from 'vue'
 
 export const session = reactive({
   jobs: [],
@@ -21,7 +21,7 @@ export const session = reactive({
 
 export function setCurrentJob(job) {
   const jobChanged = session.currentJob?.id && session.currentJob.id !== job?.id
-  session.currentJob = job ? structuredClone(job) : null
+  session.currentJob = job ? structuredClone(toRaw(job)) : null
 
   if (jobChanged) {
     session.jobMatches = {}

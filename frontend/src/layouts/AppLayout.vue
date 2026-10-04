@@ -20,7 +20,9 @@ const passwordStatus = ref('idle')
 const userInitial = computed(() => (auth.user?.display_name || auth.user?.username || 'U').slice(0, 1).toUpperCase())
 
 onMounted(() => {
-  void initializeWorkspace()
+  void initializeWorkspace().catch((error) => {
+    console.error('Initialize workspace failed', error)
+  })
 })
 
 const navigation = [

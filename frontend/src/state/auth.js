@@ -49,6 +49,7 @@ export async function logout() {
   } finally {
     auth.user = null
     auth.status = 'idle'
+    auth.error = ''
   }
 }
 

@@ -29,7 +29,9 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   if (!auth.initialized) await initializeAuth()
-  if (!to.meta.public && !auth.user) return { name: 'login', query: { redirect: to.fullPath } }
+  if (!to.meta.public && !auth.user) {
+    return { name: 'login', query: { redirect: to.fullPath }, replace: true }
+  }
   if (to.name === 'login' && auth.user) return { name: 'dashboard' }
   return true
 })
