@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.auth import get_current_user
 from clients.llm_client import LLMConfigError, LLMRequestError, LLMResponseError
 from models import UserModel
-from schemas.talent import TalentDiscoveryRequest, TalentDiscoveryResult
+from schemas.talent import TalentDiscoveryRequest, TalentDiscoveryResult, TalentMode
 from services.candidate_repository import get_candidate
 from services.result_repository import get_talent_result, save_talent_result
 from services.talent_service import discover_talent
@@ -13,8 +13,10 @@ router = APIRouter(prefix="/api/talent", tags=["talent"])
 
 
 @router.get("/discover/{candidate_id}", response_model=TalentDiscoveryResult)
-def get_talent_discovery(candidate_id: str) -> TalentDiscoveryResult:
-    result = get_talent_result(candidate_id)
+def get_talent_discovery(
+    candidate_id: str, mode: TalentMode
+) -> TalentDiscoveryResult:
+    result = get_talent_result(candidate_id, mode)
     if result is None:
         raise HTTPException(status_code=404, detail="人才能力分析结果不存在")
     return result

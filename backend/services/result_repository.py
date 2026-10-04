@@ -5,7 +5,7 @@ from sqlalchemy import select
 from database import SessionLocal
 from models import JobModel, ScoringResultModel, TalentDiscoveryResultModel
 from schemas.scoring import JobMatchResult
-from schemas.talent import TalentDiscoveryResult
+from schemas.talent import TalentDiscoveryResult, TalentMode
 
 
 def save_scoring_result(result: JobMatchResult, *, job_revision: int, user_id: str | None) -> JobMatchResult:
@@ -66,16 +66,17 @@ def save_talent_result(
 ) -> TalentDiscoveryResult:
     with SessionLocal() as db:
         row = db.scalar(select(TalentDiscoveryResultModel).where(
-            TalentDiscoveryResultModel.candidate_id == result.candidate_id
+            TalentDiscoveryResultModel.candidate_id == result.candidate_id,
+            TalentDiscoveryResultModel.mode == result.mode,
         ))
         if row is None:
             row = TalentDiscoveryResultModel(
                 id=f"talent_{uuid4().hex}",
                 candidate_id=result.candidate_id,
+                mode=result.mode,
                 created_by=user_id,
             )
             db.add(row)
-        row.mode = result.mode
         row.analysis_language = result.analysis_language.value
         row.desired_traits_json = desired_traits
         row.result_json = result.model_dump(mode="json")
@@ -83,9 +84,12 @@ def save_talent_result(
     return result
 
 
-def get_talent_result(candidate_id: str) -> TalentDiscoveryResult | None:
+def get_talent_result(
+    candidate_id: str, mode: TalentMode
+) -> TalentDiscoveryResult | None:
     with SessionLocal() as db:
         row = db.scalar(select(TalentDiscoveryResultModel).where(
-            TalentDiscoveryResultModel.candidate_id == candidate_id
+            TalentDiscoveryResultModel.candidate_id == candidate_id,
+            TalentDiscoveryResultModel.mode == mode,
         ))
         return TalentDiscoveryResult.model_validate(row.result_json) if row else None

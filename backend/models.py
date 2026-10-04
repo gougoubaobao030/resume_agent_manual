@@ -157,7 +157,9 @@ class ScoringResultModel(TimestampMixin, Base):
 class TalentDiscoveryResultModel(TimestampMixin, Base):
     __tablename__ = "talent_discovery_results"
     __table_args__ = (
-        UniqueConstraint("candidate_id"),
+        UniqueConstraint(
+            "candidate_id", "mode", name="uq_talent_candidate_mode"
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)

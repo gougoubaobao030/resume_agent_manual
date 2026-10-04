@@ -68,15 +68,44 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
             save_scoring_result(scoring, job_revision=1, user_id=None)
             self.assertEqual(get_scoring_result(job.id, candidate.id).score, 88)
 
-            talent = TalentDiscoveryResult(
+            auto_talent = TalentDiscoveryResult(
                 candidate_id=candidate.id,
                 analysis_language="zh-CN",
                 mode="auto",
                 attention_level="high",
                 summary="值得关注",
             )
-            save_talent_result(talent, desired_traits=[], user_id=None)
-            self.assertEqual(get_talent_result(candidate.id).summary, "值得关注")
+            specified_talent = TalentDiscoveryResult(
+                candidate_id=candidate.id,
+                analysis_language="zh-CN",
+                mode="specified",
+                specified_fit_level="medium_high",
+                summary="符合指定人才像",
+            )
+            save_talent_result(auto_talent, desired_traits=[], user_id=None)
+            save_talent_result(
+                specified_talent, desired_traits=["认真"], user_id=None
+            )
+            self.assertEqual(
+                get_talent_result(candidate.id, "auto").summary, "值得关注"
+            )
+            self.assertEqual(
+                get_talent_result(candidate.id, "specified").summary,
+                "符合指定人才像",
+            )
+
+            updated_auto_talent = auto_talent.model_copy(
+                update={"summary": "更新后的自动发现结果"}
+            )
+            save_talent_result(updated_auto_talent, desired_traits=[], user_id=None)
+            self.assertEqual(
+                get_talent_result(candidate.id, "auto").summary,
+                "更新后的自动发现结果",
+            )
+            self.assertEqual(
+                get_talent_result(candidate.id, "specified").summary,
+                "符合指定人才像",
+            )
 
             update_jd(job.id, job)
             self.assertIsNone(get_scoring_result(job.id, candidate.id))

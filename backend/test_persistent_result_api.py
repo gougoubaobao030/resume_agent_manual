@@ -65,19 +65,32 @@ class PersistentResultApiTest(unittest.TestCase):
                 "mode": "auto",
                 "desired_traits": [],
             })
+            specified_talent = self.client.post("/api/talent/discover", json={
+                "candidate_id": self.candidate.id,
+                "analysis_language": "zh-CN",
+                "mode": "specified",
+                "desired_traits": ["认真"],
+            })
 
         self.assertEqual(score.status_code, 200, score.text)
         self.assertEqual(talent.status_code, 200, talent.text)
+        self.assertEqual(specified_talent.status_code, 200, specified_talent.text)
         self.assertEqual(
             self.client.get(
                 f"/api/scoring/job-match/{self.job.id}/{self.candidate.id}"
             ).status_code,
             200,
         )
-        self.assertEqual(
-            self.client.get(f"/api/talent/discover/{self.candidate.id}").status_code,
-            200,
+        auto_result = self.client.get(
+            f"/api/talent/discover/{self.candidate.id}?mode=auto"
         )
+        specified_result = self.client.get(
+            f"/api/talent/discover/{self.candidate.id}?mode=specified"
+        )
+        self.assertEqual(auto_result.status_code, 200, auto_result.text)
+        self.assertEqual(specified_result.status_code, 200, specified_result.text)
+        self.assertEqual(auto_result.json()["mode"], "auto")
+        self.assertEqual(specified_result.json()["mode"], "specified")
 
 
 if __name__ == "__main__":

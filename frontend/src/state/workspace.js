@@ -41,14 +41,16 @@ export async function selectJob(job, generation = workspaceGeneration) {
     setCandidates(candidates)
     matches.forEach((result) => setJobMatchResult(result.candidate_id, result))
 
-    await Promise.all(candidates.map(async (candidate) => {
-      try {
-        const result = await getTalentResult(candidate.id)
-        if (generation === workspaceGeneration) setTalentResult(candidate.id, result)
-      } catch (error) {
-        if (!(error instanceof ApiError) || error.status !== 404) throw error
-      }
-    }))
+    await Promise.all(candidates.flatMap((candidate) =>
+      ['auto', 'specified'].map(async (mode) => {
+        try {
+          const result = await getTalentResult(candidate.id, mode)
+          if (generation === workspaceGeneration) setTalentResult(candidate.id, mode, result)
+        } catch (error) {
+          if (!(error instanceof ApiError) || error.status !== 404) throw error
+        }
+      }),
+    ))
   } catch (error) {
     if (generation !== workspaceGeneration) return
     workspace.error = error.detail || error.message || 'Load workspace failed'

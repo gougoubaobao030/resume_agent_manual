@@ -19,7 +19,7 @@ const allSelected = computed(() => sortedCandidates.value.length > 0
   && sortedCandidates.value.every((item) => selectedIds.value.includes(item.id)))
 const canAnalyze = computed(() => selectedIds.value.length > 0
   && (session.talentMode !== 'specified' || session.desiredTraits.length > 0)
-  && selectedIds.value.some((id) => session.talentStatuses[id] !== 'loading'))
+  && selectedIds.value.some((id) => session.talentStatuses[id]?.[session.talentMode] !== 'loading'))
 
 function toggleAll() {
   session.selectedTalentCandidateIds = allSelected.value ? [] : sortedCandidates.value.map((item) => item.id)
@@ -52,8 +52,8 @@ function mustHaveState(candidate) {
   if (summary.needs_confirmation) return { label: t('common.match.mustHaveConfirmation'), className: 'status-badge--warning' }
   return { label: t('common.match.mustHavePassed'), className: 'status-badge--success' }
 }
-function talentResult(candidate) { return session.talentResults[candidate.id] }
-function talentStatus(candidate) { return session.talentStatuses[candidate.id] || 'idle' }
+function talentResult(candidate) { return session.talentResults[candidate.id]?.[session.talentMode] }
+function talentStatus(candidate) { return session.talentStatuses[candidate.id]?.[session.talentMode] || 'idle' }
 function talentLabel(candidate) {
   const result = talentResult(candidate)
   if (!result) {
@@ -98,7 +98,7 @@ function talentLabel(candidate) {
           <strong class="match-score match-score--table">{{ formattedScore(candidate) }}</strong>
           <span class="status-badge" :class="mustHaveState(candidate).className">{{ mustHaveState(candidate).label }}</span>
           <p class="candidate-match-summary" :class="{ 'muted-text': !matchResult(candidate) }">{{ session.jobMatchStatuses[candidate.id] === 'loading' ? t('common.match.scoring') : session.jobMatchStatuses[candidate.id] === 'error' ? t('common.match.scoringFailed') : matchResult(candidate)?.summary || t('common.match.noResult') }}</p>
-          <div class="talent-list-summary"><strong>{{ talentLabel(candidate) }}</strong><small v-if="talentResult(candidate)">{{ t('candidates.highlights') }}{{ talentResult(candidate).abilities.slice(0, 3).map((item) => item.ability_name).join(' · ') || t('candidates.noHighlights') }}</small><small v-else-if="talentStatus(candidate) === 'error'" class="talent-error">{{ session.talentErrors[candidate.id] }}</small></div>
+          <div class="talent-list-summary"><strong>{{ talentLabel(candidate) }}</strong><small v-if="talentResult(candidate)">{{ t('candidates.highlights') }}{{ talentResult(candidate).abilities.slice(0, 3).map((item) => item.ability_name).join(' · ') || t('candidates.noHighlights') }}</small><small v-else-if="talentStatus(candidate) === 'error'" class="talent-error">{{ session.talentErrors[candidate.id]?.[session.talentMode] }}</small></div>
           <RouterLink v-if="candidate.id" class="text-link" :to="`/candidates/${candidate.id}`">{{ t('candidates.viewDetails') }}</RouterLink>
         </article>
       </div>

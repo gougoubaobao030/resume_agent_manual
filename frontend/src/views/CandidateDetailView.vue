@@ -14,8 +14,8 @@ const candidate = computed(() =>
 )
 const matchResult = computed(() => session.jobMatches[route.params.id])
 const matchStatus = computed(() => session.jobMatchStatuses[route.params.id])
-const talentResult = computed(() => session.talentResults[route.params.id])
-const talentStatus = computed(() => session.talentStatuses[route.params.id] || 'idle')
+const talentResult = computed(() => session.talentResults[route.params.id]?.[session.talentMode])
+const talentStatus = computed(() => session.talentStatuses[route.params.id]?.[session.talentMode] || 'idle')
 const canAnalyzeTalent = computed(() => candidate.value && talentStatus.value !== 'loading'
   && (session.talentMode !== 'specified' || session.desiredTraits.length > 0))
 
@@ -122,7 +122,7 @@ function handleAnalyzeTalent() {
       <article class="panel detail-grid__full talent-detail">
         <div class="panel__header"><h3>{{ t('candidateDetail.talent.title') }}</h3><span class="status-badge" :class="talentStatus === 'error' ? 'status-badge--error' : talentStatus === 'success' ? 'status-badge--success' : talentStatus === 'loading' ? 'status-badge--loading' : 'status-badge--neutral'">{{ t(talentStatus === 'loading' ? 'common.talent.analyzing' : talentStatus === 'success' ? 'common.talent.completed' : talentStatus === 'error' ? 'common.talent.failed' : 'common.talent.notAnalyzed') }}</span></div>
         <div class="talent-detail__controls"><TalentSettings /><button class="button button--primary button--small" type="button" :disabled="!canAnalyzeTalent" @click="handleAnalyzeTalent">{{ t(talentStatus === 'loading' ? 'common.talent.analyzingProgress' : talentResult ? 'common.talent.reanalyze' : 'common.talent.analyze') }}</button></div>
-        <p v-if="talentStatus === 'error'" class="talent-error">{{ session.talentErrors[candidate.id] }}</p>
+        <p v-if="talentStatus === 'error'" class="talent-error">{{ session.talentErrors[candidate.id]?.[session.talentMode] }}</p>
         <div v-if="talentResult" class="talent-detail__result">
           <div class="talent-detail__overview"><strong>{{ t(talentResult.mode === 'specified' ? 'common.talent.specifiedFit' : 'common.talent.attention') }}{{ t('common.colon') }}{{ talentLevelLabel(talentResult.mode === 'specified' ? talentResult.specified_fit_level : talentResult.attention_level) }}</strong><p>{{ talentResult.summary }}</p></div>
           <section v-if="talentResult.mode === 'specified'" class="talent-detail__section">

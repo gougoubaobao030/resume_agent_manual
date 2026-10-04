@@ -99,8 +99,8 @@ export function getJobMatches(jobId) {
   return request(`/api/scoring/job-match?job_id=${encodeURIComponent(jobId)}`)
 }
 
-export function getTalentResult(candidateId) {
-  return request(`/api/talent/discover/${encodeURIComponent(candidateId)}`)
+export function getTalentResult(candidateId, mode) {
+  return request(`/api/talent/discover/${encodeURIComponent(candidateId)}?mode=${encodeURIComponent(mode)}`)
 }
 
 export function parseJd(rawText) {

@@ -15,14 +15,14 @@ export async function analyzeTalent(
   desiredTraits = session.desiredTraits,
   analysisLanguage,
 ) {
-  if (!candidate?.id || session.talentStatuses[candidate.id] === 'loading') return
+  if (!candidate?.id || session.talentStatuses[candidate.id]?.[mode] === 'loading') return
   if (mode === 'specified' && !desiredTraits.length) return
 
-  setTalentLoading(candidate.id)
+  setTalentLoading(candidate.id, mode)
   try {
     const result = await discoverTalent(candidate.id, mode, [...desiredTraits], analysisLanguage)
-    setTalentResult(candidate.id, result)
+    setTalentResult(candidate.id, mode, result)
   } catch (error) {
-    setTalentError(candidate.id, getFriendlyApiError(error, '人才能力分析'))
+    setTalentError(candidate.id, mode, getFriendlyApiError(error, '人才能力分析'))
   }
 }

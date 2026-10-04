@@ -84,19 +84,24 @@ export function setJobMatchError(candidateId, message) {
   session.jobMatchErrors[candidateId] = message
 }
 
-export function setTalentLoading(candidateId) {
-  delete session.talentResults[candidateId]
-  session.talentStatuses[candidateId] = 'loading'
-  delete session.talentErrors[candidateId]
+function ensureTalentModeState(state, candidateId) {
+  if (!state[candidateId]) state[candidateId] = {}
+  return state[candidateId]
 }
 
-export function setTalentResult(candidateId, result) {
-  session.talentResults[candidateId] = structuredClone(result)
-  session.talentStatuses[candidateId] = 'success'
-  delete session.talentErrors[candidateId]
+export function setTalentLoading(candidateId, mode) {
+  delete ensureTalentModeState(session.talentResults, candidateId)[mode]
+  ensureTalentModeState(session.talentStatuses, candidateId)[mode] = 'loading'
+  delete ensureTalentModeState(session.talentErrors, candidateId)[mode]
 }
 
-export function setTalentError(candidateId, message) {
-  session.talentStatuses[candidateId] = 'error'
-  session.talentErrors[candidateId] = message
+export function setTalentResult(candidateId, mode, result) {
+  ensureTalentModeState(session.talentResults, candidateId)[mode] = structuredClone(result)
+  ensureTalentModeState(session.talentStatuses, candidateId)[mode] = 'success'
+  delete ensureTalentModeState(session.talentErrors, candidateId)[mode]
+}
+
+export function setTalentError(candidateId, mode, message) {
+  ensureTalentModeState(session.talentStatuses, candidateId)[mode] = 'error'
+  ensureTalentModeState(session.talentErrors, candidateId)[mode] = message
 }
