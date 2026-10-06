@@ -1,25 +1,21 @@
 <script setup>
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
   getFriendlyApiError,
   getFriendlyResumeItemError,
   createResumeTask,
-  getResumeTask,
-  scoreJobMatch,
 } from '../services/api'
 import {
   session,
-  addCandidate,
   clearResumeTask,
-  setResumeTask,
-  setJobMatchError,
-  setJobMatchLoading,
-  setJobMatchResult,
 } from '../state/session'
 import TalentSettings from '../components/TalentSettings.vue'
-import { analyzeTalent } from '../services/talent'
+import {
+  startResumeTaskRunner,
+  terminalResumeTaskStatuses,
+} from '../services/resumeTaskRunner'
 
 const { locale, t } = useI18n()
 
@@ -27,17 +23,13 @@ const fileInput = ref(null)
 const selectedFiles = ref([])
 const uploadStatus = ref('idle')
 const uploadMessage = ref('')
-const POLL_INTERVAL_MS = 800
-const terminalTaskStatuses = new Set(['completed', 'completed_with_errors', 'failed'])
-let pollingStopped = false
-let activeJobId = null
-let activeTalentModes = []
-let activeDesiredTraits = []
-let activeAnalysisLanguage = 'zh-CN'
 const selectedTalentModes = ref([])
 
 const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
-const isParsing = computed(() => uploadStatus.value === 'loading')
+const isParsing = computed(() => uploadStatus.value === 'loading'
+  || (session.resumeTaskId
+    && !session.resumeTaskError
+    && !terminalResumeTaskStatuses.has(session.resumeTaskStatus)))
 const canSubmit = computed(
   () => hasCurrentJob.value && selectedFiles.value.length > 0 && !isParsing.value
     && (!selectedTalentModes.value.includes('specified') || session.desiredTraits.length > 0),
@@ -52,6 +44,31 @@ const taskCounts = computed(() => {
   return counts
 })
 const failedResults = computed(() => taskItems.value.filter((item) => item.status === 'failed'))
+const taskMessage = computed(() => {
+  if (!session.resumeTaskId) return uploadMessage.value
+  if (session.resumeTaskError && !terminalResumeTaskStatuses.has(session.resumeTaskStatus)) {
+    return t('resumeUpload.messages.pollFailed', { error: session.resumeTaskError })
+  }
+  if (!terminalResumeTaskStatuses.has(session.resumeTaskStatus)) {
+    return t('resumeUpload.messages.taskCreated', { count: taskItems.value.length })
+  }
+  if (session.resumeTaskStatus === 'failed') {
+    return t('resumeUpload.messages.taskFailed', {
+      reason: session.resumeTaskError
+        ? getFriendlyResumeItemError(session.resumeTaskError)
+        : t('resumeUpload.messages.noBackendReason'),
+    })
+  }
+  return t('resumeUpload.messages.completed', {
+    success: taskCounts.value.success,
+    failed: taskCounts.value.failed,
+  })
+})
+const taskDisplayStatus = computed(() => {
+  if (!session.resumeTaskId) return uploadStatus.value
+  if (session.resumeTaskError || session.resumeTaskStatus === 'failed' || taskCounts.value.failed) return 'error'
+  return terminalResumeTaskStatuses.has(session.resumeTaskStatus) ? 'success' : 'loading'
+})
 
 const itemStatusDisplay = {
   pending: { labelKey: 'resumeUpload.status.pending', className: 'status-badge--neutral' },
@@ -63,10 +80,6 @@ const itemStatusDisplay = {
 function itemStatus(item) {
   const status = itemStatusDisplay[item.status] ?? itemStatusDisplay.pending
   return { ...status, label: t(status.labelKey) }
-}
-
-function sleep(milliseconds) {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 }
 
 function formatFileSize(bytes) {
@@ -119,70 +132,6 @@ function removeFile(index) {
   clearResumeTask()
 }
 
-async function startCandidateScoring(candidate) {
-  if (!candidate.id || !activeJobId || session.jobMatchStatuses[candidate.id]) return
-
-  // loading 在请求前写入；后续轮询再次看到同一 candidate 时不会重复评分。
-  setJobMatchLoading(candidate.id)
-  try {
-    const matchResult = await scoreJobMatch(activeJobId, candidate.id, activeAnalysisLanguage)
-    setJobMatchResult(candidate.id, matchResult)
-    void Promise.allSettled(activeTalentModes.map((mode) =>
-      analyzeTalent(candidate, mode, activeDesiredTraits, activeAnalysisLanguage),
-    ))
-  } catch (error) {
-    setJobMatchError(candidate.id, getFriendlyApiError(error, t('resumeUpload.operations.scoring')))
-  }
-}
-
-function applyTaskSnapshot(task) {
-  setResumeTask(task)
-
-  for (const item of task.items ?? []) {
-    if (item.status !== 'success' || !item.candidate) continue
-
-    // success 会在每次轮询重复出现；只有第一次加入 session 才启动评分。
-    if (addCandidate(item.candidate)) {
-      void startCandidateScoring(item.candidate)
-    }
-  }
-}
-
-function finishTask(task) {
-  const successCount = taskCounts.value.success
-  const failedCount = taskCounts.value.failed
-  uploadStatus.value = task.status === 'failed' || failedCount ? 'error' : 'success'
-  uploadMessage.value = task.status === 'failed'
-    ? t('resumeUpload.messages.taskFailed', { reason: task.error ? getFriendlyResumeItemError(task.error) : t('resumeUpload.messages.noBackendReason') })
-    : t('resumeUpload.messages.completed', { success: successCount, failed: failedCount })
-}
-
-async function pollResumeTask(taskId) {
-  // 每次 GET 完成后才 sleep 并发起下一次，避免 setInterval 造成请求重叠。
-  while (!pollingStopped) {
-    let task
-    try {
-      task = await getResumeTask(taskId)
-    } catch (error) {
-      if (pollingStopped) return
-      uploadStatus.value = 'error'
-      uploadMessage.value = t('resumeUpload.messages.pollFailed', { error: getFriendlyApiError(error, t('resumeUpload.operations.taskStatus')) })
-      return
-    }
-
-    if (pollingStopped) return
-    applyTaskSnapshot(task)
-
-    // 批次到达后端定义的终态后必须退出，否则会永久轮询。
-    if (terminalTaskStatuses.has(task.status)) {
-      finishTask(task)
-      return
-    }
-
-    await sleep(POLL_INTERVAL_MS)
-  }
-}
-
 async function handleParse() {
   if (!hasCurrentJob.value) {
     uploadStatus.value = 'error'
@@ -199,27 +148,22 @@ async function handleParse() {
   uploadStatus.value = 'loading'
   uploadMessage.value = t('resumeUpload.messages.starting', { count: selectedFiles.value.length })
   clearResumeTask()
-  activeJobId = session.currentJob.id
-  activeTalentModes = [...selectedTalentModes.value]
-  activeDesiredTraits = [...session.desiredTraits]
-  activeAnalysisLanguage = locale.value
-  pollingStopped = false
+  const options = {
+    jobId: session.currentJob.id,
+    talentModes: [...selectedTalentModes.value],
+    desiredTraits: [...session.desiredTraits],
+    analysisLanguage: locale.value,
+  }
 
   try {
-    const task = await createResumeTask(selectedFiles.value, activeJobId)
-    applyTaskSnapshot(task)
-    uploadMessage.value = t('resumeUpload.messages.taskCreated', { count: task.total })
-    await pollResumeTask(task.task_id)
+    const task = await createResumeTask(selectedFiles.value, options.jobId)
+    void startResumeTaskRunner(task, options)
+    uploadStatus.value = 'idle'
   } catch (error) {
     uploadStatus.value = 'error'
     uploadMessage.value = getFriendlyApiError(error, t('resumeUpload.operations.createTask'))
   }
 }
-
-onUnmounted(() => {
-  // 页面离开后停止下一次 GET；后台任务仍由 FastAPI 继续执行。
-  pollingStopped = true
-})
 </script>
 
 <template>
@@ -281,13 +225,13 @@ onUnmounted(() => {
       </div>
 
       <div
-        v-if="uploadMessage"
+        v-if="taskMessage"
         class="upload-status"
-        :class="`upload-status--${uploadStatus}`"
+        :class="`upload-status--${taskDisplayStatus}`"
         role="status"
       >
         <span v-if="isParsing" class="loading-spinner" aria-hidden="true"></span>
-        <span>{{ uploadMessage }}</span>
+        <span>{{ taskMessage }}</span>
       </div>
 
       <div v-if="session.resumeTaskId" class="batch-result">

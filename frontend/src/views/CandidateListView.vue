@@ -155,12 +155,31 @@ function formattedScore(candidate) {
   if (typeof score !== 'number') return '—'
   return Number.isInteger(score) ? String(score) : score.toFixed(1)
 }
+function mustHaveItems(candidate) {
+  return (matchResult(candidate)?.requirement_results || []).filter((item) => item.must_have)
+}
 function mustHaveState(candidate) {
   const summary = matchResult(candidate)?.must_have_summary
   if (!summary) return { label: t('common.match.waiting'), className: 'status-badge--neutral' }
-  if (summary.has_failure) return { label: t('common.match.mustHaveFailed'), className: 'status-badge--error' }
-  if (summary.needs_confirmation) return { label: t('common.match.mustHaveConfirmation'), className: 'status-badge--warning' }
-  return { label: t('common.match.mustHavePassed'), className: 'status-badge--success' }
+  const items = mustHaveItems(candidate)
+  const passed = items.filter((item) => item.status === 'matched').length
+  const unmet = items.length - passed
+  return {
+    label: unmet
+      ? t('candidates.mustHaveSummary.unmet', { passed, total: items.length, count: unmet })
+      : t('candidates.mustHaveSummary.allMet', { passed, total: items.length }),
+    className: summary.has_failure
+      ? 'status-badge--error'
+      : summary.needs_confirmation || unmet
+        ? 'status-badge--warning'
+        : 'status-badge--success',
+  }
+}
+function matchSummary(candidate) {
+  const status = session.jobMatchStatuses[candidate.id]
+  if (status === 'loading') return t('common.match.scoring')
+  if (status === 'error') return t('common.match.scoringFailed')
+  return matchResult(candidate)?.summary || t('common.match.noResult')
 }
 function talentResult(candidate, mode) { return session.talentResults[candidate.id]?.[mode] }
 function talentStatus(candidate, mode) { return session.talentStatuses[candidate.id]?.[mode] || 'idle' }
@@ -171,6 +190,19 @@ function talentLabel(candidate, mode) {
     return t(status === 'loading' ? 'common.talent.analyzing' : status === 'error' ? 'common.talent.failed' : 'common.talent.notAnalyzed')
   }
   return talentLevelLabel(mode === 'specified' ? result.specified_fit_level : result.attention_level)
+}
+function talentItems(candidate, mode) {
+  const result = talentResult(candidate, mode)
+  if (!result) return []
+  return mode === 'specified'
+    ? (result.specified_traits || []).map((item) => ({ name: item.trait, level: item.fit_level }))
+    : (result.abilities || []).map((item) => ({ name: item.ability_name, level: item.level }))
+}
+function talentKeywords(candidate, mode) {
+  return talentItems(candidate, mode)
+    .slice(0, 2)
+    .map((item) => `${item.name} ${talentLevelLabel(item.level)}`)
+    .join(' · ')
 }
 </script>
 
@@ -206,18 +238,37 @@ function talentLabel(candidate, mode) {
       <div v-else class="candidate-rows">
         <article v-for="candidate in sortedCandidates" :key="candidate.id" class="candidate-row">
           <input type="checkbox" :checked="selectedIds.includes(candidate.id)" :aria-label="t('candidates.selectCandidate', { name: candidateName(candidate) })" @change="toggleCandidate(candidate.id)" />
-          <div class="candidate-identity"><span class="candidate-avatar">{{ candidateName(candidate).slice(0, 1) }}</span><div><strong>{{ candidateName(candidate) }}</strong><small>{{ candidate.basic_info?.location || t('candidates.locationMissing') }}</small></div></div>
+          <div class="candidate-identity"><span class="candidate-avatar">{{ candidateName(candidate).slice(0, 1) }}</span><strong>{{ candidateName(candidate) }}</strong></div>
           <strong class="match-score match-score--table">{{ formattedScore(candidate) }}</strong>
-          <span class="status-badge" :class="mustHaveState(candidate).className">{{ mustHaveState(candidate).label }}</span>
-          <p class="candidate-match-summary" :class="{ 'muted-text': !matchResult(candidate) }">{{ session.jobMatchStatuses[candidate.id] === 'loading' ? t('common.match.scoring') : session.jobMatchStatuses[candidate.id] === 'error' ? t('common.match.scoringFailed') : matchResult(candidate)?.summary || t('common.match.noResult') }}</p>
-          <div class="talent-list-summary"><strong>{{ talentLabel(candidate, 'auto') }}</strong></div>
-          <div class="talent-list-summary"><strong>{{ talentLabel(candidate, 'specified') }}</strong></div>
+          <div class="candidate-tooltip-cell" :tabindex="mustHaveItems(candidate).length ? 0 : undefined">
+            <span class="status-badge" :class="mustHaveState(candidate).className">{{ mustHaveState(candidate).label }}</span>
+            <div v-if="mustHaveItems(candidate).length" class="candidate-tooltip" role="tooltip">
+              <span v-for="item in mustHaveItems(candidate)" :key="item.requirement_id" :class="item.status === 'matched' ? 'tooltip-item--met' : 'tooltip-item--unmet'">{{ item.status === 'matched' ? '✓' : '✕' }} {{ item.requirement_name }}</span>
+            </div>
+          </div>
+          <div class="candidate-tooltip-cell candidate-assessment" :class="{ 'muted-text': !matchResult(candidate) }" :tabindex="matchResult(candidate)?.summary ? 0 : undefined">
+            <p class="candidate-match-summary">{{ matchSummary(candidate) }}</p>
+            <div v-if="matchResult(candidate)?.summary" class="candidate-tooltip candidate-tooltip--wide" role="tooltip">{{ matchResult(candidate).summary }}</div>
+          </div>
+          <div class="candidate-tooltip-cell talent-list-summary" :tabindex="talentItems(candidate, 'auto').length ? 0 : undefined">
+            <strong>{{ talentLabel(candidate, 'auto') }}</strong>
+            <small v-if="talentKeywords(candidate, 'auto')">{{ talentKeywords(candidate, 'auto') }}</small>
+            <div v-if="talentItems(candidate, 'auto').length" class="candidate-tooltip" role="tooltip"><span v-for="item in talentItems(candidate, 'auto')" :key="item.name">{{ item.name }}：{{ talentLevelLabel(item.level) }}</span></div>
+          </div>
+          <div class="candidate-tooltip-cell talent-list-summary" :tabindex="talentItems(candidate, 'specified').length ? 0 : undefined">
+            <strong>{{ talentLabel(candidate, 'specified') }}</strong>
+            <small v-if="talentKeywords(candidate, 'specified')">{{ talentKeywords(candidate, 'specified') }}</small>
+            <div v-if="talentItems(candidate, 'specified').length" class="candidate-tooltip" role="tooltip"><span v-for="item in talentItems(candidate, 'specified')" :key="item.name">{{ item.name }}：{{ talentLevelLabel(item.level) }}</span></div>
+          </div>
           <div v-if="candidate.id" class="candidate-row__actions">
-            <a class="text-link" :href="getCandidateResumeUrl(candidate.id)" target="_blank" rel="noopener">{{ t('candidates.viewResume') }}</a>
-            <span aria-hidden="true">|</span>
-            <RouterLink class="text-link" :to="`/candidates/${candidate.id}`">{{ t('candidates.viewDetails') }}</RouterLink>
-            <span aria-hidden="true">|</span>
-            <button class="danger-link" type="button" :disabled="removingCandidateIds.includes(candidate.id)" @click="handleRemoveFromJob(candidate)">{{ t(removingCandidateIds.includes(candidate.id) ? 'candidates.removing' : 'candidates.removeFromJob') }}</button>
+            <a class="text-link" :href="getCandidateResumeUrl(candidate.id)" target="_blank" rel="noopener">{{ t('candidates.actions.viewResume') }}</a>
+            <RouterLink class="text-link" :to="`/candidates/${candidate.id}`">{{ t('candidates.actions.viewDetails') }}</RouterLink>
+            <details class="candidate-more-actions">
+              <summary :aria-label="t('candidates.actions.more')">…</summary>
+              <div class="candidate-more-actions__menu">
+                <button class="danger-link" type="button" :disabled="removingCandidateIds.includes(candidate.id)" @click="handleRemoveFromJob(candidate)">{{ t(removingCandidateIds.includes(candidate.id) ? 'candidates.removing' : 'candidates.removeFromJob') }}</button>
+              </div>
+            </details>
           </div>
         </article>
       </div>

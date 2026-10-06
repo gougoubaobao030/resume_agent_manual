@@ -1,5 +1,7 @@
 ﻿import json
+import logging
 import os
+import re
 from pathlib import Path
 from typing import TypeVar
 
@@ -11,6 +13,9 @@ from openai import (
     OpenAI,
 )
 from pydantic import BaseModel, ValidationError
+
+
+logger = logging.getLogger("uvicorn.error")
 
 
 # 找到项目根目录：
@@ -151,6 +156,16 @@ class LLMClient:
 
         #似乎key的原因，遇到了这个问题得到来自deepseek的401错误
         except APIStatusError as exc:
+            request_id = getattr(exc, "request_id", None)
+            error_message = " ".join(str(exc).split())[:500]
+            logger.error(
+                "[LLM Request Error] status_code=%s error_type=%s "
+                "request_id=%s message=%s",
+                exc.status_code,
+                type(exc).__name__,
+                request_id,
+                error_message,
+            )
             raise LLMRequestError(
                 f"模型服务返回错误，状态码：{exc.status_code}。"
             ) from exc
@@ -165,7 +180,19 @@ class LLMClient:
                 "模型没有返回任何候选结果。"
             )
 
-        content = completion.choices[0].message.content
+        choice = completion.choices[0]
+        content = choice.message.content
+        usage = completion.usage
+
+        logger.info(
+            "[LLM Response] finish_reason=%s completion_tokens=%s "
+            "prompt_tokens=%s total_tokens=%s content_chars=%s",
+            choice.finish_reason,
+            getattr(usage, "completion_tokens", None),
+            getattr(usage, "prompt_tokens", None),
+            getattr(usage, "total_tokens", None),
+            len(content or ""),
+        )
 
         if not content:
             raise LLMResponseError(
@@ -187,6 +214,42 @@ class LLMClient:
             raise LLMResponseError(
                 "模型返回的 JSON 不符合规定的数据结构。"
             ) from exc
+
+    @staticmethod
+    def _get_schema_name(response_model: type[BaseModel]) -> str:
+        """生成符合 Structured Outputs 命名限制的稳定 schema 名称。"""
+
+        schema_name = re.sub(r"[^a-zA-Z0-9_-]", "_", response_model.__name__)
+        return schema_name[:64] or "structured_response"
+
+    @classmethod
+    def _build_strict_json_schema(
+        cls,
+        response_model: type[BaseModel],
+    ) -> dict:
+        """从 Pydantic 模型生成 Chat Completions strict JSON Schema。"""
+
+        schema = response_model.model_json_schema()
+        cls._normalize_strict_json_schema(schema)
+        return schema
+
+    @classmethod
+    def _normalize_strict_json_schema(cls, node: object) -> None:
+        """递归补齐 Structured Outputs strict 模式要求。"""
+
+        if isinstance(node, dict):
+            node.pop("default", None)
+
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                node["required"] = list(properties)
+                node["additionalProperties"] = False
+
+            for value in node.values():
+                cls._normalize_strict_json_schema(value)
+        elif isinstance(node, list):
+            for value in node:
+                cls._normalize_strict_json_schema(value)
 
 
     #一个清理json的静态方法，当然别的模块也能用

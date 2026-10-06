@@ -16,6 +16,7 @@ export const session = reactive({
   resumeTaskId: null,
   resumeTaskStatus: null,
   resumeTaskItems: [],
+  resumeTaskError: '',
 })
 
 export function setCurrentJob(job) {
@@ -45,17 +46,23 @@ export function clearResumeTask() {
   session.resumeTaskId = null
   session.resumeTaskStatus = null
   session.resumeTaskItems = []
+  session.resumeTaskError = ''
 }
 
 export function setResumeTask(task) {
   session.resumeTaskId = task.task_id
   session.resumeTaskStatus = task.status
+  session.resumeTaskError = task.error ?? ''
   // 每次轮询都用 item_id 对齐状态，不依赖可能重复的 filename。
   const previousItems = new Map(session.resumeTaskItems.map((item) => [item.item_id, item]))
   session.resumeTaskItems = (task.items ?? []).map((item) => ({
     ...previousItems.get(item.item_id),
     ...structuredClone(item),
   }))
+}
+
+export function setResumeTaskPollingError(message) {
+  session.resumeTaskError = message
 }
 
 export function addCandidate(candidate) {
