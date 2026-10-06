@@ -1,12 +1,18 @@
 import { discoverTalent, getFriendlyApiError } from './api'
+import { i18n } from '../i18n'
 import { session, setTalentError, setTalentLoading, setTalentResult } from '../state/session'
 
 export const talentLevelLabels = {
-  high: '高', medium_high: '中高', medium: '中', medium_low: '中低', low: '低',
+  high: 'common.talent.level.high',
+  medium_high: 'common.talent.level.mediumHigh',
+  medium: 'common.talent.level.medium',
+  medium_low: 'common.talent.level.mediumLow',
+  low: 'common.talent.level.low',
 }
 
 export function talentLevelLabel(level) {
-  return talentLevelLabels[level] || '—'
+  const labelKey = talentLevelLabels[level]
+  return labelKey ? i18n.global.t(labelKey) : '—'
 }
 
 export async function analyzeTalent(
@@ -23,6 +29,10 @@ export async function analyzeTalent(
     const result = await discoverTalent(candidate.id, mode, [...desiredTraits], analysisLanguage)
     setTalentResult(candidate.id, mode, result)
   } catch (error) {
-    setTalentError(candidate.id, mode, getFriendlyApiError(error, '人才能力分析'))
+    setTalentError(
+      candidate.id,
+      mode,
+      getFriendlyApiError(error, i18n.global.t('common.operations.talent')),
+    )
   }
 }

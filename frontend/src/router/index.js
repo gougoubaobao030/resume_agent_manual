@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AnalysisResultView from '../views/AnalysisResultView.vue'
 import CandidateDetailView from '../views/CandidateDetailView.vue'
 import CandidateListView from '../views/CandidateListView.vue'
+import CandidatePoolView from '../views/CandidatePoolView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import JdManagementView from '../views/JdManagementView.vue'
 import LoginView from '../views/LoginView.vue'
@@ -17,6 +18,13 @@ const router = createRouter({
     { path: '/jobs', name: 'jobs', component: JdManagementView },
     { path: '/resumes', name: 'resumes', component: ResumeUploadView },
     { path: '/candidates', name: 'candidates', component: CandidateListView },
+    { path: '/candidate-pool', name: 'candidate-pool', component: CandidatePoolView },
+    {
+      path: '/candidate-pool/:id',
+      name: 'candidate-pool-detail',
+      component: CandidateDetailView,
+      props: { poolMode: true },
+    },
     {
       path: '/candidates/:id',
       name: 'candidate-detail',

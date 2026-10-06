@@ -9,7 +9,12 @@ from schemas.resume import Candidate
 from schemas.scoring import JobMatchResult
 from schemas.talent import TalentDiscoveryResult
 from services import resume_service, resume_task_service
-from services.candidate_repository import delete_candidate, get_candidate
+from services import resume_storage
+from services.candidate_repository import (
+    delete_candidate,
+    get_candidate,
+    get_candidate_resume_info,
+)
 from services.jd_repository import delete_jd, save_jd, update_jd
 from services.result_repository import (
     get_scoring_result,
@@ -33,15 +38,23 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
             return Candidate(id="candidate_order_test", raw_text="evidence")
 
         try:
-            with patch.object(resume_service, "parse_resume_pdf", side_effect=fake_parse):
+            with tempfile.TemporaryDirectory() as storage_dir, patch.object(
+                resume_storage, "DATA_ROOT", Path(storage_dir)
+            ), patch.object(resume_service, "parse_resume_pdf", side_effect=fake_parse):
                 created = resume_task_service.create_resume_task(
                     [("A.pdf", handle.name)], job_id=job.id
                 )
                 await resume_task_service._background_tasks[created.task_id]
                 final = resume_task_service.get_resume_task(created.task_id)
 
-            self.assertEqual(final.items[0].status, "success")
-            self.assertEqual(get_candidate("candidate_order_test").raw_text, "evidence")
+                self.assertEqual(final.items[0].status, "success")
+                self.assertEqual(get_candidate("candidate_order_test").raw_text, "evidence")
+                resume_path, _ = get_candidate_resume_info("candidate_order_test")
+                self.assertEqual(
+                    resume_path,
+                    "resumes/candidate_order_test/original.pdf",
+                )
+                self.assertTrue((Path(storage_dir) / resume_path).is_file())
         finally:
             delete_candidate("candidate_order_test")
             delete_jd(job.id)

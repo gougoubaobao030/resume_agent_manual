@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 from typing import Literal
+from datetime import datetime
 
 #定义candidate字段的二级基本字段
 class BasicInfo(BaseModel):
@@ -94,6 +95,22 @@ class Candidate(BaseModel):
     raw_text: Optional[str] = None
 
     extraction_metadata: Optional[ExtractionMetadata] = None
+
+
+class CandidatePoolJob(BaseModel):
+    id: str
+    job_title: str
+
+
+class CandidatePoolItem(BaseModel):
+    id: str
+    name: Optional[str] = None
+    experience_summary: Optional[str] = None
+    skills: List[str] = Field(default_factory=list)
+    created_at: datetime
+    source_file: Optional[str] = None
+    has_resume: bool = False
+    jobs: List[CandidatePoolJob] = Field(default_factory=list)
 
 #让大模型去抽取的格式
 #DTO分层设计数据分流

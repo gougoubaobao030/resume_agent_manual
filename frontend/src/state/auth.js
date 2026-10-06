@@ -3,6 +3,7 @@ import { reactive } from 'vue'
 import { applyLocale, i18n } from '../i18n'
 import {
   ApiError,
+  getFriendlyApiError,
   getCurrentUser,
   login as loginRequest,
   logout as logoutRequest,
@@ -38,7 +39,9 @@ export async function login(username, password) {
     return user
   } catch (error) {
     auth.status = 'error'
-    auth.error = error.detail || 'Login failed'
+    auth.error = error instanceof ApiError && error.status === 401
+      ? i18n.global.t('auth.login.invalidCredentials')
+      : getFriendlyApiError(error, i18n.global.t('auth.login.operation'))
     throw error
   }
 }

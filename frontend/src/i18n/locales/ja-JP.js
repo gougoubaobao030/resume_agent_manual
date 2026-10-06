@@ -1,11 +1,18 @@
 export default {
   auth: {
-    login: { title: 'ログイン', description: '管理者が事前に作成した社内アカウントを使用します。', username: 'アカウント', password: 'パスワード', submit: 'ログイン', loading: 'ログイン中…' },
+    login: { title: 'ログイン', description: '管理者が事前に作成した社内アカウントを使用します。', username: 'アカウント', password: 'パスワード', submit: 'ログイン', loading: 'ログイン中…', invalidCredentials: 'アカウント名またはパスワードが正しくありません。', failed: 'ログインできませんでした。しばらくしてからもう一度お試しください。', operation: 'ログイン' },
     logout: 'ログアウト',
-    password: { title: 'パスワード変更', current: '現在のパスワード', new: '新しいパスワード（8文字以上）', submit: '保存', success: 'パスワードを変更し、他のセッションを終了しました。', failed: 'パスワードを変更できませんでした。' },
+    password: { title: 'パスワード変更', current: '現在のパスワード', new: '新しいパスワード（8文字以上）', submit: '保存', success: 'パスワードを変更し、他のセッションを終了しました。', failed: 'パスワードを変更できませんでした。', invalidCurrent: '現在のパスワードが正しくありません。', operation: 'パスワード変更' },
   },
   common: {
     loading: '読み込み中…',
+    operations: { talent: '候補者の能力分析' },
+    errors: {
+      network: 'サービスに接続できません。しばらくしてからもう一度お試しください。', invalidRequest: '{action}の入力内容を確認して、もう一度お試しください。',
+      sessionExpired: 'ログインの有効期限が切れました。もう一度ログインしてください。', permissionDenied: 'この操作を実行する権限がありません。', notFound: '{action}に必要なデータが見つからないか、期限切れです。',
+      server: 'サービスを一時的に利用できません。しばらくしてからもう一度お試しください。', invalidResponse: 'AI の応答を処理できませんでした。もう一度お試しください。', unavailable: 'AI サービスが応答していません。しばらくしてからもう一度お試しください。',
+      operationFailed: '{action}に失敗しました。しばらくしてからもう一度お試しください。', resumeNoReason: '解析に失敗しました。サーバーから詳細情報が返されませんでした。', resumeUnreadable: '履歴書を読み取れませんでした。テキスト形式の PDF か確認してください。', resumeGeneric: '履歴書を解析できませんでした。ファイルの内容を確認して、もう一度お試しください。',
+    },
     candidateNameMissing: '氏名を抽出できませんでした', noInformation: '情報なし', dateMissing: '期間情報なし', colon: '：',
     sourceLabel: '出典：{source}', sourceWithIndex: '出典：{source} #{index}', sourceNameWithIndex: '{source} #{index}',
     match: {
@@ -16,7 +23,8 @@ export default {
     },
     talent: {
       analyzing: '分析中', analyzingProgress: '分析中…', failed: '分析失敗', notAnalyzed: '未分析', completed: '完了',
-      specifiedFit: '指定人材像との適合度', attention: '人材注目度', reanalyze: '再分析', analyze: '人材能力を分析',
+      specifiedFit: '指定した候補者像との適合度', attention: '注目度', reanalyze: '再分析', analyze: '候補者の能力を分析',
+      level: { high: '高', mediumHigh: 'やや高い', medium: '中', mediumLow: 'やや低い', low: '低' },
     },
     requirementStatus: { matched: '適合', partiallyMatched: '一部適合', notMatched: '不適合', insufficientEvidence: '根拠不足' },
     confidence: { high: '高', medium: '中', low: '低' },
@@ -24,6 +32,10 @@ export default {
       workExperience: '職務経歴', projects: 'プロジェクト経験', education: '学歴', skills: 'スキル', languages: '語学力',
       certifications: '資格', achievements: '実績', candidateEvidence: '事実根拠', rawText: '履歴書原文', resume: '履歴書', mockProfile: 'サンプル',
     },
+  },
+  talentSettings: {
+    modeLabel: '候補者の能力分析モード', autoMode: 'AI による自動分析', specifiedMode: 'HR 指定の候補者像', traitLabel: '重視する候補者の特性',
+    traitPlaceholder: '例：誠実、学習が速い', add: '追加', removeLabel: '{trait}を削除', traitRequired: '分析するには特性を 1 件以上追加してください。',
   },
   dashboard: {
     eyebrow: '概要', title: '候補者スクリーニングを開始',
@@ -35,11 +47,11 @@ export default {
         confirm: { title: '求人要件を確認', description: 'JD を入力・解析し、HR が編集して確認' },
         import: { title: '履歴書を一括インポート', description: 'テキスト形式の PDF を 1～30 件アップロード' },
         candidates: { title: '候補者を確認', description: '構造化プロフィールと解析結果を確認' },
-        review: { title: '分析と人による確認', description: 'マッチング根拠と要確認事項を確認' },
+        review: { title: '分析・目視確認', description: 'マッチング根拠と要確認事項を確認' },
       },
     },
     session: {
-      eyebrow: '現在のセッション', title: '今回の処理', currentJob: '現在の JD', notSet: '未設定', candidates: '候補者', scored: 'スコア算出済み',
+      eyebrow: '現在の選考', title: '今回の処理', currentJob: '現在の JD', notSet: '未設定', candidates: '候補者', scored: 'スコア算出済み',
       note: '現在選択中の JD のデータをデータベースから表示します。',
     },
     scope: {
@@ -49,6 +61,24 @@ export default {
   },
   jd: {
     eyebrow: '求人票', title: 'JD の解析と確認', description: '求人票を入力して AI が要件を抽出し、HR が編集・確認して保存します。',
+    sample: `職種名：AIアプリケーションエンジニア
+
+業務内容：
+1. 大規模言語モデルを活用した AI アプリケーション（RAG、チャットボット、AI エージェントなど）の開発
+2. Python によるバックエンドサービスおよび REST API の設計・開発・保守
+3. 業務要件に応じたプロンプト設計、モデル連携、精度改善
+4. 社内ナレッジベースや文書検索機能の開発
+
+応募要件：
+1. Python を用いたバックエンド開発を独力で進められること
+2. 大学卒業以上の学歴
+3. FastAPI、Flask などの Python Web フレームワークを用いた実務経験
+4. 大規模言語モデル、Embedding、ベクトルデータベース、RAG の基礎知識
+5. 関係者と円滑に連携できるコミュニケーション能力
+
+歓迎要件：
+- LangChain、LangGraph などを用いた AI エージェント開発経験
+- JLPT N1 相当、または業務上の日本語コミュニケーション能力`,
     step1: { label: 'ステップ 1', title: '求人票を入力', helper: '職種名、業務内容、スキル、経験要件を含めることを推奨します。' },
     step2: { label: 'ステップ 2', title: 'HR による確認' },
     status: { parsing: '解析中', parseSuccess: '解析成功', needsAttention: '確認が必要', waiting: '解析待ち', editable: '編集可能' },
@@ -62,6 +92,7 @@ export default {
     },
     empty: { title: '解析結果はまだありません', description: '解析後、職種名、要件、ウェイト、必須条件をここで編集できます。' },
     parseWarnings: '解析時の注意',
+    warnings: { noRequirements: '明確な応募要件を抽出できませんでした。原文を確認し、必要な要件を追加してください。', noEducation: '明確な学歴要件を抽出できませんでした。必要に応じて追加してください。', zeroWeights: 'すべての要件の推奨ウェイトが 0 のため、後続の評価では均等に扱われます。' },
     requirements: { title: '求人要件', weightNote: 'ウェイトは相対的な重要度です。保存時にフロントエンドでは正規化しません。', item: '要件 {index}' },
     categories: { technical: '技術力', experience: '職務経験', education: '学歴', other: 'その他' },
     messages: {
@@ -83,8 +114,8 @@ export default {
     dropzone: { title: 'ここに履歴書をドロップ', description: 'テキスト形式の PDF のみ、1 回につき最大 30 件。スキャン PDF は現在未対応です。' },
     selectedFiles: '選択済みファイル',
     actions: { selectFiles: 'PDF ファイルを選択', parsing: '解析中…', start: '一括解析を開始', removeLabel: '{filename} を削除', remove: '削除', viewCandidates: '候補者を表示' },
-    status: { pending: '待機中', running: '解析中', success: '解析成功', failed: '解析失敗' },
-    summary: { completed: '完了', success: '解析成功', failed: '解析失敗', running: '処理中', pending: '待機中' },
+    status: { pending: '待機中', running: '解析中', success: '解析完了', failed: '解析エラー' },
+    summary: { completed: '完了', success: '解析完了', failed: '解析エラー', running: '処理中', pending: '待機中' },
     scoring: { running: '求人スコア算出中…', failed: '求人スコア算出失敗', completed: '求人スコア算出完了' },
     failedFiles: '解析できなかったファイル', sessionNote: '解析に成功した候補者をデータベースに保存しました。',
     note: { title: '処理について', description: '履歴書は個別に解析され、1 件の失敗で他のファイルが中断されることはありません。' },
@@ -103,18 +134,35 @@ export default {
     importResumes: '履歴書をインポート', currentCandidates: '現在の候補者', personCount: '{count} 人', matchScore: '求人マッチ度',
     sortLabel: '求人マッチ度で並べ替え', sortDescending: '高い順', sortAscending: '低い順', selectAll: '現在の候補者をすべて選択',
     clearSelection: '選択を解除', selectedCount: '{count} 人を選択中', analyzeSelected: '選択した候補者の能力を分析', selectCandidate: '{name} を選択',
-    locationMissing: '所在地情報なし', highlights: '能力の強み：', noHighlights: '明確な強みなし', viewDetails: '詳細を表示',
-    table: { select: '選択', candidate: '候補者', matchScore: '求人マッチ度', mustHave: '必須条件', assessment: '求人判定', autoTalent: 'AI 自動能力', specifiedTalent: 'HR 指定人材像' },
+    actions: { rescoreSelected: '選択した候補者を再評価', rescoring: '再評価中…' },
+    messages: { rescoreSuccess: '評価を更新しました', rescorePartialFailed: '{success}名の再評価が完了し、{failed}名が失敗しました', rescoreFailed: '{failed}名の再評価に失敗しました', removeSuccess: '{name} を現在の求人から削除しました。' },
+    operations: { rescore: '再評価', remove: '現在の求人から削除' },
+    removeFromJob: '現在の求人から削除', removing: '削除中…',
+    removeConfirm: '{name} を現在の求人からのみ削除し、この求人のマッチング評価を削除します。候補者情報と元の履歴書は候補者一覧に保持されます。',
+    locationMissing: '所在地情報なし', highlights: '強み：', noHighlights: '明確な強みなし', viewResume: '元の履歴書を表示', viewDetails: '詳細を表示',
+    table: { select: '選択', candidate: '候補者', matchScore: '求人マッチ度', mustHave: '必須条件', assessment: '求人判定', autoTalent: 'AI による能力分析', specifiedTalent: 'HR 指定の候補者像', actions: '操作' },
     empty: { title: '候補者はまだいません', description: '履歴書のインポート後、解析に成功した候補者がここに表示されます。', action: '履歴書インポートへ →' },
   },
+  candidatePool: {
+    eyebrow: '全候補者', title: '候補者一覧', description: 'システムに保存されているすべての候補者を表示します。',
+    allCandidates: 'すべての候補者', personCount: '{count} 人', experienceMissing: '職務経歴情報なし', skills: '主なスキル', skillsMissing: 'スキル情報なし', jobs: '参加した求人', jobsMissing: '関連する求人なし', sourceFile: '元の履歴書', createdAt: 'アップロード日時', viewDetails: '詳細を表示', viewResume: '元の履歴書を表示', resumeMissing: '元の履歴書を利用できません', deleteCandidate: '候補者を削除', deleting: '削除中…',
+    deleteConfirm: '{name} の元の履歴書、すべての求人との関連、すべての求人評価、人材分析結果を完全に削除します。この操作は元に戻せません。',
+    messages: { deleteSuccess: '候補者 {name} を削除しました。' },
+    operations: { load: '候補者一覧の読み込み', delete: '候補者の削除' },
+    empty: { title: '候補者一覧は空です', description: '正常にインポートされた候補者がここに表示されます。' },
+  },
   candidateDetail: {
-    back: '← 候補者一覧に戻る', title: '候補者詳細', sourceFileMissing: '元ファイル名の情報なし', notFound: '現在のセッションにこの候補者は見つかりませんでした。',
-    empty: { title: '候補者データを利用できません', description: '候補者がデータベースに存在しないか、選択中の JD に関連付けられていません。', action: '候補者一覧に戻る →' },
+    back: '← 候補者一覧に戻る', backToPool: '← 候補者一覧に戻る', title: '候補者詳細', sourceFileMissing: '元のファイル名を取得できませんでした', viewResume: '元の履歴書を表示', viewEvidence: '根拠を表示', currentJob: '現在の JD：', notFound: '現在のセッションにこの候補者は見つかりませんでした。',
+    actions: { rescore: '再評価', rescoring: '再評価中…' },
+    messages: { rescoreSuccess: '評価を更新しました。' },
+    metrics: { mustHave: '必須条件', autoTalent: 'AI 能力注目度', specifiedTalent: 'HR 指定能力適合度' },
+    empty: { title: '候補者データを利用できません', description: '候補者がデータベースに存在しないか、選択中の JD に関連付けられていません。', action: '候補者一覧に戻る →', poolAction: '候補者一覧に戻る →' },
     basicInfo: { title: '基本情報', name: '氏名', location: '所在地', email: 'メール', phone: '電話' },
-    match: { title: '求人マッチング', score: '求人マッチ度', viewDetails: 'スコア根拠をすべて表示', noResult: '現在のセッションにこの候補者の求人マッチング結果はありません。' },
+    match: { title: '求人マッチング概要', score: '求人マッチ度', requirements: '求人要件との適合', viewDetails: 'スコア根拠をすべて表示', noResult: '現在のセッションにこの候補者の求人マッチング結果はありません。', highlights: '主な強み', risks: 'リスク / 要確認事項', noHighlights: '明確な高適合項目はありません。', noRisks: '明確なリスク項目はありません。' },
     talent: {
-      title: '人材能力の発見', specifiedProfile: 'HR 指定の人材像', evidence: '主な根拠', missingInformation: '要確認情報',
+      title: '候補者の能力分析', specifiedProfile: 'HR 指定の候補者像', evidence: '主な根拠', missingInformation: '要確認情報',
       additionalFindings: 'AI による追加発見', abilityProfile: '能力プロフィール', noAbilities: '追加能力を示す明確な根拠はありません。', warnings: '分析上の注意',
+      autoTitle: 'AI 能力発見', specifiedTitle: 'HR 指定能力', settingsTitle: '能力分析設定', settingsDescription: 'HR 指定能力を設定するか、編集する分析モードを選択します。',
     },
     resume: {
       education: '学歴', degreeMissing: '学位・専攻情報なし', noEducation: '学歴情報なし', workExperience: '職務経歴', noWorkExperience: '職務経歴なし',
@@ -135,6 +183,7 @@ export default {
     rawReview: { title: '履歴書原文の確認を推奨', description: '一部の要件は履歴書原文と照合して追加確認する必要があります。' },
     mustHave: '必須条件', confidence: '判定信頼度：{value}', reason: '判定理由', resumeEvidence: '履歴書の根拠',
     missingInformation: '要確認情報', overallMissingInformation: '全体の要確認情報',
+    viewEvidence: '根拠を表示',
   },
   layout: {
     brandSubtitle: '採用分析ワークスペース',
@@ -143,7 +192,8 @@ export default {
       dashboard: 'ダッシュボード',
       jobs: '求人票管理',
       resumes: '履歴書インポート',
-      candidates: '候補者一覧',
+      candidates: '求人候補者一覧',
+      candidatePool: '候補者プール',
       analysis: '分析結果',
       candidateDetail: '候補者詳細',
       expand: 'ナビを展開',

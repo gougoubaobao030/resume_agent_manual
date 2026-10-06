@@ -95,7 +95,7 @@ function selectCandidate(event) {
 </script>
 
 <template>
-  <section class="page-stack">
+  <section class="page-stack analysis-result-page">
     <div class="page-heading page-heading--split">
       <div>
         <p class="eyebrow">{{ t('analysis.eyebrow') }}</p>
@@ -138,55 +138,59 @@ function selectCandidate(event) {
         </div>
       </article>
 
-      <div class="requirements-results">
-        <article
+      <div class="requirements-results requirements-results--compact">
+        <details
           v-for="requirement in matchResult.requirement_results"
           :key="requirement.requirement_id"
-          class="panel match-requirement"
+          class="panel match-requirement match-requirement--compact"
         >
-          <div class="match-requirement__header">
-            <div>
+          <summary class="match-requirement__header">
+            <div class="match-requirement__identity">
               <div class="requirement-title-line">
                 <h3>{{ requirement.requirement_name }}</h3>
                 <span v-if="requirement.must_have" class="must-have-label">{{ t('analysis.mustHave') }}</span>
               </div>
               <span class="requirement-confidence">{{ t('analysis.confidence', { value: confidenceLabel(requirement.confidence) }) }}</span>
             </div>
+            <p class="match-requirement__preview">{{ requirement.reason }}</p>
             <div class="requirement-score-block">
               <strong>{{ formattedScore(requirement.score) }}</strong>
               <span class="status-badge" :class="statusClass(requirement.status)">
                 {{ requirementStatus(requirement.status) }}
               </span>
+              <span class="disclosure-action">{{ t('analysis.viewEvidence') }}</span>
             </div>
-          </div>
+          </summary>
 
-          <div class="match-reason">
-            <strong>{{ t('analysis.reason') }}</strong>
-            <p>{{ requirement.reason }}</p>
-          </div>
+          <div class="match-requirement__details">
+            <div class="match-reason">
+              <strong>{{ t('analysis.reason') }}</strong>
+              <p>{{ requirement.reason }}</p>
+            </div>
 
-          <div v-if="requirement.evidence.length" class="match-section">
-            <h4>{{ t('analysis.resumeEvidence') }}</h4>
-            <div class="match-evidence-list">
-              <div v-for="(evidence, index) in requirement.evidence" :key="index" class="match-evidence">
-                <p>{{ evidence.text }}</p>
-                <small v-if="evidenceSource(evidence)">{{ evidenceSource(evidence) }}</small>
+            <div v-if="requirement.evidence.length" class="match-section">
+              <h4>{{ t('analysis.resumeEvidence') }}</h4>
+              <div class="match-evidence-list">
+                <div v-for="(evidence, index) in requirement.evidence" :key="index" class="match-evidence">
+                  <p>{{ evidence.text }}</p>
+                  <small v-if="evidenceSource(evidence)">{{ evidenceSource(evidence) }}</small>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div v-if="requirement.missing_information.length" class="match-section confirmation-block">
-            <h4>{{ t('analysis.missingInformation') }}</h4>
-            <ul class="plain-list">
-              <li v-for="item in requirement.missing_information" :key="item">{{ item }}</li>
-            </ul>
-          </div>
+            <div v-if="requirement.missing_information.length" class="match-section confirmation-block">
+              <h4>{{ t('analysis.missingInformation') }}</h4>
+              <ul class="plain-list">
+                <li v-for="item in requirement.missing_information" :key="item">{{ item }}</li>
+              </ul>
+            </div>
 
-          <div v-if="requirement.needs_raw_review" class="requirement-raw-review">
-            <strong>{{ t('analysis.rawReview.title') }}</strong>
-            <p v-if="requirement.raw_review_reason">{{ requirement.raw_review_reason }}</p>
+            <div v-if="requirement.needs_raw_review" class="requirement-raw-review">
+              <strong>{{ t('analysis.rawReview.title') }}</strong>
+              <p v-if="requirement.raw_review_reason">{{ requirement.raw_review_reason }}</p>
+            </div>
           </div>
-        </article>
+        </details>
       </div>
 
       <article v-if="matchResult.missing_information.length" class="panel overall-confirmation">

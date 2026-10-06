@@ -1,6 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { session } from '../state/session'
+
+const { t } = useI18n()
 
 const props = defineProps({
   disabled: { type: Boolean, default: false },
@@ -26,26 +29,26 @@ function addTrait() {
 
 <template>
   <div class="talent-settings">
-    <div v-if="multiple" class="talent-mode-options" role="group" aria-label="人才能力分析模式">
-      <label><input v-model="selectedModes" type="checkbox" value="auto" :disabled="disabled" /> AI 自动发现</label>
-      <label><input v-model="selectedModes" type="checkbox" value="specified" :disabled="disabled" /> HR 指定人才像</label>
+    <div v-if="multiple" class="talent-mode-options" role="group" :aria-label="t('talentSettings.modeLabel')">
+      <label><input v-model="selectedModes" type="checkbox" value="auto" :disabled="disabled" /> {{ t('talentSettings.autoMode') }}</label>
+      <label><input v-model="selectedModes" type="checkbox" value="specified" :disabled="disabled" /> {{ t('talentSettings.specifiedMode') }}</label>
     </div>
-    <div v-else class="talent-mode-options" role="group" aria-label="人才能力分析模式">
-      <label><input v-model="session.talentMode" type="radio" value="auto" :disabled="disabled" /> AI 自动发现</label>
-      <label><input v-model="session.talentMode" type="radio" value="specified" :disabled="disabled" /> HR 指定人才像</label>
+    <div v-else class="talent-mode-options" role="group" :aria-label="t('talentSettings.modeLabel')">
+      <label><input v-model="session.talentMode" type="radio" value="auto" :disabled="disabled" /> {{ t('talentSettings.autoMode') }}</label>
+      <label><input v-model="session.talentMode" type="radio" value="specified" :disabled="disabled" /> {{ t('talentSettings.specifiedMode') }}</label>
     </div>
     <div v-if="showSpecifiedTraits" class="trait-editor">
-      <label for="talent-trait-input">指定人才特征</label>
+      <label for="talent-trait-input">{{ t('talentSettings.traitLabel') }}</label>
       <div class="trait-editor__input">
-        <input id="talent-trait-input" v-model="traitInput" class="text-input" type="text" placeholder="例如：认真、学习快" :disabled="disabled" @keydown.enter.prevent="addTrait" />
-        <button class="button button--secondary button--small" type="button" :disabled="disabled || !traitInput.trim()" @click="addTrait">添加</button>
+        <input id="talent-trait-input" v-model="traitInput" class="text-input" type="text" :placeholder="t('talentSettings.traitPlaceholder')" :disabled="disabled" @keydown.enter.prevent="addTrait" />
+        <button class="button button--secondary button--small" type="button" :disabled="disabled || !traitInput.trim()" @click="addTrait">{{ t('talentSettings.add') }}</button>
       </div>
       <div v-if="session.desiredTraits.length" class="trait-chips">
-        <button v-for="trait in session.desiredTraits" :key="trait" type="button" :disabled="disabled" :aria-label="`移除 ${trait}`" @click="session.desiredTraits.splice(session.desiredTraits.indexOf(trait), 1)">
+        <button v-for="trait in session.desiredTraits" :key="trait" type="button" :disabled="disabled" :aria-label="t('talentSettings.removeLabel', { trait })" @click="session.desiredTraits.splice(session.desiredTraits.indexOf(trait), 1)">
           {{ trait }} ×
         </button>
       </div>
-      <small v-else>至少添加一项后才能分析。</small>
+      <small v-else>{{ t('talentSettings.traitRequired') }}</small>
     </div>
   </div>
 </template>

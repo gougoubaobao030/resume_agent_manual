@@ -23,11 +23,18 @@ const savedLocale = localStorage.getItem('app-locale')
 // 对照浏览器保存的日语看看能不能找出日语
 // 不能的话就是变成中文
 const browserLocale = navigator.language
+function normalizeBrowserLocale(value) {
+  if (supportedLocales.some((item) => item.value === value)) return value
+
+  const language = value?.toLowerCase() ?? ''
+  if (language === 'ja' || language.startsWith('ja-')) return 'ja-JP'
+  if (language === 'en' || language.startsWith('en-')) return 'en-US'
+  return null
+}
+
 const initialLocale = supportedLocales.some((item) => item.value === savedLocale)
   ? savedLocale
-  : supportedLocales.some((item) => item.value === browserLocale)
-    ? browserLocale
-    : 'zh-CN'
+  : normalizeBrowserLocale(browserLocale) ?? 'zh-CN'
 
 
 // 注册多语言管理器

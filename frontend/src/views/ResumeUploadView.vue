@@ -153,7 +153,7 @@ function finishTask(task) {
   const failedCount = taskCounts.value.failed
   uploadStatus.value = task.status === 'failed' || failedCount ? 'error' : 'success'
   uploadMessage.value = task.status === 'failed'
-    ? t('resumeUpload.messages.taskFailed', { reason: task.error || t('resumeUpload.messages.noBackendReason') })
+    ? t('resumeUpload.messages.taskFailed', { reason: task.error ? getFriendlyResumeItemError(task.error) : t('resumeUpload.messages.noBackendReason') })
     : t('resumeUpload.messages.completed', { success: successCount, failed: failedCount })
 }
 

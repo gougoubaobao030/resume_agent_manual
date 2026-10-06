@@ -67,6 +67,23 @@ export function addCandidate(candidate) {
   return true
 }
 
+export function removeCandidateFromCurrentJob(candidateId) {
+  session.candidates = session.candidates.filter((item) => item.id !== candidateId)
+  delete session.jobMatches[candidateId]
+  delete session.jobMatchStatuses[candidateId]
+  delete session.jobMatchErrors[candidateId]
+  session.selectedTalentCandidateIds = session.selectedTalentCandidateIds.filter(
+    (id) => id !== candidateId,
+  )
+}
+
+export function removeCandidateFromSession(candidateId) {
+  removeCandidateFromCurrentJob(candidateId)
+  delete session.talentResults[candidateId]
+  delete session.talentStatuses[candidateId]
+  delete session.talentErrors[candidateId]
+}
+
 export function setJobMatchLoading(candidateId) {
   session.jobMatchStatuses[candidateId] = 'loading'
   delete session.jobMatchErrors[candidateId]

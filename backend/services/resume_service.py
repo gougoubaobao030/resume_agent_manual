@@ -283,7 +283,7 @@ async def _parse_resume_item(
     pdf_path: str,
     semaphore: asyncio.Semaphore,
     task_item: ResumeTaskItem | None = None,
-    on_candidate_parsed: Callable[[Candidate], Awaitable[None]] | None = None,
+    on_candidate_parsed: Callable[[Candidate, str], Awaitable[None]] | None = None,
 ) -> ResumeParseItemResult:
 
     async with semaphore:
@@ -298,7 +298,7 @@ async def _parse_resume_item(
 
             # 数据库提交成功后，任务项才对轮询端显示 success。
             if on_candidate_parsed is not None:
-                await on_candidate_parsed(candidate)
+                await on_candidate_parsed(candidate, pdf_path)
 
             if task_item is not None:
                 task_item.candidate = candidate
@@ -329,7 +329,7 @@ async def parse_resume_batch(
     files: list[tuple[str, str]],
     *,
     task_items: list[ResumeTaskItem] | None = None,
-    on_candidate_parsed: Callable[[Candidate], Awaitable[None]] | None = None,
+    on_candidate_parsed: Callable[[Candidate, str], Awaitable[None]] | None = None,
 ) -> ResumeBatchParseResponse:
 
     if task_items is not None and len(task_items) != len(files):

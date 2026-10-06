@@ -1,26 +1,77 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
-import { session } from '../state/session'
 import TalentSettings from '../components/TalentSettings.vue'
+import {
+  getCandidate,
+  getCandidateResumeUrl,
+  getFriendlyApiError,
+  scoreJobMatch,
+} from '../services/api'
 import { analyzeTalent, talentLevelLabel } from '../services/talent'
+import {
+  session,
+  setJobMatchError,
+  setJobMatchLoading,
+  setJobMatchResult,
+} from '../state/session'
 
 const route = useRoute()
 const { locale, t } = useI18n()
+const props = defineProps({ poolMode: { type: Boolean, default: false } })
+const poolCandidate = ref(null)
+const poolLoading = ref(false)
+const poolLoadFailed = ref(false)
+const rescoreMessage = ref('')
+const rescoreStatus = ref('idle')
 const candidate = computed(() =>
-  session.candidates.find((item) => item.id === route.params.id),
+  poolCandidate.value || session.candidates.find((item) => item.id === route.params.id),
 )
 const matchResult = computed(() => session.jobMatches[route.params.id])
 const matchStatus = computed(() => session.jobMatchStatuses[route.params.id])
-const talentResult = computed(() => session.talentResults[route.params.id]?.[session.talentMode])
-const talentStatus = computed(() => session.talentStatuses[route.params.id]?.[session.talentMode] || 'idle')
-const canAnalyzeTalent = computed(() => candidate.value && talentStatus.value !== 'loading'
-  && (session.talentMode !== 'specified' || session.desiredTraits.length > 0))
+const autoTalentResult = computed(() => session.talentResults[route.params.id]?.auto)
+const specifiedTalentResult = computed(() => session.talentResults[route.params.id]?.specified)
+const isRescoring = computed(() => matchStatus.value === 'loading')
+
+const statusLabels = {
+  matched: 'common.requirementStatus.matched',
+  partially_matched: 'common.requirementStatus.partiallyMatched',
+  not_matched: 'common.requirementStatus.notMatched',
+  insufficient_evidence: 'common.requirementStatus.insufficientEvidence',
+}
+
+const confidenceLabels = {
+  high: 'common.confidence.high',
+  medium: 'common.confidence.medium',
+  low: 'common.confidence.low',
+}
+
+const highlightedRequirements = computed(() => (matchResult.value?.requirement_results ?? [])
+  .filter((item) => item.status === 'matched')
+  .sort((a, b) => b.score - a.score)
+  .slice(0, 3))
+
+const riskRequirements = computed(() => (matchResult.value?.requirement_results ?? [])
+  .filter((item) => item.status !== 'matched')
+  .sort((a, b) => Number(b.must_have) - Number(a.must_have) || a.score - b.score)
+  .slice(0, 3))
 
 function evidenceSource(evidence) {
-  const sourceKey = { projects: 'common.sources.projects', work_experience: 'common.sources.workExperience', candidate_evidence: 'common.sources.candidateEvidence', skills: 'common.sources.skills', mock_profile: 'common.sources.mockProfile' }[evidence.source_type]
+  const sourceKey = {
+    projects: 'common.sources.projects',
+    project: 'common.sources.projects',
+    work_experience: 'common.sources.workExperience',
+    education: 'common.sources.education',
+    candidate_evidence: 'common.sources.candidateEvidence',
+    skills: 'common.sources.skills',
+    languages: 'common.sources.languages',
+    certifications: 'common.sources.certifications',
+    achievements: 'common.sources.achievements',
+    raw_text: 'common.sources.rawText',
+    mock_profile: 'common.sources.mockProfile',
+  }[evidence.source_type]
   const source = sourceKey ? t(sourceKey) : evidence.source_type
   return source
     ? evidence.source_index == null ? source : t('common.sourceNameWithIndex', { source, index: evidence.source_index + 1 })
@@ -60,37 +111,145 @@ function customValue(value) {
   return String(value)
 }
 
-function handleAnalyzeTalent() {
+function talentStatus(mode) {
+  return session.talentStatuses[route.params.id]?.[mode] || 'idle'
+}
+
+function talentStatusLabel(mode) {
+  const status = talentStatus(mode)
+  return t(status === 'loading' ? 'common.talent.analyzing'
+    : status === 'success' ? 'common.talent.completed'
+      : status === 'error' ? 'common.talent.failed' : 'common.talent.notAnalyzed')
+}
+
+function talentStatusClass(mode) {
+  const status = talentStatus(mode)
+  return status === 'error' ? 'status-badge--error'
+    : status === 'success' ? 'status-badge--success'
+      : status === 'loading' ? 'status-badge--loading' : 'status-badge--neutral'
+}
+
+function canAnalyzeTalent(mode) {
+  return candidate.value && talentStatus(mode) !== 'loading'
+    && (mode !== 'specified' || session.desiredTraits.length > 0)
+}
+
+function handleAnalyzeTalent(mode) {
   void analyzeTalent(
     candidate.value,
-    session.talentMode,
+    mode,
     [...session.desiredTraits],
     locale.value,
   )
 }
+
+async function handleRescore() {
+  const candidateId = candidate.value?.id
+  const jobId = session.currentJob?.id
+  if (!candidateId || !jobId || isRescoring.value) return
+
+  rescoreStatus.value = 'loading'
+  rescoreMessage.value = t('candidateDetail.actions.rescoring')
+  setJobMatchLoading(candidateId)
+  try {
+    const result = await scoreJobMatch(jobId, candidateId, locale.value)
+    if (session.currentJob?.id === jobId) {
+      setJobMatchResult(candidateId, result)
+      rescoreStatus.value = 'success'
+      rescoreMessage.value = t('candidateDetail.messages.rescoreSuccess')
+    }
+  } catch (error) {
+    if (session.currentJob?.id === jobId) {
+      const message = getFriendlyApiError(error, t('candidates.operations.rescore'))
+      setJobMatchError(candidateId, message)
+      rescoreStatus.value = 'error'
+      rescoreMessage.value = message
+    }
+  }
+}
+
+function requirementStatus(status) {
+  return statusLabels[status] ? t(statusLabels[status]) : status
+}
+
+function statusClass(status) {
+  if (status === 'matched') return 'status-badge--success'
+  if (status === 'not_matched') return 'status-badge--error'
+  if (status === 'partially_matched' || status === 'insufficient_evidence') return 'status-badge--warning'
+  return 'status-badge--neutral'
+}
+
+function confidenceLabel(confidence) {
+  return confidenceLabels[confidence] ? t(confidenceLabels[confidence]) : confidence
+}
+
+function formatScore(score) {
+  if (typeof score !== 'number') return '—'
+  return Number.isInteger(score) ? String(score) : score.toFixed(1)
+}
+
+watch(
+  () => route.params.id,
+  async (candidateId) => {
+    if (!props.poolMode) return
+    poolCandidate.value = null
+    poolLoadFailed.value = false
+    poolLoading.value = true
+    try {
+      poolCandidate.value = await getCandidate(candidateId)
+    } catch {
+      poolLoadFailed.value = true
+    } finally {
+      poolLoading.value = false
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
-  <section class="page-stack">
-    <div class="page-heading page-heading--split">
-      <div>
-        <RouterLink class="back-link" to="/candidates">{{ t('candidateDetail.back') }}</RouterLink>
+  <section class="page-stack candidate-detail-page">
+    <div class="page-heading page-heading--split candidate-detail-heading">
+      <div class="candidate-detail-heading__identity">
+        <RouterLink class="back-link" :to="poolMode ? '/candidate-pool' : '/candidates'">{{ t(poolMode ? 'candidateDetail.backToPool' : 'candidateDetail.back') }}</RouterLink>
         <h2>{{ candidate?.basic_info?.name || t('candidateDetail.title') }}</h2>
-        <p v-if="candidate">{{ candidate.extraction_metadata?.source_file || t('candidateDetail.sourceFileMissing') }}</p>
-        <p v-else>{{ t('candidateDetail.notFound') }}</p>
+        <div v-if="candidate" class="candidate-contact-line">
+          <span>{{ display(candidate.basic_info?.location) }}</span>
+          <span>{{ display(candidate.basic_info?.email) }}</span>
+          <span>{{ display(candidate.basic_info?.phone) }}</span>
+        </div>
+        <p v-if="candidate && !poolMode" class="candidate-current-job">
+          <span>{{ t('candidateDetail.currentJob') }}</span>
+          <strong>{{ session.currentJob?.job_title || t('common.noInformation') }}</strong>
+        </p>
+        <p v-else-if="!candidate">{{ t(poolLoading ? 'common.loading' : 'candidateDetail.notFound') }}</p>
       </div>
-      <span class="status-badge" :class="mustHaveState.className">{{ mustHaveState.label }}</span>
+      <div v-if="candidate" class="candidate-detail-heading__actions">
+        <a class="button button--secondary button--small" :href="getCandidateResumeUrl(candidate.id)" target="_blank" rel="noopener">{{ t('candidateDetail.viewResume') }}</a>
+        <button v-if="!poolMode" class="button button--primary button--small" type="button" :disabled="isRescoring || !session.currentJob?.id" @click="handleRescore">
+          {{ t(isRescoring ? 'candidateDetail.actions.rescoring' : 'candidateDetail.actions.rescore') }}
+        </button>
+      </div>
     </div>
 
-    <article v-if="!candidate" class="panel empty-state">
+    <p v-if="rescoreMessage" class="inline-message" :class="`inline-message--${rescoreStatus}`" role="status" aria-live="polite">
+      <span v-if="rescoreStatus === 'loading'" class="loading-spinner" aria-hidden="true"></span>{{ rescoreMessage }}
+    </p>
+
+    <article v-if="poolLoading" class="panel empty-state">
+      <span class="loading-spinner" aria-hidden="true"></span>
+      <p>{{ t('common.loading') }}</p>
+    </article>
+
+    <article v-else-if="!candidate || poolLoadFailed" class="panel empty-state">
       <div class="empty-state__mark">CV</div>
       <h3>{{ t('candidateDetail.empty.title') }}</h3>
       <p>{{ t('candidateDetail.empty.description') }}</p>
-      <RouterLink class="text-link" to="/candidates">{{ t('candidateDetail.empty.action') }}</RouterLink>
+      <RouterLink class="text-link" :to="poolMode ? '/candidate-pool' : '/candidates'">{{ t(poolMode ? 'candidateDetail.empty.poolAction' : 'candidateDetail.empty.action') }}</RouterLink>
     </article>
 
-    <div v-else class="detail-grid">
-      <article class="panel detail-grid__main">
+    <div v-else-if="poolMode" class="detail-grid candidate-resume-grid">
+      <article class="panel detail-grid__full compact-panel">
         <div class="panel__header"><h3>{{ t('candidateDetail.basicInfo.title') }}</h3></div>
         <div class="definition-grid">
           <div><span>{{ t('candidateDetail.basicInfo.name') }}</span><strong>{{ display(candidate.basic_info?.name) }}</strong></div>
@@ -99,19 +258,56 @@ function handleAnalyzeTalent() {
           <div><span>{{ t('candidateDetail.basicInfo.phone') }}</span><strong>{{ display(candidate.basic_info?.phone) }}</strong></div>
         </div>
       </article>
-      <article class="panel detail-grid__side">
-        <div class="panel__header"><h3>{{ t('candidateDetail.match.title') }}</h3></div>
-        <div v-if="matchResult" class="match-overview match-overview--compact">
+    </div>
+
+    <template v-else>
+      <div class="candidate-metrics" aria-label="Decision summary">
+        <article class="candidate-metric">
+          <span>{{ t('candidateDetail.match.score') }}</span>
+          <strong class="match-score">{{ formattedScore }}</strong>
+        </article>
+        <article class="candidate-metric">
+          <span>{{ t('candidateDetail.metrics.mustHave') }}</span>
+          <strong><span class="status-badge" :class="mustHaveState.className">{{ mustHaveState.label }}</span></strong>
+        </article>
+        <article class="candidate-metric">
+          <span>{{ t('candidateDetail.metrics.autoTalent') }}</span>
+          <strong>{{ autoTalentResult ? talentLevelLabel(autoTalentResult.attention_level) : talentStatusLabel('auto') }}</strong>
+        </article>
+        <article class="candidate-metric">
+          <span>{{ t('candidateDetail.metrics.specifiedTalent') }}</span>
+          <strong>{{ specifiedTalentResult ? talentLevelLabel(specifiedTalentResult.specified_fit_level) : talentStatusLabel('specified') }}</strong>
+        </article>
+      </div>
+
+      <article class="panel compact-panel candidate-match-card">
+        <div class="panel__header compact-panel__header">
           <div>
-            <span>{{ t('candidateDetail.match.score') }}</span>
-            <strong class="match-score">{{ formattedScore }}</strong>
+            <h3>{{ t('candidateDetail.match.title') }}</h3>
+            <p v-if="matchResult">{{ matchResult.summary || t('common.match.noSummary') }}</p>
           </div>
-          <span class="status-badge" :class="mustHaveState.className">{{ mustHaveState.label }}</span>
-          <p>{{ matchResult.summary || t('common.match.noSummary') }}</p>
-          <RouterLink class="button button--secondary button--small" :to="`/analysis?candidate_id=${candidate.id}`">
+          <RouterLink v-if="matchResult" class="button button--secondary button--small" :to="`/analysis?candidate_id=${candidate.id}`">
             {{ t('candidateDetail.match.viewDetails') }}
           </RouterLink>
         </div>
+
+        <div v-if="matchResult" class="candidate-decision-columns">
+          <section>
+            <h4>{{ t('candidateDetail.match.highlights') }}</h4>
+            <ul v-if="highlightedRequirements.length" class="compact-decision-list compact-decision-list--positive">
+              <li v-for="item in highlightedRequirements" :key="item.requirement_id"><strong>{{ item.requirement_name }}</strong><span>{{ formatScore(item.score) }}</span></li>
+            </ul>
+            <p v-else class="empty-copy">{{ t('candidateDetail.match.noHighlights') }}</p>
+          </section>
+          <section>
+            <h4>{{ t('candidateDetail.match.risks') }}</h4>
+            <ul v-if="riskRequirements.length" class="compact-decision-list compact-decision-list--risk">
+              <li v-for="item in riskRequirements" :key="item.requirement_id"><strong>{{ item.requirement_name }}</strong><span>{{ requirementStatus(item.status) }}</span></li>
+            </ul>
+            <p v-else class="empty-copy">{{ t('candidateDetail.match.noRisks') }}</p>
+          </section>
+        </div>
+
         <div v-else class="pending-analysis">
           <span class="status-badge" :class="matchStatus === 'error' ? 'status-badge--error' : 'status-badge--neutral'">
             {{ t(matchStatus === 'loading' ? 'common.match.scoringShort' : matchStatus === 'error' ? 'common.match.scoringFailed' : 'common.match.noScore') }}
@@ -119,32 +315,93 @@ function handleAnalyzeTalent() {
           <p>{{ session.jobMatchErrors[candidate.id] || t('candidateDetail.match.noResult') }}</p>
         </div>
       </article>
-      <article class="panel detail-grid__full talent-detail">
-        <div class="panel__header"><h3>{{ t('candidateDetail.talent.title') }}</h3><span class="status-badge" :class="talentStatus === 'error' ? 'status-badge--error' : talentStatus === 'success' ? 'status-badge--success' : talentStatus === 'loading' ? 'status-badge--loading' : 'status-badge--neutral'">{{ t(talentStatus === 'loading' ? 'common.talent.analyzing' : talentStatus === 'success' ? 'common.talent.completed' : talentStatus === 'error' ? 'common.talent.failed' : 'common.talent.notAnalyzed') }}</span></div>
-        <div class="talent-detail__controls"><TalentSettings /><button class="button button--primary button--small" type="button" :disabled="!canAnalyzeTalent" @click="handleAnalyzeTalent">{{ t(talentStatus === 'loading' ? 'common.talent.analyzingProgress' : talentResult ? 'common.talent.reanalyze' : 'common.talent.analyze') }}</button></div>
-        <p v-if="talentStatus === 'error'" class="talent-error">{{ session.talentErrors[candidate.id]?.[session.talentMode] }}</p>
-        <div v-if="talentResult" class="talent-detail__result">
-          <div class="talent-detail__overview"><strong>{{ t(talentResult.mode === 'specified' ? 'common.talent.specifiedFit' : 'common.talent.attention') }}{{ t('common.colon') }}{{ talentLevelLabel(talentResult.mode === 'specified' ? talentResult.specified_fit_level : talentResult.attention_level) }}</strong><p>{{ talentResult.summary }}</p></div>
-          <section v-if="talentResult.mode === 'specified'" class="talent-detail__section">
-            <h4>{{ t('candidateDetail.talent.specifiedProfile') }}</h4>
-            <div v-for="item in talentResult.specified_traits" :key="item.trait" class="talent-finding">
-              <div class="talent-finding__heading"><strong>{{ item.trait }}</strong><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.fit_level) }}</span></div>
-              <p>{{ item.reason }}</p>
-              <div v-if="item.evidence.length"><b>{{ t('candidateDetail.talent.evidence') }}</b><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div>
-              <div v-if="item.missing_information.length"><b>{{ t('candidateDetail.talent.missingInformation') }}</b><ul class="plain-list"><li v-for="info in item.missing_information" :key="info">{{ info }}</li></ul></div>
+
+      <div class="talent-summary-grid">
+        <article class="panel compact-panel talent-summary-card">
+          <div class="panel__header compact-panel__header">
+            <div><h3>{{ t('candidateDetail.talent.autoTitle') }}</h3><p v-if="autoTalentResult">{{ autoTalentResult.summary }}</p></div>
+            <span class="status-badge" :class="talentStatusClass('auto')">{{ talentStatusLabel('auto') }}</span>
+          </div>
+          <div v-if="autoTalentResult" class="compact-talent-list">
+            <details v-for="item in autoTalentResult.abilities" :key="item.ability_name" class="compact-disclosure compact-disclosure--talent">
+              <summary><strong>{{ item.ability_name }}</strong><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.level) }}</span><span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span></summary>
+              <div class="compact-disclosure__content"><p>{{ item.reason }}</p><div v-if="item.evidence?.length"><h5>{{ t('candidateDetail.talent.evidence') }}</h5><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div></div>
+            </details>
+            <p v-if="!autoTalentResult.abilities.length" class="empty-copy">{{ t('candidateDetail.talent.noAbilities') }}</p>
+            <details v-if="autoTalentResult.warnings?.length" class="talent-notes">
+              <summary>{{ t('candidateDetail.talent.warnings') }}</summary>
+              <ul class="plain-list"><li v-for="warning in autoTalentResult.warnings" :key="warning">{{ warning }}</li></ul>
+            </details>
+          </div>
+          <p v-else-if="talentStatus('auto') === 'error'" class="talent-error">{{ session.talentErrors[candidate.id]?.auto }}</p>
+          <p v-else class="empty-copy">{{ talentStatusLabel('auto') }}</p>
+          <div class="talent-summary-card__footer"><button class="button button--secondary button--small" type="button" :disabled="!canAnalyzeTalent('auto')" @click="handleAnalyzeTalent('auto')">{{ t(talentStatus('auto') === 'loading' ? 'common.talent.analyzingProgress' : autoTalentResult ? 'common.talent.reanalyze' : 'common.talent.analyze') }}</button></div>
+        </article>
+
+        <article class="panel compact-panel talent-summary-card">
+          <div class="panel__header compact-panel__header">
+            <div><h3>{{ t('candidateDetail.talent.specifiedTitle') }}</h3><p v-if="specifiedTalentResult">{{ specifiedTalentResult.summary }}</p></div>
+            <span class="status-badge" :class="talentStatusClass('specified')">{{ talentStatusLabel('specified') }}</span>
+          </div>
+          <div v-if="specifiedTalentResult" class="compact-talent-list">
+            <details v-for="item in specifiedTalentResult.specified_traits" :key="item.trait" class="compact-disclosure compact-disclosure--talent">
+              <summary><strong>{{ item.trait }}</strong><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.fit_level) }}</span><span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span></summary>
+              <div class="compact-disclosure__content"><p>{{ item.reason }}</p><div v-if="item.evidence?.length"><h5>{{ t('candidateDetail.talent.evidence') }}</h5><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div><div v-if="item.missing_information?.length"><h5>{{ t('candidateDetail.talent.missingInformation') }}</h5><ul class="plain-list"><li v-for="info in item.missing_information" :key="info">{{ info }}</li></ul></div></div>
+            </details>
+            <details v-for="item in specifiedTalentResult.abilities" :key="item.ability_name" class="compact-disclosure compact-disclosure--talent">
+              <summary><strong>{{ item.ability_name }}</strong><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.level) }}</span><span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span></summary>
+              <div class="compact-disclosure__content"><p>{{ item.reason }}</p><div v-if="item.evidence?.length"><h5>{{ t('candidateDetail.talent.evidence') }}</h5><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div></div>
+            </details>
+            <p v-if="!specifiedTalentResult.specified_traits.length && !specifiedTalentResult.abilities.length" class="empty-copy">{{ t('candidateDetail.talent.noAbilities') }}</p>
+            <details v-if="specifiedTalentResult.warnings?.length" class="talent-notes">
+              <summary>{{ t('candidateDetail.talent.warnings') }}</summary>
+              <ul class="plain-list"><li v-for="warning in specifiedTalentResult.warnings" :key="warning">{{ warning }}</li></ul>
+            </details>
+          </div>
+          <p v-else-if="talentStatus('specified') === 'error'" class="talent-error">{{ session.talentErrors[candidate.id]?.specified }}</p>
+          <p v-else class="empty-copy">{{ talentStatusLabel('specified') }}</p>
+          <div class="talent-summary-card__footer"><button class="button button--secondary button--small" type="button" :disabled="!canAnalyzeTalent('specified')" @click="handleAnalyzeTalent('specified')">{{ t(talentStatus('specified') === 'loading' ? 'common.talent.analyzingProgress' : specifiedTalentResult ? 'common.talent.reanalyze' : 'common.talent.analyze') }}</button></div>
+        </article>
+      </div>
+
+      <article v-if="matchResult" class="panel compact-panel candidate-requirements-card">
+        <div class="panel__header compact-panel__header"><div><h3>{{ t('candidateDetail.match.requirements') }}</h3></div></div>
+        <div class="compact-requirement-list">
+          <details v-for="requirement in matchResult.requirement_results" :key="requirement.requirement_id" class="compact-disclosure">
+            <summary>
+              <span class="compact-disclosure__title">
+                <strong>{{ requirement.requirement_name }}</strong>
+                <span v-if="requirement.must_have" class="must-have-label">{{ t('analysis.mustHave') }}</span>
+              </span>
+              <span class="compact-disclosure__summary">{{ requirement.reason }}</span>
+              <strong class="compact-disclosure__score">{{ formatScore(requirement.score) }}</strong>
+              <span class="status-badge" :class="statusClass(requirement.status)">{{ requirementStatus(requirement.status) }}</span>
+              <span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span>
+            </summary>
+            <div class="compact-disclosure__content">
+              <p><strong>{{ t('analysis.reason') }}：</strong>{{ requirement.reason }}</p>
+              <p class="requirement-confidence">{{ t('analysis.confidence', { value: confidenceLabel(requirement.confidence) }) }}</p>
+              <div v-if="requirement.evidence?.length">
+                <h5>{{ t('analysis.resumeEvidence') }}</h5>
+                <ul class="plain-list"><li v-for="(evidence, index) in requirement.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul>
+              </div>
+              <div v-if="requirement.missing_information?.length">
+                <h5>{{ t('analysis.missingInformation') }}</h5>
+                <ul class="plain-list"><li v-for="item in requirement.missing_information" :key="item">{{ item }}</li></ul>
+              </div>
+              <div v-if="requirement.needs_raw_review" class="requirement-raw-review"><strong>{{ t('analysis.rawReview.title') }}</strong><p v-if="requirement.raw_review_reason">{{ requirement.raw_review_reason }}</p></div>
             </div>
-          </section>
-          <section class="talent-detail__section"><h4>{{ t(talentResult.mode === 'specified' ? 'candidateDetail.talent.additionalFindings' : 'candidateDetail.talent.abilityProfile') }}</h4>
-            <div v-for="item in talentResult.abilities" :key="item.ability_name" class="talent-finding">
-              <div class="talent-finding__heading"><strong>{{ item.ability_name }}</strong><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.level) }}</span></div>
-              <p>{{ item.reason }}</p>
-              <div v-if="item.evidence.length"><b>{{ t('candidateDetail.talent.evidence') }}</b><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div>
-            </div>
-            <p v-if="!talentResult.abilities.length" class="empty-copy">{{ t('candidateDetail.talent.noAbilities') }}</p>
-          </section>
-          <section v-if="talentResult.warnings.length" class="talent-detail__section"><h4>{{ t('candidateDetail.talent.warnings') }}</h4><ul class="plain-list"><li v-for="warning in talentResult.warnings" :key="warning">{{ warning }}</li></ul></section>
+          </details>
         </div>
       </article>
+
+      <article class="panel compact-panel talent-settings-panel">
+        <div class="panel__header compact-panel__header"><div><h3>{{ t('candidateDetail.talent.settingsTitle') }}</h3><p>{{ t('candidateDetail.talent.settingsDescription') }}</p></div></div>
+        <TalentSettings />
+      </article>
+    </template>
+
+    <div v-if="candidate" class="detail-grid candidate-resume-grid">
       <article class="panel detail-grid__main resume-section">
         <div class="panel__header"><h3>{{ t('candidateDetail.resume.education') }}</h3></div>
         <div v-if="candidate.education?.length" class="record-list">

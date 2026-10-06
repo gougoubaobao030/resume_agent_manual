@@ -1,11 +1,18 @@
 export default {
   auth: {
-    login: { title: '登录', description: '使用管理员预先创建的内部账号。', username: '账号', password: '密码', submit: '登录', loading: '登录中…' },
+    login: { title: '登录', description: '使用管理员预先创建的内部账号。', username: '账号', password: '密码', submit: '登录', loading: '登录中…', invalidCredentials: '账号或密码不正确。', failed: '登录失败，请稍后重试。', operation: '登录' },
     logout: '退出登录',
-    password: { title: '修改密码', current: '原密码', new: '新密码（至少8位）', submit: '保存新密码', success: '密码已修改，其他设备会话已退出。', failed: '密码修改失败。' },
+    password: { title: '修改密码', current: '原密码', new: '新密码（至少8位）', submit: '保存新密码', success: '密码已修改，其他设备会话已退出。', failed: '密码修改失败。', invalidCurrent: '原密码不正确。', operation: '修改密码' },
   },
   common: {
     loading: '加载中…',
+    operations: { talent: '人才能力分析' },
+    errors: {
+      network: '无法连接服务，请稍后重试。', invalidRequest: '{action}的提交内容不符合要求，请检查后重试。',
+      sessionExpired: '登录状态已过期，请重新登录。', permissionDenied: '没有权限执行此操作。', notFound: '{action}所需的数据不存在或已失效。',
+      server: '服务暂时不可用，请稍后重试。', invalidResponse: 'AI 返回的内容暂时无法识别，请稍后重试。', unavailable: 'AI 服务暂时无法响应，请稍后重试。',
+      operationFailed: '{action}失败，请稍后重试。', resumeNoReason: '解析失败，服务未返回具体原因。', resumeUnreadable: '无法读取该简历，请确认文件为文本型 PDF。', resumeGeneric: '该简历解析失败，请检查文件内容后重试。',
+    },
     candidateNameMissing: '姓名未提取',
     noInformation: '暂无信息',
     dateMissing: '时间暂无信息',
@@ -36,6 +43,7 @@ export default {
       attention: '人才关注度',
       reanalyze: '重新分析',
       analyze: '分析人才能力',
+      level: { high: '高', mediumHigh: '中高', medium: '中', mediumLow: '中低', low: '低' },
     },
     requirementStatus: {
       matched: '满足',
@@ -57,6 +65,10 @@ export default {
       resume: '简历',
       mockProfile: '模拟示例',
     },
+  },
+  talentSettings: {
+    modeLabel: '人才能力分析模式', autoMode: 'AI 自动发现', specifiedMode: 'HR 指定人才像', traitLabel: '指定人才特征',
+    traitPlaceholder: '例如：认真、学习快', add: '添加', removeLabel: '移除 {trait}', traitRequired: '至少添加一项后才能分析。',
   },
   dashboard: {
     eyebrow: '概览',
@@ -96,6 +108,24 @@ export default {
     eyebrow: '岗位说明',
     title: 'JD 解析与确认',
     description: '输入岗位说明，由 AI 提取岗位要求，再由 HR 修改并确认保存。',
+    sample: `职位名称：AI应用开发工程师
+
+岗位职责：
+1. 负责基于大语言模型的 AI 应用开发，包括 RAG、智能问答和 Agent 等功能。
+2. 使用 Python 开发后端服务及 REST API，并参与接口设计与维护。
+3. 根据业务需求进行 Prompt 设计、模型调用及效果优化。
+4. 参与企业内部知识库和文档检索等 AI 功能的开发。
+
+任职要求：
+1. 必须熟练掌握 Python，能够独立完成后端功能开发。
+2. 必须具备本科及以上学历。
+3. 熟悉 FastAPI、Flask 等 Python Web 框架，有实际项目经验者优先。
+4. 了解大语言模型、Embedding、向量数据库和 RAG 的基本原理。
+5. 具备良好的学习能力、问题分析能力和沟通能力。
+
+加分项：
+- 有 LangChain、LangGraph 或其他 Agent 开发经验。
+- 日语达到 JLPT N1 或能够进行日常工作沟通。`,
     step1: { label: '步骤 1', title: '输入岗位说明', helper: '建议包含岗位名称、职责、技能和经验要求。' },
     step2: { label: '步骤 2', title: 'HR 确认结果' },
     status: { parsing: '解析中', parseSuccess: '解析成功', needsAttention: '需要确认', waiting: '等待解析', editable: '可编辑' },
@@ -116,6 +146,7 @@ export default {
     },
     empty: { title: '尚无解析结果', description: '完成解析后，可在这里修改岗位名称、要求、权重及硬性条件。' },
     parseWarnings: '解析提示',
+    warnings: { noRequirements: '未能识别明确的岗位要求，请检查原文并手动补充。', noEducation: '未能识别明确的学历要求；如有需要，请手动补充。', zeroWeights: '所有要求的建议权重均为 0，后续评分时将按等权处理。' },
     requirements: { title: '岗位要求', weightNote: '权重为相对重要度，保存时不会在前端归一化。', item: '要求 {index}' },
     categories: { technical: '技术能力', experience: '工作经验', education: '教育背景', other: '其他' },
     messages: {
@@ -184,25 +215,46 @@ export default {
     clearSelection: '取消选择',
     selectedCount: '已选 {count} 人',
     analyzeSelected: '分析已选候选人能力',
+    actions: { rescoreSelected: '重新评分已选候选人', rescoring: '重新评分中…' },
+    messages: { rescoreSuccess: '评分已更新', rescorePartialFailed: '{success} 人评分完成，{failed} 人失败', rescoreFailed: '{failed} 人评分失败', removeSuccess: '已将 {name} 从当前职位移除。' },
+    operations: { rescore: '重新评分', remove: '从当前职位移除' },
+    removeFromJob: '从当前职位移除', removing: '移除中…',
+    removeConfirm: '只会将 {name} 从当前职位移除，并删除当前职位下的匹配评分；候选人资料和原简历仍会保留在候选人库中。',
     selectCandidate: '选择 {name}',
     locationMissing: '所在地暂无信息',
     highlights: '能力亮点：',
     noHighlights: '暂无明确亮点',
+    viewResume: '查看原简历',
     viewDetails: '查看详情',
-    table: { select: '选择', candidate: '候选人', matchScore: '岗位匹配分', mustHave: '硬条件', assessment: '岗位判断', autoTalent: 'AI 自动能力', specifiedTalent: 'HR 指定人才像' },
+    table: { select: '选择', candidate: '候选人', matchScore: '岗位匹配分', mustHave: '硬条件', assessment: '岗位判断', autoTalent: 'AI 自动能力', specifiedTalent: 'HR 指定人才像', actions: '操作' },
     empty: { title: '还没有候选人', description: '完成简历导入后，解析成功的候选人会出现在这里。', action: '前往简历导入 →' },
   },
+  candidatePool: {
+    eyebrow: '全局候选人', title: '候选人库', description: '查看系统中已保存的所有候选人资料。',
+    allCandidates: '全部候选人', personCount: '{count} 人', experienceMissing: '职业经历暂无信息', skills: '关键技能', skillsMissing: '技能暂无信息', jobs: '参与职位', jobsMissing: '尚未参与职位', sourceFile: '原简历文件', createdAt: '上传时间', viewDetails: '查看详情', viewResume: '查看原简历', resumeMissing: '原简历不可用', deleteCandidate: '删除候选人', deleting: '删除中…',
+    deleteConfirm: '将删除 {name} 的原简历、所有职位关联、所有职位评分和人才分析结果，且无法恢复。',
+    messages: { deleteSuccess: '已删除候选人 {name}。' },
+    operations: { load: '加载候选人库', delete: '删除候选人' },
+    empty: { title: '候选人库为空', description: '成功导入的候选人会出现在这里。' },
+  },
   candidateDetail: {
-    back: '← 返回候选人列表',
+    back: '← 返回候选人列表', backToPool: '← 返回候选人库',
     title: '候选人详情',
     sourceFileMissing: '来源文件名暂无信息',
+    viewResume: '查看原简历',
+    viewEvidence: '查看依据',
+    currentJob: '当前 JD：',
     notFound: '当前会话中未找到这位候选人。',
-    empty: { title: '候选人数据不可用', description: '当前数据库中没有该候选人，或其未关联到所选 JD。', action: '返回候选人列表 →' },
+    actions: { rescore: '重新评分', rescoring: '重新评分中…' },
+    messages: { rescoreSuccess: '评分已更新。' },
+    metrics: { mustHave: '硬条件', autoTalent: 'AI 能力关注度', specifiedTalent: 'HR 指定能力适配度' },
+    empty: { title: '候选人数据不可用', description: '当前数据库中没有该候选人，或其未关联到所选 JD。', action: '返回候选人列表 →', poolAction: '返回候选人库 →' },
     basicInfo: { title: '基本信息', name: '姓名', location: '所在地', email: '邮箱', phone: '电话' },
-    match: { title: '岗位匹配', score: '岗位匹配分', viewDetails: '查看完整评分依据', noResult: '当前会话中没有这位候选人的岗位匹配结果。' },
+    match: { title: '岗位匹配摘要', score: '岗位匹配分', requirements: '岗位要求匹配', viewDetails: '查看完整评分依据', noResult: '当前会话中没有这位候选人的岗位匹配结果。', highlights: '主要优势', risks: '主要风险 / 待确认', noHighlights: '暂无明确的高匹配项。', noRisks: '暂无明显风险项。' },
     talent: {
       title: '人才能力发现', specifiedProfile: 'HR 指定人才像', evidence: '主要证据', missingInformation: '待确认信息',
       additionalFindings: 'AI 额外发现', abilityProfile: '能力画像', noAbilities: '暂无明确的额外能力证据。', warnings: '分析提示',
+      autoTitle: 'AI 能力发现', specifiedTitle: 'HR 指定能力', settingsTitle: '能力分析设置', settingsDescription: '配置 HR 指定能力，或选择需要编辑的分析模式。',
     },
     resume: {
       education: '教育经历', degreeMissing: '学历及专业暂无信息', noEducation: '暂无教育信息',
@@ -233,6 +285,7 @@ export default {
     resumeEvidence: '简历证据',
     missingInformation: '待确认信息',
     overallMissingInformation: '整体待确认信息',
+    viewEvidence: '查看依据',
   },
   layout: {
     brandSubtitle: '招聘分析工作台',
@@ -242,6 +295,7 @@ export default {
       jobs: 'JD 管理',
       resumes: '简历导入',
       candidates: '候选人列表',
+      candidatePool: '候选人库',
       analysis: '分析结果',
       candidateDetail: '候选人详情',
       expand: '展开导航',

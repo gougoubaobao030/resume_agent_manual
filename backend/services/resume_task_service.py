@@ -83,7 +83,7 @@ async def run_resume_task(
     logger.info("[Resume Task] START %s total=%s", task_id, task.total)
     try:
         # 复用前四步：同一个 gather、Semaphore(3) 和单文件失败隔离 worker。
-        async def persist_candidate(candidate) -> None:
+        async def persist_candidate(candidate, pdf_path: str) -> None:
             if job_id is None:
                 return
             await asyncio.to_thread(
@@ -91,6 +91,7 @@ async def run_resume_task(
                 candidate,
                 job_id,
                 user_id,
+                pdf_path,
             )
 
         result = await parse_resume_batch(

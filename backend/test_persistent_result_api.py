@@ -3,11 +3,11 @@ import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.main import app
 from database import SessionLocal
-from models import UserModel
+from models import ScoringResultModel, UserModel
 from schemas.jd import JDInfo, JDRequirement
 from schemas.resume import Candidate
 from services.auth_service import create_user
@@ -91,6 +91,57 @@ class PersistentResultApiTest(unittest.TestCase):
         self.assertEqual(specified_result.status_code, 200, specified_result.text)
         self.assertEqual(auto_result.json()["mode"], "auto")
         self.assertEqual(specified_result.json()["mode"], "specified")
+
+    def test_score_rejects_candidate_not_linked_to_job(self):
+        other_job = save_jd(JDInfo(
+            job_title="其他岗位",
+            raw_text="另一个用于关系校验的岗位。",
+            requirements=[JDRequirement(name="Java")],
+        ))
+        other_candidate = Candidate(
+            id="candidate_other_job_result_api_test",
+            skills=["Java"],
+            raw_text="熟悉Java。",
+        )
+        save_candidate_for_job(other_candidate, other_job.id, self.user.id)
+
+        try:
+            with patch.dict(os.environ, {"SCORING_USE_MOCK": "true"}):
+                response = self.client.post("/api/scoring/job-match", json={
+                    "job_id": self.job.id,
+                    "candidate_id": other_candidate.id,
+                    "analysis_language": "zh-CN",
+                })
+
+            self.assertEqual(response.status_code, 404, response.text)
+            self.assertEqual(response.json()["detail"], "Candidate未关联到该岗位")
+        finally:
+            delete_candidate(other_candidate.id)
+            delete_jd(other_job.id)
+
+    def test_rescore_updates_existing_result(self):
+        with patch.dict(os.environ, {"SCORING_USE_MOCK": "true"}):
+            first = self.client.post("/api/scoring/job-match", json={
+                "job_id": self.job.id,
+                "candidate_id": self.candidate.id,
+                "analysis_language": "zh-CN",
+            })
+            second = self.client.post("/api/scoring/job-match", json={
+                "job_id": self.job.id,
+                "candidate_id": self.candidate.id,
+                "analysis_language": "ja-JP",
+            })
+
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertEqual(second.status_code, 200, second.text)
+        with SessionLocal() as db:
+            rows = db.scalars(select(ScoringResultModel).where(
+                ScoringResultModel.job_id == self.job.id,
+                ScoringResultModel.candidate_id == self.candidate.id,
+            )).all()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].analysis_language, "ja-JP")
+        self.assertEqual(rows[0].result_json["analysis_language"], "ja-JP")
 
 
 if __name__ == "__main__":

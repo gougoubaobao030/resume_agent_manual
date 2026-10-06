@@ -15,7 +15,7 @@ async function handleSubmit() {
     await login(username.value, password.value)
     await router.replace('/')
   } catch {
-    // auth.error 已保存后端错误。
+    // auth.error 已保存当前界面的用户友好错误。
   }
 }
 </script>

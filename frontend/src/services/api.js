@@ -1,3 +1,5 @@
+import { i18n } from '../i18n'
+
 export class ApiError extends Error {
   constructor(message, status, detail) {
     super(message)
@@ -87,12 +89,26 @@ export function getCandidates(jobId) {
   return request(`/api/candidates?job_id=${encodeURIComponent(jobId)}`)
 }
 
+export function getCandidatePool() {
+  return request('/api/candidates/pool')
+}
+
 export function getCandidate(candidateId) {
   return request(`/api/candidates/${encodeURIComponent(candidateId)}`)
 }
 
+export function getCandidateResumeUrl(candidateId) {
+  return `/api/candidates/${encodeURIComponent(candidateId)}/resume`
+}
+
 export function deleteCandidate(candidateId) {
   return request(`/api/candidates/${encodeURIComponent(candidateId)}`, { method: 'DELETE' })
+}
+
+export function removeCandidateFromJob(candidateId, jobId) {
+  return request(`/api/candidates/${encodeURIComponent(candidateId)}/jobs/${encodeURIComponent(jobId)}`, {
+    method: 'DELETE',
+  })
 }
 
 export function getJobMatches(jobId) {
@@ -166,60 +182,68 @@ export function discoverTalent(candidateId, mode = 'auto', desiredTraits = [], a
 }
 
 export function getFriendlyResumeItemError(detail) {
+  const t = i18n.global.t
+
   if (typeof detail !== 'string' || !detail.trim()) {
-    return '解析失败，后端未返回具体原因。'
+    return t('common.errors.resumeNoReason')
   }
 
   const message = detail.trim()
 
   if (message.includes('无法解析简历') || message.includes('简历文本为空')) {
-    return message
+    return t('common.errors.resumeUnreadable')
   }
 
   if (message.includes('配置') || message.includes('API key')) {
-    return 'AI 服务配置暂时不可用，请联系系统维护人员。'
+    return t('common.errors.server')
   }
 
   if (message.includes('请求失败') || message.includes('连接') || message.includes('timeout')) {
-    return 'AI 服务暂时无法响应，请稍后重试。'
+    return t('common.errors.unavailable')
   }
 
   if (message.includes('返回格式') || message.includes('校验')) {
-    return 'AI 返回的内容暂时无法识别。'
+    return t('common.errors.invalidResponse')
   }
 
-  if (!message.includes('\n') && message.length <= 160) {
-    return message
-  }
-
-  return '该简历解析失败，请检查文件内容后重试。'
+  return t('common.errors.resumeGeneric')
 }
 
 export function getFriendlyApiError(error, actionLabel) {
   console.error(`${actionLabel} failed`, error)
+  const t = i18n.global.t
 
   if (!(error instanceof ApiError) || error.status === 0) {
-    return '无法连接后端服务，请确认 FastAPI 已在 18000 端口启动后重试。'
+    return t('common.errors.network')
   }
 
   if (error.status === 400 || error.status === 422) {
-    if (typeof error.detail === 'string' && error.detail.length <= 160) {
-      return error.detail
-    }
-    return `提交内容不符合要求，请检查${actionLabel}内容后重试。`
+    return t('common.errors.invalidRequest', { action: actionLabel })
+  }
+
+  if (error.status === 401) {
+    return t('common.errors.sessionExpired')
+  }
+
+  if (error.status === 403) {
+    return t('common.errors.permissionDenied')
+  }
+
+  if (error.status === 404) {
+    return t('common.errors.notFound', { action: actionLabel })
   }
 
   if (error.status === 500) {
-    return 'AI 服务配置暂时不可用，请联系系统维护人员。'
+    return t('common.errors.server')
   }
 
   if (error.status === 502) {
-    return 'AI 返回的内容暂时无法识别，请稍后重新解析。'
+    return t('common.errors.invalidResponse')
   }
 
   if (error.status === 503) {
-    return 'AI 服务暂时无法响应，请稍后重试。'
+    return t('common.errors.unavailable')
   }
 
-  return `${actionLabel}失败，请稍后重试。`
+  return t('common.errors.operationFailed', { action: actionLabel })
 }

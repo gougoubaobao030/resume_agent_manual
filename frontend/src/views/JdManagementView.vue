@@ -7,32 +7,17 @@ import { session } from '../state/session'
 import { refreshJobs, selectJob } from '../state/workspace'
 
 const { t } = useI18n()
+const currentSampleJd = computed(() => t('jd.sample'))
 
-const DEFAULT_SAMPLE_JD = `职位名称：AI应用开发工程师
+const warningKeys = {
+  '未解析出明确的岗位要求，请HR检查原文并手动补充。': 'jd.warnings.noRequirements',
+  'JD中未解析出明确的学历要求，如有需要请HR手动补充。': 'jd.warnings.noEducation',
+  '所有要求的建议权重均为0，后续评分时将按等权处理。': 'jd.warnings.zeroWeights',
+}
 
-岗位职责：
-
-1. 负责基于大语言模型的 AI 应用开发，包括 RAG、智能问答、Agent 等功能。
-2. 使用 Python 开发后端服务及 REST API，并参与接口设计与维护。
-3. 根据业务需求进行 Prompt 设计、模型调用及效果优化。
-4. 参与企业内部知识库、文档检索等 AI 功能的开发。
-5. 与产品及业务人员沟通，持续优化 AI 应用的实际使用效果。
-
-任职要求：
-
-1. 必须熟练掌握 Python，能够独立完成后端功能开发。
-2. 必须具备本科及以上学历。
-3. 熟悉 FastAPI、Flask 等 Python Web 框架，有实际项目经验者优先。
-4. 了解大语言模型、Embedding、向量数据库和 RAG 基本原理。
-5. 有 LangChain、LangGraph 或其他 Agent 开发经验者优先。
-6. 有企业知识库、智能问答或简历筛选类 AI 项目经验者加分。
-7. 具备良好的学习能力、问题分析能力和沟通能力。
-
-加分项：
-
-- 有日语能力，达到 JLPT N1 或能够进行日常工作沟通。
-- 有独立完成 AI 项目从需求分析到实现的经验。
-- 对 AI 产品落地和实际业务价值有较强兴趣。`
+function localizeWarning(warning) {
+  return warningKeys[warning] ? t(warningKeys[warning]) : warning
+}
 
 const categoryOptions = [
   { value: 'technical', labelKey: 'jd.categories.technical' },
@@ -98,7 +83,7 @@ function startNewJob() {
 }
 
 async function handleParse() {
-  const cleanedText = rawText.value.trim() || DEFAULT_SAMPLE_JD
+  const cleanedText = rawText.value.trim() || currentSampleJd.value
 
   if (cleanedText.length < 10) {
     parseStatus.value = 'error'
@@ -119,7 +104,7 @@ async function handleParse() {
     rawText.value = job.raw_text
     jobTitle.value = job.job_title
     requirements.value = job.requirements.map(editableRequirement)
-    warnings.value = result.warnings ?? []
+    warnings.value = (result.warnings ?? []).map(localizeWarning)
     parseStatus.value = 'success'
     parseMessage.value = t('jd.messages.parsed', { count: requirements.value.length })
   } catch (error) {
@@ -253,7 +238,7 @@ async function handleSave() {
           id="jd-text"
           v-model="rawText"
           rows="26"
-          :placeholder="DEFAULT_SAMPLE_JD"
+          :placeholder="currentSampleJd"
           :disabled="isBusy"
         ></textarea>
 

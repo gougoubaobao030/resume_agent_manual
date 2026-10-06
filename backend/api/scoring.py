@@ -4,7 +4,7 @@ from api.auth import get_current_user
 from clients.llm_client import LLMConfigError, LLMRequestError, LLMResponseError
 from models import UserModel
 from schemas.scoring import JobMatchRequest, JobMatchResult
-from services.candidate_repository import get_candidate
+from services.candidate_repository import candidate_belongs_to_job, get_candidate
 from services.jd_repository import get_jd, get_jd_revision
 from services.result_repository import (
     get_scoring_result,
@@ -41,6 +41,8 @@ def score_job_match(
     candidate = get_candidate(request.candidate_id)
     if candidate is None:
         raise HTTPException(status_code=404, detail="Candidate不存在")
+    if not candidate_belongs_to_job(request.job_id, request.candidate_id):
+        raise HTTPException(status_code=404, detail="Candidate未关联到该岗位")
     job_revision = get_jd_revision(request.job_id)
 
     try:

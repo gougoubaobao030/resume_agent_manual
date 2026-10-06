@@ -108,6 +108,7 @@ class CandidateModel(TimestampMixin, Base):
     # python方面是dict处理，数据库里是json存
     structured_data_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     source_file: Mapped[str | None] = mapped_column(String(500))
+    resume_path: Mapped[str | None] = mapped_column(String(500))
     created_by: Mapped[str | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )

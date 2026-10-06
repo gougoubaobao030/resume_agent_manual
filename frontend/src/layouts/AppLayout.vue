@@ -5,7 +5,7 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import { supportedLocales } from '../i18n'
 import { auth, changeLocale, logout } from '../state/auth'
-import { changePassword } from '../services/api'
+import { ApiError, changePassword, getFriendlyApiError } from '../services/api'
 import { initializeWorkspace, resetWorkspace, workspace } from '../state/workspace'
 
 const route = useRoute()
@@ -30,13 +30,19 @@ const navigation = [
   { name: 'jobs', labelKey: 'layout.navigation.jobs', mark: 'J', to: '/jobs' },
   { name: 'resumes', labelKey: 'layout.navigation.resumes', mark: 'U', to: '/resumes' },
   { name: 'candidates', labelKey: 'layout.navigation.candidates', mark: 'C', to: '/candidates' },
-  { name: 'analysis', labelKey: 'layout.navigation.analysis', mark: 'A', to: '/analysis' },
+  { name: 'candidate-pool', labelKey: 'layout.navigation.candidatePool', mark: 'P', to: '/candidate-pool' },
 ]
+
+const pageTitleKeys = {
+  analysis: 'layout.navigation.analysis',
+  'candidate-detail': 'layout.navigation.candidateDetail',
+  'candidate-pool-detail': 'layout.navigation.candidateDetail',
+}
 
 const currentPage = computed(
   () => {
     const currentItem = navigation.find((item) => item.name === route.name)
-    return t(currentItem?.labelKey ?? 'layout.navigation.candidateDetail')
+    return t(currentItem?.labelKey ?? pageTitleKeys[route.name] ?? 'layout.navigation.candidateDetail')
   },
 )
 
@@ -65,7 +71,9 @@ async function handlePasswordChange() {
     passwordMessage.value = t('auth.password.success')
   } catch (error) {
     passwordStatus.value = 'error'
-    passwordMessage.value = error.detail || t('auth.password.failed')
+    passwordMessage.value = error instanceof ApiError && error.status === 400
+      ? t('auth.password.invalidCurrent')
+      : getFriendlyApiError(error, t('auth.password.operation'))
   }
 }
 
