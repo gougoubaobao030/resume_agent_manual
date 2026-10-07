@@ -154,6 +154,31 @@ class ScoringMockTest(unittest.TestCase):
         self.assertEqual(result.candidate_id, candidate.id)
         self.assertEqual(result.analysis_language, AnalysisLanguage.EN_US)
 
+    def test_scoring_prompt_payload_excludes_jd_raw_text(self) -> None:
+        jd = _build_test_jd()
+        candidate = _build_test_candidate()
+
+        with patch.object(
+            scoring_service,
+            "build_job_match_user_prompt",
+            return_value="prompt",
+        ) as builder_mock:
+            prompt = scoring_service._build_job_match_prompt(
+                jd=jd,
+                candidate=candidate,
+                analysis_language=AnalysisLanguage.ZH_CN,
+            )
+
+        self.assertEqual(prompt, "prompt")
+        jd_data = builder_mock.call_args.kwargs["jd_data"]
+        self.assertEqual(set(jd_data), {"id", "job_title", "requirements"})
+        self.assertNotIn("raw_text", jd_data)
+        self.assertEqual(jd_data["job_title"], jd.job_title)
+        self.assertEqual(
+            [item["id"] for item in jd_data["requirements"]],
+            [item.id for item in jd.requirements],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

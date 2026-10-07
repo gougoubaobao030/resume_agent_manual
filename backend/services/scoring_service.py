@@ -197,7 +197,7 @@ def _build_job_match_prompt(
     """将业务模型转换为岗位匹配Prompt输入。"""
 
     return build_job_match_user_prompt(
-        jd_data=jd.model_dump(),
+        jd_data=jd.model_dump(exclude={"raw_text"}),
         candidate_data=candidate.model_dump(),
         analysis_language=analysis_language,
     )
