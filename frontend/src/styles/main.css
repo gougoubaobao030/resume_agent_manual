@@ -333,6 +333,7 @@ textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(39,100,21
 .muted-text { color: var(--muted); font-size: .74rem; }
 .match-score { color: #1f50af; font-size: 2.15rem; line-height: 1; letter-spacing: -.04em; }
 .match-score--table { font-size: 1.3rem; }
+.candidate-score-cell { display: grid; justify-items: start; gap: 4px; }
 .candidate-match-summary { display: -webkit-box; margin: 0; overflow: hidden; color: #46546a; font-size: .74rem; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .candidate-tooltip-cell { position: relative; min-width: 0; outline: none; }
 .candidate-row .status-badge { min-height: 24px; padding-inline: 7px; font-size: .68rem; }
@@ -430,9 +431,13 @@ textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(39,100,21
 .candidate-metric > span, .candidate-metric > strong { display: block; }
 .candidate-metric > span { margin-bottom: 3px; color: var(--muted); font-size: .72rem; font-weight: 700; }
 .candidate-metric > strong { font-size: 1rem; }
+.candidate-metric > small { display: block; margin-top: 4px; color: var(--muted); font-size: .7rem; }
 .candidate-metric .match-score { font-size: 1.55rem; }
 
 .candidate-decision-columns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-bottom: 0; }
+.analysis-warning { display: flex; align-items: flex-start; gap: 8px; padding: 9px 11px; border: 1px solid #eadcb8; border-radius: 7px; color: #70521c; background: #fff9e9; font-size: .78rem; line-height: 1.5; }
+.analysis-warning strong { flex: 0 0 auto; }
+.analysis-warning .plain-list { margin: 0; }
 .candidate-decision-columns section { padding: 8px 10px; border-radius: 7px; background: var(--surface-soft); }
 .candidate-decision-columns h4 { margin: 0 0 5px; font-size: .8rem; }
 .compact-decision-list { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
@@ -442,7 +447,7 @@ textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(39,100,21
 .compact-decision-list--positive li::before { content: "✓"; color: #176447; }
 .compact-decision-list--risk li::before { content: "!"; color: var(--warning); font-weight: 800; }
 
-.compact-requirement-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5px 7px; }
+.compact-requirement-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,500px),1fr)); gap: 5px 7px; }
 .compact-disclosure { border: 1px solid #e1e7ef; border-radius: 7px; background: #fff; }
 .compact-disclosure > summary { display: grid; grid-template-columns: minmax(130px,1fr) minmax(120px,1.3fr) auto auto auto; align-items: center; gap: 7px; padding: 7px 9px; cursor: pointer; list-style: none; }
 .compact-disclosure > summary::-webkit-details-marker { display: none; }
@@ -459,6 +464,13 @@ textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(39,100,21
 .compact-disclosure__content h5 { margin: 0 0 7px; color: var(--text); font-size: .76rem; }
 .compact-disclosure__content .plain-list { margin-top: 0; }
 .compact-disclosure__content small { color: var(--muted); }
+.candidate-requirements-card .compact-disclosure > summary { grid-template-columns: minmax(0,.95fr) minmax(0,1.1fr) 38px 96px 134px 72px; gap: 6px; }
+.candidate-requirements-card .compact-disclosure__title > strong { min-width: 0; }
+.candidate-requirements-card .must-have-label { flex: 0 0 auto; white-space: nowrap; }
+.candidate-requirements-card .compact-disclosure__score { justify-self: end; text-align: right; }
+.candidate-requirements-card .compact-disclosure__match-status,
+.candidate-requirements-card .compact-disclosure__evidence-status { max-width: 100%; justify-self: center; }
+.candidate-requirements-card .disclosure-action { width: 72px; justify-self: end; text-align: right; }
 
 .talent-summary-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; align-items: start; }
 .talent-summary-card { display: grid; gap: 6px; }
@@ -466,6 +478,7 @@ textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(39,100,21
 .compact-talent-list { display: grid; gap: 4px; }
 .compact-disclosure--talent > summary { grid-template-columns: minmax(0,1fr) auto auto; }
 .compact-disclosure--talent > summary > strong { overflow: hidden; font-size: .84rem; text-overflow: ellipsis; white-space: nowrap; }
+.talent-result-badges { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
 .talent-notes { padding: 9px 11px; border-radius: 7px; color: #75520c; background: #fff8e8; font-size: .78rem; }
 .talent-notes summary { cursor: pointer; font-weight: 700; }
 .talent-summary-card__footer { display: flex; justify-content: flex-end; padding-top: 2px; }
@@ -529,6 +542,13 @@ textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(39,100,21
   .compact-disclosure__score { grid-column: 2; grid-row: 1; }
   .compact-disclosure > summary > .status-badge { justify-self: start; }
   .compact-disclosure > summary > .disclosure-action { justify-self: end; }
+  .candidate-requirements-card .compact-disclosure > summary { grid-template-columns: minmax(0,1fr) 96px 134px; }
+  .candidate-requirements-card .compact-disclosure__title { grid-column: 1; grid-row: 1; }
+  .candidate-requirements-card .compact-disclosure__score { grid-column: 2; grid-row: 1; justify-self: end; }
+  .candidate-requirements-card .compact-disclosure__summary { grid-column: 1 / -1; grid-row: 2; }
+  .candidate-requirements-card .compact-disclosure__match-status { grid-column: 2; grid-row: 3; justify-self: center; }
+  .candidate-requirements-card .compact-disclosure__evidence-status { grid-column: 3; grid-row: 3; justify-self: center; }
+  .candidate-requirements-card .disclosure-action { grid-column: 3; grid-row: 1; }
   .compact-disclosure--talent > summary { grid-template-columns: minmax(0,1fr) auto; }
   .compact-disclosure--talent > summary .disclosure-action { grid-column: 2; grid-row: 2; }
 }

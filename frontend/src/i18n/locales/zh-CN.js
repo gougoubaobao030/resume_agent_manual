@@ -20,6 +20,7 @@ export default {
     sourceLabel: '来源：{source}',
     sourceWithIndex: '来源：{source} #{index}',
     sourceNameWithIndex: '{source} #{index}',
+    evidenceStatus: { verified: '已验证', review: '待复核', insufficient: '证据不足', confirmationRequired: '待确认' },
     match: {
       waiting: '等待评分',
       noAssessment: '暂无判断',
@@ -142,7 +143,7 @@ export default {
     },
     actions: {
       parsing: '正在解析…', parse: 'AI 解析 JD', addRequirement: '＋ 新增要求',
-      deleteRequirementLabel: '删除第 {index} 项要求', delete: '删除', saving: '正在保存…', save: '保存确认后的 JD', selectJob: '选择已保存 JD', newJob: '新建 JD',
+      deleteRequirementLabel: '删除第 {index} 项要求', delete: '删除', deleteJob: '删除 JD', deletingJob: '正在删除…', saving: '正在保存…', save: '保存确认后的 JD', selectJob: '选择已保存 JD', newJob: '新建 JD',
     },
     empty: { title: '尚无解析结果', description: '完成解析后，可在这里修改岗位名称、要求、权重及硬性条件。' },
     parseWarnings: '解析提示',
@@ -156,6 +157,9 @@ export default {
       parsed: '解析完成，共识别 {count} 项岗位要求。',
       saving: '正在保存 HR 确认后的 JD……',
       saved: 'JD 已保存，可继续用于本次招聘流程。',
+      deleteConfirm: '确定删除「{title}」吗？\n\n该岗位的候选人关联和岗位匹配评分将一并删除。\n候选人资料、人才分析和原始简历不会删除。',
+      deleteSuccess: '已删除 JD「{title}」。',
+      deleteReloadFailed: 'JD 已删除，但工作区重新加载失败，请刷新页面重试。',
     },
     validation: {
       jobTitle: '请填写岗位名称。',
@@ -163,7 +167,7 @@ export default {
       requirementName: '第 {index} 项要求缺少名称。',
       requirementWeight: '第 {index} 项的相对权重应为 0–1000 之间的数字。',
     },
-    operations: { parse: 'JD 解析', save: 'JD 保存' },
+    operations: { parse: 'JD 解析', save: 'JD 保存', delete: 'JD 删除' },
   },
   resumeUpload: {
     eyebrow: '简历导入',
@@ -248,10 +252,15 @@ export default {
     notFound: '当前会话中未找到这位候选人。',
     actions: { rescore: '重新评分', rescoring: '重新评分中…', cancel: '取消', runSpecifiedAnalysis: '按当前特质重新分析' },
     messages: { rescoreSuccess: '评分已更新。' },
+    warnings: {
+      scoringEvidence: '部分岗位匹配证据未能通过原文或来源定位校验，相关结论已标记为需要人工复核。',
+      autoEvidence: '部分 AI 能力证据未能通过简历核验；无有效证据的能力结论已自动移除，标记为待复核的保留结论需要人工确认。',
+      specifiedEvidence: '部分指定人才像缺少可验证证据，相关项目已标记为证据不足，需要人工确认。',
+    },
     metrics: { mustHave: '硬条件', autoTalent: 'AI 能力关注度', specifiedTalent: 'HR 指定能力适配度' },
     empty: { title: '候选人数据不可用', description: '当前数据库中没有该候选人，或其未关联到所选 JD。', action: '返回候选人列表 →', poolAction: '返回候选人库 →' },
     basicInfo: { title: '基本信息', name: '姓名', location: '所在地', email: '邮箱', phone: '电话' },
-    match: { title: '岗位匹配摘要', score: '岗位匹配分', requirements: '岗位要求匹配', noResult: '当前会话中没有这位候选人的岗位匹配结果。', highlights: '主要优势', risks: '主要风险 / 待确认', noHighlights: '暂无明确的高匹配项。', noRisks: '暂无明显风险项。' },
+    match: { title: '岗位匹配摘要', score: '岗位匹配分', requirements: '岗位要求匹配', noResult: '当前会话中没有这位候选人的岗位匹配结果。', highlights: '主要优势', risks: '主要风险 / 待确认', noHighlights: '暂无明确的高匹配项。', noRisks: '暂无明显风险项。', warningTitle: '证据待复核' },
     talent: {
       title: '人才能力发现', specifiedProfile: 'HR 指定人才像', evidence: '主要证据', missingInformation: '待确认信息',
       additionalFindings: 'AI 额外发现', abilityProfile: '能力画像', noAbilities: '暂无明确的额外能力证据。', warnings: '分析提示',

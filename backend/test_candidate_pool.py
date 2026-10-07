@@ -217,6 +217,54 @@ class CandidatePoolTest(unittest.TestCase):
                 self._count(db, TalentDiscoveryResultModel, self.candidate_id), 1
             )
 
+    def test_delete_job_cascades_only_job_scoped_data(self) -> None:
+        response = self.client.delete(f"/api/jd/{self.job_one.id}")
+
+        self.assertEqual(response.status_code, 204, response.text)
+        self.assertEqual(
+            self.client.delete(f"/api/jd/{self.job_one.id}").status_code,
+            404,
+        )
+        candidate_pdf = (
+            Path(self.storage_dir.name)
+            / "resumes"
+            / self.candidate_id
+            / "original.pdf"
+        )
+        self.assertTrue(candidate_pdf.exists())
+
+        with SessionLocal() as db:
+            self.assertIsNone(db.get(JobModel, self.job_one.id))
+            self.assertEqual(
+                db.scalar(
+                    select(func.count()).select_from(JobCandidateModel).where(
+                        JobCandidateModel.job_id == self.job_one.id
+                    )
+                ),
+                0,
+            )
+            self.assertEqual(
+                db.scalar(
+                    select(func.count()).select_from(ScoringResultModel).where(
+                        ScoringResultModel.job_id == self.job_one.id
+                    )
+                ),
+                0,
+            )
+
+            self.assertIsNotNone(db.get(CandidateModel, self.candidate_id))
+            self.assertEqual(
+                self._count(db, TalentDiscoveryResultModel, self.candidate_id), 1
+            )
+
+            self.assertIsNotNone(db.get(JobModel, self.job_two.id))
+            self.assertIsNotNone(
+                db.get(JobCandidateModel, (self.job_two.id, self.candidate_id))
+            )
+            self.assertEqual(
+                self._score_count(db, self.job_two.id, self.candidate_id), 1
+            )
+
     def test_global_delete_restores_pdf_when_database_commit_fails(self) -> None:
         candidate_pdf = (
             Path(self.storage_dir.name)

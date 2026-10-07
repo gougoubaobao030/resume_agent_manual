@@ -15,6 +15,7 @@ export default {
     },
     candidateNameMissing: '氏名を抽出できませんでした', noInformation: '情報なし', dateMissing: '期間情報なし', colon: '：',
     sourceLabel: '出典：{source}', sourceWithIndex: '出典：{source} #{index}', sourceNameWithIndex: '{source} #{index}',
+    evidenceStatus: { verified: '確認済み', review: '要確認', insufficient: '根拠不足', confirmationRequired: '確認待ち' },
     match: {
       waiting: 'スコア算出待ち', noAssessment: '判定なし', mustHaveFailed: '必須条件を満たしていません',
       mustHaveConfirmation: '必須条件の確認が必要です', mustHavePassed: '必須条件を満たしています',
@@ -88,7 +89,7 @@ export default {
     },
     actions: {
       parsing: '解析中…', parse: 'AI で JD を解析', addRequirement: '＋ 要件を追加', deleteRequirementLabel: '{index} 番目の要件を削除',
-      delete: '削除', saving: '保存中…', save: '確認済み JD を保存', selectJob: '保存済み JD を選択', newJob: '新規 JD',
+      delete: '削除', deleteJob: 'JD を削除', deletingJob: '削除中…', saving: '保存中…', save: '確認済み JD を保存', selectJob: '保存済み JD を選択', newJob: '新規 JD',
     },
     empty: { title: '解析結果はまだありません', description: '解析後、職種名、要件、ウェイト、必須条件をここで編集できます。' },
     parseWarnings: '解析時の注意',
@@ -99,12 +100,15 @@ export default {
       loaded: '現在のセッションの JD を読み込みました。', tooShort: '求人票が短すぎます。業務内容または応募要件を追加してください。',
       parsing: 'AI が求人票を解析しています。しばらくお待ちください…', parsed: '解析が完了し、{count} 件の求人要件を抽出しました。',
       saving: 'HR 確認済みの JD を保存しています…', saved: 'JD を保存しました。この採用フローで引き続き利用できます。',
+      deleteConfirm: '「{title}」を削除しますか？\n\nこの求人との候補者の関連付けと求人マッチング評価も削除されます。\n候補者情報、人材分析、元の履歴書は削除されません。',
+      deleteSuccess: 'JD「{title}」を削除しました。',
+      deleteReloadFailed: 'JD は削除されましたが、ワークスペースを再読み込みできませんでした。ページを更新して再試行してください。',
     },
     validation: {
       jobTitle: '職種名を入力してください。', requirementRequired: '求人要件を 1 件以上残してください。',
       requirementName: '{index} 番目の要件に名前がありません。', requirementWeight: '{index} 番目の相対ウェイトは 0～1000 の数値にしてください。',
     },
-    operations: { parse: 'JD 解析', save: 'JD 保存' },
+    operations: { parse: 'JD 解析', save: 'JD 保存', delete: 'JD 削除' },
   },
   resumeUpload: {
     eyebrow: '履歴書インポート', title: '候補者を一括インポート', description: '現在の求人を選択し、テキスト形式の PDF 履歴書を 1～30 件アップロードします。', jobRequired: '先に JD を完了してください',
@@ -156,10 +160,15 @@ export default {
     back: '← 候補者一覧に戻る', backToPool: '← 候補者一覧に戻る', title: '候補者詳細', sourceFileMissing: '元のファイル名を取得できませんでした', viewResume: '元の履歴書を表示', viewEvidence: '根拠を表示', currentJob: '現在の JD：', notFound: '現在のセッションにこの候補者は見つかりませんでした。',
     actions: { rescore: '再評価', rescoring: '再評価中…', cancel: 'キャンセル', runSpecifiedAnalysis: '現在の特性で再分析' },
     messages: { rescoreSuccess: '評価を更新しました。' },
+    warnings: {
+      scoringEvidence: '一部の求人マッチング根拠は原文または出典位置を確認できず、関連する結論を人による確認が必要としてマークしました。',
+      autoEvidence: '一部の AI 能力の根拠を履歴書で確認できませんでした。有効な根拠のない評価は自動的に除外し、要確認のまま残る評価は人による確認が必要です。',
+      specifiedEvidence: '一部の指定人材特性には検証可能な根拠がなく、根拠不足として人による確認が必要です。',
+    },
     metrics: { mustHave: '必須条件', autoTalent: 'AI 能力注目度', specifiedTalent: 'HR 指定能力適合度' },
     empty: { title: '候補者データを利用できません', description: '候補者がデータベースに存在しないか、選択中の JD に関連付けられていません。', action: '候補者一覧に戻る →', poolAction: '候補者一覧に戻る →' },
     basicInfo: { title: '基本情報', name: '氏名', location: '所在地', email: 'メール', phone: '電話' },
-    match: { title: '求人マッチング概要', score: '求人マッチ度', requirements: '求人要件との適合', noResult: '現在のセッションにこの候補者の求人マッチング結果はありません。', highlights: '主な強み', risks: 'リスク / 要確認事項', noHighlights: '明確な高適合項目はありません。', noRisks: '明確なリスク項目はありません。' },
+    match: { title: '求人マッチング概要', score: '求人マッチ度', requirements: '求人要件との適合', noResult: '現在のセッションにこの候補者の求人マッチング結果はありません。', highlights: '主な強み', risks: 'リスク / 要確認事項', noHighlights: '明確な高適合項目はありません。', noRisks: '明確なリスク項目はありません。', warningTitle: '根拠の確認が必要' },
     talent: {
       title: '候補者の能力分析', specifiedProfile: 'HR 指定の候補者像', evidence: '主な根拠', missingInformation: '要確認情報',
       additionalFindings: 'AI による追加発見', abilityProfile: '能力プロフィール', noAbilities: '追加能力を示す明確な根拠はありません。', warnings: '分析上の注意',

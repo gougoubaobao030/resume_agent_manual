@@ -2,8 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { getFriendlyApiError, parseJd, saveJd, updateJd } from '../services/api'
-import { session } from '../state/session'
+import { deleteJd, getFriendlyApiError, parseJd, saveJd, updateJd } from '../services/api'
+import { session, setCandidates, setCurrentJob } from '../state/session'
 import { refreshJobs, selectJob } from '../state/workspace'
 
 const { t } = useI18n()
@@ -53,10 +53,17 @@ const parseStatus = ref('idle')
 const parseMessage = ref('')
 const saveStatus = ref(session.currentJob ? 'success' : 'idle')
 const saveMessage = ref(session.currentJob ? t('jd.messages.loaded') : '')
+const deleteStatus = ref('idle')
+const deleteMessage = ref('')
 
 const hasParsedJob = computed(() => requirements.value.length > 0)
+const canDeleteJob = computed(
+  () => Boolean(savedJobId.value && session.currentJob?.id === savedJobId.value),
+)
 const isBusy = computed(
-  () => parseStatus.value === 'loading' || saveStatus.value === 'loading',
+  () => parseStatus.value === 'loading'
+    || saveStatus.value === 'loading'
+    || deleteStatus.value === 'loading',
 )
 
 function loadJobIntoEditor(job) {
@@ -72,7 +79,11 @@ watch(() => session.currentJob?.id, () => loadJobIntoEditor(session.currentJob))
 
 async function handleJobSelection(event) {
   const job = session.jobs.find((item) => item.id === event.target.value)
-  if (job) await selectJob(job)
+  if (job) {
+    deleteStatus.value = 'idle'
+    deleteMessage.value = ''
+    await selectJob(job)
+  }
 }
 
 function startNewJob() {
@@ -80,6 +91,55 @@ function startNewJob() {
   warnings.value = []
   parseStatus.value = 'idle'
   parseMessage.value = ''
+  deleteStatus.value = 'idle'
+  deleteMessage.value = ''
+}
+
+async function handleDeleteJob() {
+  const job = session.currentJob
+  if (!job?.id || job.id !== savedJobId.value || deleteStatus.value === 'loading') return
+
+  if (!window.confirm(t('jd.messages.deleteConfirm', { title: job.job_title }))) return
+
+  const deletedJobId = job.id
+  const deletedJobTitle = job.job_title
+  let deleteSucceeded = false
+
+  deleteStatus.value = 'loading'
+  deleteMessage.value = ''
+
+  try {
+    await deleteJd(deletedJobId)
+    deleteSucceeded = true
+
+    session.jobs = session.jobs.filter((item) => item.id !== deletedJobId)
+    setCurrentJob(null)
+    setCandidates([])
+    localStorage.removeItem('current-job-id')
+    loadJobIntoEditor(null)
+    warnings.value = []
+    parseStatus.value = 'idle'
+    parseMessage.value = ''
+
+    const jobs = await refreshJobs()
+    if (jobs.length) await selectJob(jobs[0])
+
+    deleteStatus.value = 'success'
+    deleteMessage.value = t('jd.messages.deleteSuccess', { title: deletedJobTitle })
+  } catch (error) {
+    if (!deleteSucceeded) {
+      deleteStatus.value = 'error'
+      deleteMessage.value = getFriendlyApiError(error, t('jd.operations.delete'))
+      return
+    }
+
+    setCurrentJob(null)
+    setCandidates([])
+    localStorage.removeItem('current-job-id')
+    loadJobIntoEditor(null)
+    deleteStatus.value = 'error'
+    deleteMessage.value = t('jd.messages.deleteReloadFailed')
+  }
 }
 
 async function handleParse() {
@@ -210,13 +270,31 @@ async function handleSave() {
     <div class="page-heading page-heading--split">
       <div><p class="eyebrow">{{ t('jd.eyebrow') }}</p><h2>{{ t('jd.title') }}</h2><p>{{ t('jd.description') }}</p></div>
       <div class="job-selector">
-        <select class="select-input" :value="session.currentJob?.id || ''" @change="handleJobSelection">
+        <select class="select-input" :value="session.currentJob?.id || ''" :disabled="isBusy" @change="handleJobSelection">
           <option value="" disabled>{{ t('jd.actions.selectJob') }}</option>
           <option v-for="job in session.jobs" :key="job.id" :value="job.id">{{ job.job_title }}</option>
         </select>
-        <button class="button button--secondary button--small" type="button" @click="startNewJob">{{ t('jd.actions.newJob') }}</button>
+        <button class="button button--secondary button--small" type="button" :disabled="isBusy" @click="startNewJob">{{ t('jd.actions.newJob') }}</button>
+        <button
+          v-if="canDeleteJob"
+          class="danger-link"
+          type="button"
+          :disabled="isBusy"
+          @click="handleDeleteJob"
+        >
+          {{ t(deleteStatus === 'loading' ? 'jd.actions.deletingJob' : 'jd.actions.deleteJob') }}
+        </button>
       </div>
     </div>
+
+    <p
+      v-if="deleteMessage"
+      class="inline-message"
+      :class="`inline-message--${deleteStatus}`"
+      :role="deleteStatus === 'error' ? 'alert' : 'status'"
+    >
+      {{ deleteMessage }}
+    </p>
 
     <div class="jd-workspace">
       <article class="panel panel--form">

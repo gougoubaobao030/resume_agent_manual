@@ -189,6 +189,42 @@ function confidenceLabel(confidence) {
   return confidenceLabels[confidence] ? t(confidenceLabels[confidence]) : confidence
 }
 
+function scoringEvidenceState(item) {
+  if (item?.needs_raw_review === true || item?.evidence_validation_issues?.length) {
+    return { label: t('common.evidenceStatus.review'), className: 'status-badge--warning' }
+  }
+  if (item?.evidence?.length) {
+    return { label: t('common.evidenceStatus.verified'), className: 'status-badge--success' }
+  }
+  return { label: t('common.evidenceStatus.insufficient'), className: 'status-badge--neutral' }
+}
+
+function talentEvidenceState(item) {
+  if (!item?.evidence?.length) {
+    return { label: t('common.evidenceStatus.insufficient'), className: 'status-badge--neutral' }
+  }
+  if (item.evidence_validation_issues?.length) {
+    return { label: t('common.evidenceStatus.review'), className: 'status-badge--warning' }
+  }
+  return { label: t('common.evidenceStatus.verified'), className: 'status-badge--success' }
+}
+
+function talentResultLabel(result, mode) {
+  if (!result) return talentStatusLabel(mode)
+  const hasEvidence = mode === 'specified'
+    ? result.specified_traits?.some((item) => item.evidence?.length)
+    : result.abilities?.length > 0
+  if (!hasEvidence) return t('common.evidenceStatus.insufficient')
+  return talentLevelLabel(mode === 'specified' ? result.specified_fit_level : result.attention_level)
+}
+
+function talentWarnings(result, mode) {
+  if (result?.evidence_validation_issues?.length) {
+    return [t(`candidateDetail.warnings.${mode}Evidence`)]
+  }
+  return result?.warnings ?? []
+}
+
 function formatScore(score) {
   if (typeof score !== 'number') return '—'
   return Number.isInteger(score) ? String(score) : score.toFixed(1)
@@ -272,6 +308,7 @@ watch(
         <article class="candidate-metric">
           <span>{{ t('candidateDetail.match.score') }}</span>
           <strong class="match-score">{{ formattedScore }}</strong>
+          <small v-if="matchResult">{{ t('analysis.confidence', { value: confidenceLabel(matchResult.confidence) }) }}</small>
         </article>
         <article class="candidate-metric">
           <span>{{ t('candidateDetail.metrics.mustHave') }}</span>
@@ -279,11 +316,11 @@ watch(
         </article>
         <article class="candidate-metric">
           <span>{{ t('candidateDetail.metrics.autoTalent') }}</span>
-          <strong>{{ autoTalentResult ? talentLevelLabel(autoTalentResult.attention_level) : talentStatusLabel('auto') }}</strong>
+          <strong>{{ talentResultLabel(autoTalentResult, 'auto') }}</strong>
         </article>
         <article class="candidate-metric">
           <span>{{ t('candidateDetail.metrics.specifiedTalent') }}</span>
-          <strong>{{ specifiedTalentResult ? talentLevelLabel(specifiedTalentResult.specified_fit_level) : talentStatusLabel('specified') }}</strong>
+          <strong>{{ talentResultLabel(specifiedTalentResult, 'specified') }}</strong>
         </article>
       </div>
 
@@ -293,6 +330,11 @@ watch(
             <h3>{{ t('candidateDetail.match.title') }}</h3>
             <p v-if="matchResult">{{ matchResult.summary || t('common.match.noSummary') }}</p>
           </div>
+        </div>
+
+        <div v-if="matchResult?.warnings?.length" class="analysis-warning" role="status">
+          <strong>{{ t('candidateDetail.match.warningTitle') }}</strong>
+          <ul class="plain-list"><li>{{ t('candidateDetail.warnings.scoringEvidence') }}</li></ul>
         </div>
 
         <div v-if="matchResult" class="candidate-decision-columns">
@@ -331,12 +373,14 @@ watch(
               </span>
               <span class="compact-disclosure__summary">{{ requirement.reason }}</span>
               <strong class="compact-disclosure__score">{{ formatScore(requirement.score) }}</strong>
-              <span class="status-badge" :class="statusClass(requirement.status)">{{ requirementStatus(requirement.status) }}</span>
+              <span class="status-badge compact-disclosure__match-status" :class="statusClass(requirement.status)">{{ requirementStatus(requirement.status) }}</span>
+              <span class="status-badge compact-disclosure__evidence-status" :class="scoringEvidenceState(requirement).className">{{ scoringEvidenceState(requirement).label }}</span>
               <span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span>
             </summary>
             <div class="compact-disclosure__content">
               <p><strong>{{ t('analysis.reason') }}：</strong>{{ requirement.reason }}</p>
               <p class="requirement-confidence">{{ t('analysis.confidence', { value: confidenceLabel(requirement.confidence) }) }}</p>
+              <p><span class="status-badge" :class="scoringEvidenceState(requirement).className">{{ scoringEvidenceState(requirement).label }}</span></p>
               <div v-if="requirement.evidence?.length">
                 <h5>{{ t('analysis.resumeEvidence') }}</h5>
                 <ul class="plain-list"><li v-for="(evidence, index) in requirement.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul>
@@ -359,13 +403,13 @@ watch(
           </div>
           <div v-if="autoTalentResult" class="compact-talent-list">
             <details v-for="item in autoTalentResult.abilities" :key="item.ability_name" class="compact-disclosure compact-disclosure--talent">
-              <summary><strong>{{ item.ability_name }}</strong><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.level) }}</span><span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span></summary>
+              <summary><strong>{{ item.ability_name }}</strong><span class="talent-result-badges"><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.level) }}</span><span class="status-badge" :class="talentEvidenceState(item).className">{{ talentEvidenceState(item).label }}</span></span><span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span></summary>
               <div class="compact-disclosure__content"><p>{{ item.reason }}</p><div v-if="item.evidence?.length"><h5>{{ t('candidateDetail.talent.evidence') }}</h5><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div></div>
             </details>
             <p v-if="!autoTalentResult.abilities.length" class="empty-copy">{{ t('candidateDetail.talent.noAbilities') }}</p>
-            <details v-if="autoTalentResult.warnings?.length" class="talent-notes">
+            <details v-if="talentWarnings(autoTalentResult, 'auto').length" class="talent-notes">
               <summary>{{ t('candidateDetail.talent.warnings') }}</summary>
-              <ul class="plain-list"><li v-for="warning in autoTalentResult.warnings" :key="warning">{{ warning }}</li></ul>
+              <ul class="plain-list"><li v-for="warning in talentWarnings(autoTalentResult, 'auto')" :key="warning">{{ warning }}</li></ul>
             </details>
           </div>
           <p v-else-if="talentStatus('auto') === 'error'" class="talent-error">{{ session.talentErrors[candidate.id]?.auto }}</p>
@@ -380,17 +424,17 @@ watch(
           </div>
           <div v-if="specifiedTalentResult" class="compact-talent-list">
             <details v-for="item in specifiedTalentResult.specified_traits" :key="item.trait" class="compact-disclosure compact-disclosure--talent">
-              <summary><strong>{{ item.trait }}</strong><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.fit_level) }}</span><span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span></summary>
+              <summary><strong>{{ item.trait }}</strong><span class="talent-result-badges"><span v-if="item.evidence?.length" class="status-badge status-badge--neutral">{{ talentLevelLabel(item.fit_level) }}</span><span class="status-badge" :class="talentEvidenceState(item).className">{{ talentEvidenceState(item).label }}</span></span><span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span></summary>
               <div class="compact-disclosure__content"><p>{{ item.reason }}</p><div v-if="item.evidence?.length"><h5>{{ t('candidateDetail.talent.evidence') }}</h5><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div><div v-if="item.missing_information?.length"><h5>{{ t('candidateDetail.talent.missingInformation') }}</h5><ul class="plain-list"><li v-for="info in item.missing_information" :key="info">{{ info }}</li></ul></div></div>
             </details>
             <details v-for="item in specifiedTalentResult.abilities" :key="item.ability_name" class="compact-disclosure compact-disclosure--talent">
-              <summary><strong>{{ item.ability_name }}</strong><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.level) }}</span><span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span></summary>
+              <summary><strong>{{ item.ability_name }}</strong><span class="talent-result-badges"><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.level) }}</span><span class="status-badge" :class="talentEvidenceState(item).className">{{ talentEvidenceState(item).label }}</span></span><span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span></summary>
               <div class="compact-disclosure__content"><p>{{ item.reason }}</p><div v-if="item.evidence?.length"><h5>{{ t('candidateDetail.talent.evidence') }}</h5><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div></div>
             </details>
             <p v-if="!specifiedTalentResult.specified_traits.length && !specifiedTalentResult.abilities.length" class="empty-copy">{{ t('candidateDetail.talent.noAbilities') }}</p>
-            <details v-if="specifiedTalentResult.warnings?.length" class="talent-notes">
+            <details v-if="talentWarnings(specifiedTalentResult, 'specified').length" class="talent-notes">
               <summary>{{ t('candidateDetail.talent.warnings') }}</summary>
-              <ul class="plain-list"><li v-for="warning in specifiedTalentResult.warnings" :key="warning">{{ warning }}</li></ul>
+              <ul class="plain-list"><li v-for="warning in talentWarnings(specifiedTalentResult, 'specified')" :key="warning">{{ warning }}</li></ul>
             </details>
           </div>
           <p v-else-if="talentStatus('specified') === 'error'" class="talent-error">{{ session.talentErrors[candidate.id]?.specified }}</p>

@@ -15,6 +15,7 @@ export default {
     },
     candidateNameMissing: 'Name not extracted', noInformation: 'No information available', dateMissing: 'Dates unavailable', colon: ': ',
     sourceLabel: 'Source: {source}', sourceWithIndex: 'Source: {source} #{index}', sourceNameWithIndex: '{source} #{index}',
+    evidenceStatus: { verified: 'Verified', review: 'Review needed', insufficient: 'Insufficient evidence', confirmationRequired: 'Pending confirmation' },
     match: {
       waiting: 'Awaiting score', noAssessment: 'No assessment', mustHaveFailed: 'Must-have criteria not met',
       mustHaveConfirmation: 'Must-have criteria need confirmation', mustHavePassed: 'Must-have criteria met',
@@ -88,7 +89,7 @@ Preferred qualifications:
     },
     actions: {
       parsing: 'Parsing…', parse: 'Parse JD with AI', addRequirement: '+ Add Requirement', deleteRequirementLabel: 'Delete requirement {index}',
-      delete: 'Delete', saving: 'Saving…', save: 'Save Confirmed JD', selectJob: 'Select saved JD', newJob: 'New JD',
+      delete: 'Delete', deleteJob: 'Delete JD', deletingJob: 'Deleting…', saving: 'Saving…', save: 'Save Confirmed JD', selectJob: 'Select saved JD', newJob: 'New JD',
     },
     empty: { title: 'No Parsing Result Yet', description: 'After parsing, you can edit the job title, requirements, weights, and must-have criteria here.' },
     parseWarnings: 'Parsing Notes',
@@ -99,12 +100,15 @@ Preferred qualifications:
       loaded: 'The JD from this session has been loaded.', tooShort: 'The job description is too short. Add responsibilities or requirements.',
       parsing: 'AI is parsing the job description. Please wait…', parsed: 'Parsing complete. {count} job requirements identified.',
       saving: 'Saving the HR-confirmed JD…', saved: 'The JD has been saved and is ready for this hiring workflow.',
+      deleteConfirm: 'Delete “{title}”?\n\nIts candidate links and job-match scores will also be deleted.\nCandidate profiles, talent analyses, and original resumes will not be deleted.',
+      deleteSuccess: 'JD “{title}” was deleted.',
+      deleteReloadFailed: 'The JD was deleted, but the workspace could not be reloaded. Refresh the page and try again.',
     },
     validation: {
       jobTitle: 'Enter a job title.', requirementRequired: 'Keep at least one job requirement.',
       requirementName: 'Requirement {index} is missing a name.', requirementWeight: 'The relative weight for requirement {index} must be a number between 0 and 1000.',
     },
-    operations: { parse: 'JD parsing', save: 'JD saving' },
+    operations: { parse: 'JD parsing', save: 'JD saving', delete: 'JD deletion' },
   },
   resumeUpload: {
     eyebrow: 'Resume Import', title: 'Import Candidates in Bulk', description: 'Select the current job, then upload 1–30 text-based PDF resumes.', jobRequired: 'Complete the JD first',
@@ -156,10 +160,15 @@ Preferred qualifications:
     back: '← Back to Candidate List', backToPool: '← Back to Candidate Pool', title: 'Candidate Details', sourceFileMissing: 'Source filename unavailable', viewResume: 'View Original Resume', viewEvidence: 'View Evidence', currentJob: 'Current JD:', notFound: 'This candidate was not found in the current session.',
     actions: { rescore: 'Rescore', rescoring: 'Rescoring…', cancel: 'Cancel', runSpecifiedAnalysis: 'Analyze with These Traits' },
     messages: { rescoreSuccess: 'Score updated.' },
+    warnings: {
+      scoringEvidence: 'Some job-match evidence failed source-text or locator validation; the related conclusions were marked for human review.',
+      autoEvidence: 'Some AI capability evidence could not be verified against the resume; findings without valid evidence were removed automatically, and retained findings marked for review need human confirmation.',
+      specifiedEvidence: 'Some specified talent traits lack verifiable evidence and were marked as insufficient evidence for human confirmation.',
+    },
     metrics: { mustHave: 'Must-have Conditions', autoTalent: 'AI Capability Attention', specifiedTalent: 'HR Target Fit' },
     empty: { title: 'Candidate Data Unavailable', description: 'This candidate is not in the database or is not linked to the selected JD.', action: 'Back to Candidate List →', poolAction: 'Back to Candidate Pool →' },
     basicInfo: { title: 'Basic Information', name: 'Name', location: 'Location', email: 'Email', phone: 'Phone' },
-    match: { title: 'Job Match Summary', score: 'Match Score', requirements: 'Requirement Matches', noResult: 'No job-match result for this candidate exists in the current session.', highlights: 'Key Strengths', risks: 'Risks / Items to Confirm', noHighlights: 'No clear high-match requirements.', noRisks: 'No material risks identified.' },
+    match: { title: 'Job Match Summary', score: 'Match Score', requirements: 'Requirement Matches', noResult: 'No job-match result for this candidate exists in the current session.', highlights: 'Key Strengths', risks: 'Risks / Items to Confirm', noHighlights: 'No clear high-match requirements.', noRisks: 'No material risks identified.', warningTitle: 'Evidence review needed' },
     talent: {
       title: 'Capability Discovery', specifiedProfile: 'HR Target Profile', evidence: 'Key Evidence', missingInformation: 'Information to Confirm',
       additionalFindings: 'Additional AI Findings', abilityProfile: 'Capability Profile', noAbilities: 'No clear evidence of additional capabilities.', warnings: 'Analysis Notes',

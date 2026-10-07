@@ -17,6 +17,7 @@ from schemas.talent import (
     LLMTalentAbility,
     LLMTalentDiscoveryResult,
     LLMTalentEvidence,
+    LLMSpecifiedTraitResult,
 )
 from services import scoring_service, talent_service
 from services.evidence_validation import verify_candidate_evidence
@@ -149,10 +150,45 @@ class EvidenceValidationTest(unittest.TestCase):
             )
 
         self.assertEqual(result.abilities, [])
-        self.assertEqual(result.attention_level, "low")
+        self.assertEqual(result.attention_level, "high")
         self.assertTrue(result.evidence_validation_issues)
         self.assertTrue(result.warnings)
         self.assertNotEqual(result.summary, "High potential")
+
+    def test_unsupported_specified_trait_keeps_business_level(self) -> None:
+        llm_result = LLMTalentDiscoveryResult(
+            mode="specified",
+            specified_fit_level="high",
+            summary="Strong fit",
+            specified_traits=[LLMSpecifiedTraitResult(
+                trait="Integrity",
+                fit_level="high",
+                reason="Strong integrity",
+                evidence=[LLMTalentEvidence(
+                    text="Always reported every mistake immediately",
+                    source_type="projects",
+                    source_index=0,
+                )],
+            )],
+        )
+        with patch.dict(os.environ, {"TALENT_USE_MOCK": "false"}), patch.object(
+            talent_service,
+            "LLMClient",
+        ) as client_class:
+            client_class.return_value.generate_structured.return_value = llm_result
+            result = talent_service.discover_talent(
+                self.candidate,
+                AnalysisLanguage.EN_US,
+                mode="specified",
+                desired_traits=["Integrity"],
+            )
+
+        trait = result.specified_traits[0]
+        self.assertEqual(trait.evidence, [])
+        self.assertEqual(trait.fit_level, "high")
+        self.assertEqual(result.specified_fit_level, "high")
+        self.assertTrue(trait.missing_information)
+        self.assertTrue(result.warnings)
 
 
 if __name__ == "__main__":

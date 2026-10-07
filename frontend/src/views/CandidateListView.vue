@@ -189,19 +189,26 @@ function talentLabel(candidate, mode) {
     const status = talentStatus(candidate, mode)
     return t(status === 'loading' ? 'common.talent.analyzing' : status === 'error' ? 'common.talent.failed' : 'common.talent.notAnalyzed')
   }
+  const hasEvidence = mode === 'specified'
+    ? result.specified_traits?.some((item) => item.evidence?.length)
+    : result.abilities?.length > 0
+  if (!hasEvidence) return t('common.evidenceStatus.insufficient')
   return talentLevelLabel(mode === 'specified' ? result.specified_fit_level : result.attention_level)
 }
 function talentItems(candidate, mode) {
   const result = talentResult(candidate, mode)
   if (!result) return []
   return mode === 'specified'
-    ? (result.specified_traits || []).map((item) => ({ name: item.trait, level: item.fit_level }))
-    : (result.abilities || []).map((item) => ({ name: item.ability_name, level: item.level }))
+    ? (result.specified_traits || []).map((item) => ({ name: item.trait, level: item.fit_level, hasEvidence: Boolean(item.evidence?.length) }))
+    : (result.abilities || []).map((item) => ({ name: item.ability_name, level: item.level, hasEvidence: true }))
+}
+function talentItemLabel(item) {
+  return item.hasEvidence ? talentLevelLabel(item.level) : t('common.evidenceStatus.insufficient')
 }
 function talentKeywords(candidate, mode) {
   return talentItems(candidate, mode)
     .slice(0, 2)
-    .map((item) => `${item.name} ${talentLevelLabel(item.level)}`)
+    .map((item) => `${item.name} ${talentItemLabel(item)}`)
     .join(' · ')
 }
 </script>
@@ -239,7 +246,7 @@ function talentKeywords(candidate, mode) {
         <article v-for="candidate in sortedCandidates" :key="candidate.id" class="candidate-row">
           <input type="checkbox" :checked="selectedIds.includes(candidate.id)" :aria-label="t('candidates.selectCandidate', { name: candidateName(candidate) })" @change="toggleCandidate(candidate.id)" />
           <div class="candidate-identity"><span class="candidate-avatar">{{ candidateName(candidate).slice(0, 1) }}</span><strong>{{ candidateName(candidate) }}</strong></div>
-          <strong class="match-score match-score--table">{{ formattedScore(candidate) }}</strong>
+          <div class="candidate-score-cell"><strong class="match-score match-score--table">{{ formattedScore(candidate) }}</strong><span v-if="matchResult(candidate)?.warnings?.length" class="status-badge status-badge--warning">{{ t('common.evidenceStatus.review') }}</span></div>
           <div class="candidate-tooltip-cell" :tabindex="mustHaveItems(candidate).length ? 0 : undefined">
             <span class="status-badge" :class="mustHaveState(candidate).className">{{ mustHaveState(candidate).label }}</span>
             <div v-if="mustHaveItems(candidate).length" class="candidate-tooltip" role="tooltip">
@@ -253,12 +260,12 @@ function talentKeywords(candidate, mode) {
           <div class="candidate-tooltip-cell talent-list-summary" :tabindex="talentItems(candidate, 'auto').length ? 0 : undefined">
             <strong>{{ talentLabel(candidate, 'auto') }}</strong>
             <small v-if="talentKeywords(candidate, 'auto')">{{ talentKeywords(candidate, 'auto') }}</small>
-            <div v-if="talentItems(candidate, 'auto').length" class="candidate-tooltip" role="tooltip"><span v-for="item in talentItems(candidate, 'auto')" :key="item.name">{{ item.name }}：{{ talentLevelLabel(item.level) }}</span></div>
+            <div v-if="talentItems(candidate, 'auto').length" class="candidate-tooltip" role="tooltip"><span v-for="item in talentItems(candidate, 'auto')" :key="item.name">{{ item.name }}：{{ talentItemLabel(item) }}</span></div>
           </div>
           <div class="candidate-tooltip-cell talent-list-summary" :tabindex="talentItems(candidate, 'specified').length ? 0 : undefined">
             <strong>{{ talentLabel(candidate, 'specified') }}</strong>
             <small v-if="talentKeywords(candidate, 'specified')">{{ talentKeywords(candidate, 'specified') }}</small>
-            <div v-if="talentItems(candidate, 'specified').length" class="candidate-tooltip" role="tooltip"><span v-for="item in talentItems(candidate, 'specified')" :key="item.name">{{ item.name }}：{{ talentLevelLabel(item.level) }}</span></div>
+            <div v-if="talentItems(candidate, 'specified').length" class="candidate-tooltip" role="tooltip"><span v-for="item in talentItems(candidate, 'specified')" :key="item.name">{{ item.name }}：{{ talentItemLabel(item) }}</span></div>
           </div>
           <div v-if="candidate.id" class="candidate-row__actions">
             <a class="text-link" :href="getCandidateResumeUrl(candidate.id)" target="_blank" rel="noopener">{{ t('candidates.actions.viewResume') }}</a>

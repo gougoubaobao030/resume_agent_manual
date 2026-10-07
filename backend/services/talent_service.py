@@ -43,11 +43,12 @@ _TALENT_LANGUAGE_TEXT = {
         "ability_name": "事实归纳能力",
         "ability_reason": "候选人资料中存在可供进一步核实的事实线索。",
         "specified_supported": "资料中存在与「{trait}」相关的事实线索，建议面试核实具体贡献。",
-        "specified_missing": "当前资料对「{trait}」的直接支持不足，需要进一步确认。",
+        "specified_missing": "当前资料缺少足够直接证据，暂无法确认「{trait}」。",
         "missing_information": "请核实「{trait}」的具体行为和结果",
         "no_abilities": "当前候选人资料中未发现足够明确的额外能力证据",
         "missing_traits": "以下指定人才特征当前资料证据不足: {traits}",
-        "evidence_warning": "部分人才分析证据未能通过原文或来源定位校验；无有效证据的能力结论已移除，相关指定人才像支持度已降低。",
+        "auto_evidence_warning": "部分 AI 能力证据未能通过简历核验；无有效证据的能力结论已自动移除，标记为待复核的保留结论需要人工确认。",
+        "specified_evidence_warning": "部分指定人才像缺少可验证证据，相关项目已标记为证据不足，需要人工确认。",
         "unsupported_summary": "当前人才分析结论缺少可验证证据，已按证据不足处理，需要人工复核候选人原始资料。",
     },
     AnalysisLanguage.JA_JP: {
@@ -55,11 +56,12 @@ _TALENT_LANGUAGE_TEXT = {
         "ability_name": "事実整理力",
         "ability_reason": "候補者資料には、さらに確認できる事実上の手がかりがあります。",
         "specified_supported": "資料には「{trait}」に関連する事実上の手がかりがあります。面接で具体的な貢献を確認してください。",
-        "specified_missing": "現在の資料では「{trait}」を直接裏付ける情報が不足しているため、追加確認が必要です。",
+        "specified_missing": "現在の資料には十分な直接的根拠がなく、「{trait}」は現時点で確認できません。",
         "missing_information": "「{trait}」に関する具体的な行動と結果を確認してください",
         "no_abilities": "現在の候補者資料では、明確な追加能力の根拠を十分に確認できませんでした",
         "missing_traits": "次の指定人材特性は現在の資料で根拠が不足しています: {traits}",
-        "evidence_warning": "一部の人材分析根拠は原文または出典位置を確認できませんでした。有効な根拠のない能力結論を除外し、関連する指定人材像の支持度を下げました。",
+        "auto_evidence_warning": "一部の AI 能力の根拠を履歴書で確認できませんでした。有効な根拠のない評価は自動的に除外し、要確認のまま残る評価は人による確認が必要です。",
+        "specified_evidence_warning": "一部の指定人材特性には検証可能な根拠がなく、根拠不足として人による確認が必要です。",
         "unsupported_summary": "現在の人材分析結論には検証可能な根拠が不足しているため、根拠不足として扱い、候補者の原資料を人が確認する必要があります。",
     },
     AnalysisLanguage.EN_US: {
@@ -67,11 +69,12 @@ _TALENT_LANGUAGE_TEXT = {
         "ability_name": "Fact synthesis",
         "ability_reason": "The candidate material contains factual signals that can be verified further.",
         "specified_supported": "The material contains factual signals related to “{trait}”; verify the candidate's specific contribution in an interview.",
-        "specified_missing": "The current material does not directly support “{trait}” and needs further confirmation.",
+        "specified_missing": "The current material lacks sufficient direct evidence to determine “{trait}”.",
         "missing_information": "Confirm the specific behavior and outcome related to “{trait}”",
         "no_abilities": "No sufficiently clear evidence of additional capabilities was found in the current candidate material",
         "missing_traits": "The current material has insufficient evidence for these target traits: {traits}",
-        "evidence_warning": "Some talent-analysis evidence failed source-text or locator validation; unsupported capability findings were removed and related target-trait support was reduced.",
+        "auto_evidence_warning": "Some AI capability evidence could not be verified against the resume; findings without valid evidence were removed automatically, and retained findings marked for review need human confirmation.",
+        "specified_evidence_warning": "Some specified talent traits lack verifiable evidence and were marked as insufficient evidence for human confirmation.",
         "unsupported_summary": "The current talent-analysis conclusions lack verifiable evidence and were treated as insufficiently supported; review the original candidate material.",
     },
 }
@@ -192,6 +195,7 @@ def discover_talent(
         )
 
     abilities: list[TalentAbility] = []
+    removed_ability_count = 0
     evidence_validation_issues: list[EvidenceValidationIssue] = []
     for index, ability in enumerate(llm_result.abilities):
         built_ability = _build_talent_ability(
@@ -203,6 +207,8 @@ def discover_talent(
         # 人才能力结论必须有可验证事实；否则不作为正式能力发现返回。
         if built_ability.evidence:
             abilities.append(built_ability)
+        else:
+            removed_ability_count += 1
 
     specified_traits: list[SpecifiedTraitResult] = []
     for index, trait_result in enumerate(llm_result.specified_traits):
@@ -220,18 +226,9 @@ def discover_talent(
         abilities=abilities,
         specified_traits=specified_traits,
         evidence_issue_count=len(evidence_validation_issues),
+        removed_ability_count=removed_ability_count,
         analysis_language=analysis_language,
     )
-
-    attention_level = llm_result.attention_level
-    if mode == "auto" and not abilities:
-        attention_level = "low"
-
-    specified_fit_level = llm_result.specified_fit_level
-    if mode == "specified" and specified_traits and not any(
-        item.evidence for item in specified_traits
-    ):
-        specified_fit_level = "low"
 
     summary = llm_result.summary
     if (
@@ -252,8 +249,8 @@ def discover_talent(
         candidate_id=candidate.id,
         analysis_language=analysis_language,
         mode=mode,
-        attention_level=attention_level,
-        specified_fit_level=specified_fit_level,
+        attention_level=llm_result.attention_level,
+        specified_fit_level=llm_result.specified_fit_level,
         summary=summary,
         abilities=abilities,
         specified_traits=specified_traits,
@@ -381,7 +378,6 @@ def _build_specified_trait_result(
         candidate,
         location,
     )
-    fit_level = llm_result.fit_level if evidence else "low"
     missing_information = list(llm_result.missing_information)
     if not evidence:
         message = _TALENT_LANGUAGE_TEXT[analysis_language]["missing_information"].format(
@@ -392,7 +388,7 @@ def _build_specified_trait_result(
 
     return SpecifiedTraitResult(
         trait=llm_result.trait,
-        fit_level=fit_level,
+        fit_level=llm_result.fit_level,
         reason=(
             llm_result.reason
             if evidence
@@ -411,6 +407,7 @@ def _build_warnings(
     abilities: list[TalentAbility],
     specified_traits: list[SpecifiedTraitResult],
     evidence_issue_count: int,
+    removed_ability_count: int,
     analysis_language: AnalysisLanguage,
 ) -> list[str]:
     """根据分析结果生成系统提示。"""
@@ -418,7 +415,12 @@ def _build_warnings(
     warnings: list[str] = []
     messages = _TALENT_LANGUAGE_TEXT[analysis_language]
 
-    if not abilities:
+    if (
+        mode == "auto"
+        and not abilities
+        and not evidence_issue_count
+        and not removed_ability_count
+    ):
         warnings.append(
             messages["no_abilities"]
         )
@@ -439,7 +441,9 @@ def _build_warnings(
                 )
             )
 
-    if evidence_issue_count:
-        warnings.append(messages["evidence_warning"])
+    if mode == "auto" and (evidence_issue_count or removed_ability_count):
+        warnings.append(messages["auto_evidence_warning"])
+    elif mode == "specified" and evidence_issue_count:
+        warnings.append(messages["specified_evidence_warning"])
 
     return warnings
