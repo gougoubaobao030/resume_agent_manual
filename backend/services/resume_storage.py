@@ -22,6 +22,16 @@ def candidate_resume_key(candidate_id: str) -> str:
     return key
 
 
+def pending_resume_key(task_id: str, item_id: str) -> str:
+    if not task_id or not item_id:
+        raise ValueError("Resume Task缺少标识，无法保存待解析简历")
+    key = PurePosixPath(
+        "resumes", "pending", task_id, item_id, "original.pdf"
+    ).as_posix()
+    resolve_resume_path(key)
+    return key
+
+
 def resolve_resume_path(resume_path: str) -> Path:
     key = PurePosixPath(resume_path)
     if key.is_absolute() or ".." in key.parts or key.parts[:1] != ("resumes",):
@@ -32,6 +42,49 @@ def resolve_resume_path(resume_path: str) -> Path:
     if data_root not in resolved.parents:
         raise ValueError("原始简历存储路径超出data目录")
     return resolved
+
+
+def store_pending_resume(source_path: str, task_id: str, item_id: str) -> str:
+    """将上传 PDF 原子写入当前 task item 的稳定 pending 路径。"""
+
+    resume_path = pending_resume_key(task_id, item_id)
+    target_path = resolve_resume_path(resume_path)
+
+    with _resume_write_lock:
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        staged_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                dir=target_path.parent,
+                suffix=".tmp",
+            ) as staged_file:
+                staged_path = Path(staged_file.name)
+                with open(source_path, "rb") as source_file:
+                    shutil.copyfileobj(source_file, staged_file)
+            os.replace(staged_path, target_path)
+            staged_path = None
+        finally:
+            if staged_path is not None:
+                staged_path.unlink(missing_ok=True)
+
+    return resume_path
+
+
+def delete_pending_resume(resume_path: str) -> None:
+    """删除一个 pending PDF，并尽量移除该 item 的空目录。"""
+
+    key = PurePosixPath(resume_path)
+    if key.parts[:2] != ("resumes", "pending"):
+        raise ValueError("待解析简历存储路径无效")
+
+    target_path = resolve_resume_path(resume_path)
+    with _resume_write_lock:
+        target_path.unlink(missing_ok=True)
+        try:
+            target_path.parent.rmdir()
+        except OSError:
+            pass
 
 
 @contextmanager

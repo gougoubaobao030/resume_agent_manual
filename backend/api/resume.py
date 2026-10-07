@@ -26,7 +26,14 @@ router = APIRouter(
     prefix="/api/resume",
     tags=["Resume"],
 )
-from services.resume_task_service import create_resume_task, get_resume_task
+from services.resume_task_service import (
+    ResumeTaskConflictError,
+    ResumeTaskForbiddenError,
+    ResumeTaskNotFoundError,
+    create_resume_task,
+    get_resume_task,
+    retry_resume_task_item,
+)
 from services.jd_repository import get_jd
 
 # Swagger UI currently does not render a file picker for arrays whose items use
@@ -218,7 +225,7 @@ async def create_resume_task_api(
     finally:
         for file in files:
             await file.close()
-        # 成功启动后，临时文件所有权交给 runner；这里不能立即删除。
+        # create_resume_task 成功时已将上传内容转存到稳定 pending 路径并清理临时文件。
         if not task_created:
             for _, temp_path in temp_files:
                 if os.path.exists(temp_path):
@@ -232,3 +239,23 @@ async def get_resume_task_api(task_id: str) -> ResumeTaskResponse:
     if task is None:
         raise HTTPException(status_code=404, detail="简历任务不存在")
     return task
+
+
+@router.post(
+    "/tasks/{task_id}/items/{item_id}/retry",
+    response_model=ResumeTaskResponse,
+    status_code=202,
+)
+async def retry_resume_task_item_api(
+    task_id: str,
+    item_id: str,
+    current_user: UserModel = Depends(get_current_user),
+) -> ResumeTaskResponse:
+    try:
+        return retry_resume_task_item(task_id, item_id, current_user.id)
+    except ResumeTaskNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ResumeTaskForbiddenError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ResumeTaskConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

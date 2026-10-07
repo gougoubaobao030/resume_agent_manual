@@ -88,7 +88,12 @@ export function startResumeTaskRunner(task, options) {
     talentModes: [...options.talentModes],
     desiredTraits: [...options.desiredTraits],
     analysisLanguage: options.analysisLanguage,
-    startedCandidates: new Set(),
+    // retry 快照中已有的 success 属于旧结果，只处理之后新转为 success 的 item。
+    startedCandidates: new Set(
+      (task.items ?? [])
+        .filter((item) => item.status === 'success' && item.candidate?.id)
+        .map((item) => item.candidate.id),
+    ),
     startedTalent: new Set(),
     promise: null,
   }

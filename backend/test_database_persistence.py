@@ -11,6 +11,7 @@ from schemas.talent import TalentDiscoveryResult
 from services import resume_service, resume_task_service
 from services import resume_storage
 from services.candidate_repository import (
+    candidate_belongs_to_job,
     delete_candidate,
     get_candidate,
     get_candidate_resume_info,
@@ -57,6 +58,59 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue((Path(storage_dir) / resume_path).is_file())
         finally:
             delete_candidate("candidate_order_test")
+            delete_jd(job.id)
+            Path(handle.name).unlink(missing_ok=True)
+
+    async def test_retry_success_saves_candidate_to_original_job_and_formal_resume_path(self):
+        job = save_jd(JDInfo(
+            job_title="重试持久化测试",
+            raw_text="用于验证失败简历重试后的岗位关联",
+            requirements=[JDRequirement(name="Python")],
+        ))
+        handle = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        handle.write(b"retry pdf")
+        handle.close()
+        attempts = 0
+
+        async def fake_parse(**_kwargs):
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise RuntimeError("模型暂时不可用")
+            return Candidate(id="candidate_retry_persistence", raw_text="Python")
+
+        try:
+            with tempfile.TemporaryDirectory() as storage_dir, patch.object(
+                resume_storage, "DATA_ROOT", Path(storage_dir)
+            ), patch.object(resume_service, "parse_resume_pdf", side_effect=fake_parse):
+                created = resume_task_service.create_resume_task(
+                    [("retry.pdf", handle.name)], job_id=job.id, user_id=None
+                )
+                await resume_task_service._background_tasks[created.task_id]
+                failed = resume_task_service.get_resume_task(created.task_id)
+                item_id = failed.items[0].item_id
+                resume_task_service.retry_resume_task_item(
+                    created.task_id, item_id, None
+                )
+                await resume_task_service._background_tasks[
+                    f"{created.task_id}:{item_id}"
+                ]
+                final = resume_task_service.get_resume_task(created.task_id)
+
+                self.assertEqual(final.items[0].status, "success")
+                self.assertTrue(candidate_belongs_to_job(
+                    job.id, "candidate_retry_persistence"
+                ))
+                resume_path, _ = get_candidate_resume_info(
+                    "candidate_retry_persistence"
+                )
+                self.assertEqual(
+                    resume_path,
+                    "resumes/candidate_retry_persistence/original.pdf",
+                )
+                self.assertTrue((Path(storage_dir) / resume_path).is_file())
+        finally:
+            delete_candidate("candidate_retry_persistence")
             delete_jd(job.id)
             Path(handle.name).unlink(missing_ok=True)
 

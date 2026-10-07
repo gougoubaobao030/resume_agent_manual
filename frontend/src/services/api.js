@@ -158,6 +158,13 @@ export function getResumeTask(taskId) {
   return request(`/api/resume/tasks/${encodeURIComponent(taskId)}`)
 }
 
+export function retryResumeTaskItem(taskId, itemId) {
+  return request(
+    `/api/resume/tasks/${encodeURIComponent(taskId)}/items/${encodeURIComponent(itemId)}/retry`,
+    { method: 'POST' },
+  )
+}
+
 export function scoreJobMatch(jobId, candidateId, analysisLanguage) {
   return request('/api/scoring/job-match', {
     method: 'POST',

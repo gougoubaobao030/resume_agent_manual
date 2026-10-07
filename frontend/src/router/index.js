@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import AnalysisResultView from '../views/AnalysisResultView.vue'
 import CandidateDetailView from '../views/CandidateDetailView.vue'
 import CandidateListView from '../views/CandidateListView.vue'
 import CandidatePoolView from '../views/CandidatePoolView.vue'
@@ -30,7 +29,6 @@ const router = createRouter({
       name: 'candidate-detail',
       component: CandidateDetailView,
     },
-    { path: '/analysis', name: 'analysis', component: AnalysisResultView },
   ],
   scrollBehavior: () => ({ top: 0 }),
 })

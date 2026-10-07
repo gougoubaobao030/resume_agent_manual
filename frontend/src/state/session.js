@@ -17,6 +17,7 @@ export const session = reactive({
   resumeTaskStatus: null,
   resumeTaskItems: [],
   resumeTaskError: '',
+  resumeTaskOptions: null,
 })
 
 export function setCurrentJob(job) {
@@ -47,6 +48,11 @@ export function clearResumeTask() {
   session.resumeTaskStatus = null
   session.resumeTaskItems = []
   session.resumeTaskError = ''
+  session.resumeTaskOptions = null
+}
+
+export function setResumeTaskOptions(options) {
+  session.resumeTaskOptions = structuredClone(options)
 }
 
 export function setResumeTask(task) {

@@ -34,7 +34,6 @@ const navigation = [
 ]
 
 const pageTitleKeys = {
-  analysis: 'layout.navigation.analysis',
   'candidate-detail': 'layout.navigation.candidateDetail',
   'candidate-pool-detail': 'layout.navigation.candidateDetail',
 }

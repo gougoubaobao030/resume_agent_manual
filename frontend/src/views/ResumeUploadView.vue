@@ -6,10 +6,12 @@ import {
   getFriendlyApiError,
   getFriendlyResumeItemError,
   createResumeTask,
+  retryResumeTaskItem,
 } from '../services/api'
 import {
   session,
   clearResumeTask,
+  setResumeTaskOptions,
 } from '../state/session'
 import TalentSettings from '../components/TalentSettings.vue'
 import {
@@ -24,6 +26,8 @@ const selectedFiles = ref([])
 const uploadStatus = ref('idle')
 const uploadMessage = ref('')
 const selectedTalentModes = ref([])
+const retryingItemIds = ref([])
+const retryErrors = ref({})
 
 const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
 const isParsing = computed(() => uploadStatus.value === 'loading'
@@ -132,6 +136,30 @@ function removeFile(index) {
   clearResumeTask()
 }
 
+async function handleRetry(item) {
+  if (retryingItemIds.value.includes(item.item_id)) return
+
+  retryingItemIds.value = [...retryingItemIds.value, item.item_id]
+  retryErrors.value = { ...retryErrors.value, [item.item_id]: '' }
+  try {
+    const task = await retryResumeTaskItem(session.resumeTaskId, item.item_id)
+    const options = session.resumeTaskOptions ?? {
+      jobId: session.currentJob?.id,
+      talentModes: [...selectedTalentModes.value],
+      desiredTraits: [...session.desiredTraits],
+      analysisLanguage: locale.value,
+    }
+    void startResumeTaskRunner(task, options)
+  } catch (error) {
+    retryErrors.value = {
+      ...retryErrors.value,
+      [item.item_id]: getFriendlyApiError(error, t('resumeUpload.operations.retry')),
+    }
+  } finally {
+    retryingItemIds.value = retryingItemIds.value.filter((id) => id !== item.item_id)
+  }
+}
+
 async function handleParse() {
   if (!hasCurrentJob.value) {
     uploadStatus.value = 'error'
@@ -154,6 +182,7 @@ async function handleParse() {
     desiredTraits: [...session.desiredTraits],
     analysisLanguage: locale.value,
   }
+  setResumeTaskOptions(options)
 
   try {
     const task = await createResumeTask(selectedFiles.value, options.jobId)
@@ -245,14 +274,26 @@ async function handleParse() {
 
         <div class="task-files">
           <div v-for="item in taskItems" :key="item.item_id" class="task-file-row">
-            <div>
+            <div class="task-file-row__content">
               <strong>{{ item.filename }}</strong>
               <small v-if="item.status === 'failed'">{{ getFriendlyResumeItemError(item.error) }}</small>
+              <small v-if="retryErrors[item.item_id]" class="task-file-row__retry-error">{{ retryErrors[item.item_id] }}</small>
               <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'loading'">{{ t('resumeUpload.scoring.running') }}</small>
               <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'error'">{{ t('resumeUpload.scoring.failed') }}</small>
               <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'success'">{{ t('resumeUpload.scoring.completed') }}</small>
             </div>
-            <span class="status-badge" :class="itemStatus(item).className">{{ itemStatus(item).label }}</span>
+            <div class="task-file-row__actions">
+              <button
+                v-if="item.status === 'failed' && terminalResumeTaskStatuses.has(session.resumeTaskStatus)"
+                class="button button--secondary button--small"
+                type="button"
+                :disabled="retryingItemIds.includes(item.item_id)"
+                @click="handleRetry(item)"
+              >
+                {{ t(retryingItemIds.includes(item.item_id) ? 'resumeUpload.actions.retrying' : 'resumeUpload.actions.retry') }}
+              </button>
+              <span class="status-badge" :class="itemStatus(item).className">{{ itemStatus(item).label }}</span>
+            </div>
           </div>
         </div>
 

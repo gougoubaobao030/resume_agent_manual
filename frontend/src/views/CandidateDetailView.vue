@@ -26,6 +26,7 @@ const poolLoading = ref(false)
 const poolLoadFailed = ref(false)
 const rescoreMessage = ref('')
 const rescoreStatus = ref('idle')
+const showSpecifiedEditor = ref(false)
 const candidate = computed(() =>
   poolCandidate.value || session.candidates.find((item) => item.id === route.params.id),
 )
@@ -143,6 +144,11 @@ function handleAnalyzeTalent(mode) {
   )
 }
 
+function handleSpecifiedAnalysis() {
+  handleAnalyzeTalent('specified')
+  showSpecifiedEditor.value = false
+}
+
 async function handleRescore() {
   const candidateId = candidate.value?.id
   const jobId = session.currentJob?.id
@@ -191,6 +197,7 @@ function formatScore(score) {
 watch(
   () => route.params.id,
   async (candidateId) => {
+    showSpecifiedEditor.value = false
     if (!props.poolMode) return
     poolCandidate.value = null
     poolLoadFailed.value = false
@@ -286,9 +293,6 @@ watch(
             <h3>{{ t('candidateDetail.match.title') }}</h3>
             <p v-if="matchResult">{{ matchResult.summary || t('common.match.noSummary') }}</p>
           </div>
-          <RouterLink v-if="matchResult" class="button button--secondary button--small" :to="`/analysis?candidate_id=${candidate.id}`">
-            {{ t('candidateDetail.match.viewDetails') }}
-          </RouterLink>
         </div>
 
         <div v-if="matchResult" class="candidate-decision-columns">
@@ -313,6 +317,37 @@ watch(
             {{ t(matchStatus === 'loading' ? 'common.match.scoringShort' : matchStatus === 'error' ? 'common.match.scoringFailed' : 'common.match.noScore') }}
           </span>
           <p>{{ session.jobMatchErrors[candidate.id] || t('candidateDetail.match.noResult') }}</p>
+        </div>
+      </article>
+
+      <article v-if="matchResult" class="panel compact-panel candidate-requirements-card">
+        <div class="panel__header compact-panel__header"><div><h3>{{ t('candidateDetail.match.requirements') }}</h3></div></div>
+        <div class="compact-requirement-list">
+          <details v-for="requirement in matchResult.requirement_results" :key="requirement.requirement_id" class="compact-disclosure">
+            <summary>
+              <span class="compact-disclosure__title">
+                <strong>{{ requirement.requirement_name }}</strong>
+                <span v-if="requirement.must_have" class="must-have-label">{{ t('analysis.mustHave') }}</span>
+              </span>
+              <span class="compact-disclosure__summary">{{ requirement.reason }}</span>
+              <strong class="compact-disclosure__score">{{ formatScore(requirement.score) }}</strong>
+              <span class="status-badge" :class="statusClass(requirement.status)">{{ requirementStatus(requirement.status) }}</span>
+              <span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span>
+            </summary>
+            <div class="compact-disclosure__content">
+              <p><strong>{{ t('analysis.reason') }}：</strong>{{ requirement.reason }}</p>
+              <p class="requirement-confidence">{{ t('analysis.confidence', { value: confidenceLabel(requirement.confidence) }) }}</p>
+              <div v-if="requirement.evidence?.length">
+                <h5>{{ t('analysis.resumeEvidence') }}</h5>
+                <ul class="plain-list"><li v-for="(evidence, index) in requirement.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul>
+              </div>
+              <div v-if="requirement.missing_information?.length">
+                <h5>{{ t('analysis.missingInformation') }}</h5>
+                <ul class="plain-list"><li v-for="item in requirement.missing_information" :key="item">{{ item }}</li></ul>
+              </div>
+              <div v-if="requirement.needs_raw_review" class="requirement-raw-review"><strong>{{ t('analysis.rawReview.title') }}</strong><p v-if="requirement.raw_review_reason">{{ requirement.raw_review_reason }}</p></div>
+            </div>
+          </details>
         </div>
       </article>
 
@@ -360,45 +395,17 @@ watch(
           </div>
           <p v-else-if="talentStatus('specified') === 'error'" class="talent-error">{{ session.talentErrors[candidate.id]?.specified }}</p>
           <p v-else class="empty-copy">{{ talentStatusLabel('specified') }}</p>
-          <div class="talent-summary-card__footer"><button class="button button--secondary button--small" type="button" :disabled="!canAnalyzeTalent('specified')" @click="handleAnalyzeTalent('specified')">{{ t(talentStatus('specified') === 'loading' ? 'common.talent.analyzingProgress' : specifiedTalentResult ? 'common.talent.reanalyze' : 'common.talent.analyze') }}</button></div>
+          <div v-if="showSpecifiedEditor" class="specified-trait-editor">
+            <TalentSettings specified-only :disabled="talentStatus('specified') === 'loading'" />
+            <div class="specified-trait-editor__actions">
+              <button class="button button--secondary button--small" type="button" @click="showSpecifiedEditor = false">{{ t('candidateDetail.actions.cancel') }}</button>
+              <button class="button button--primary button--small" type="button" :disabled="!canAnalyzeTalent('specified')" @click="handleSpecifiedAnalysis">{{ t('candidateDetail.actions.runSpecifiedAnalysis') }}</button>
+            </div>
+          </div>
+          <div v-else class="talent-summary-card__footer"><button class="button button--secondary button--small" type="button" :disabled="talentStatus('specified') === 'loading'" @click="showSpecifiedEditor = true">{{ t(talentStatus('specified') === 'loading' ? 'common.talent.analyzingProgress' : specifiedTalentResult ? 'common.talent.reanalyze' : 'common.talent.analyze') }}</button></div>
         </article>
       </div>
 
-      <article v-if="matchResult" class="panel compact-panel candidate-requirements-card">
-        <div class="panel__header compact-panel__header"><div><h3>{{ t('candidateDetail.match.requirements') }}</h3></div></div>
-        <div class="compact-requirement-list">
-          <details v-for="requirement in matchResult.requirement_results" :key="requirement.requirement_id" class="compact-disclosure">
-            <summary>
-              <span class="compact-disclosure__title">
-                <strong>{{ requirement.requirement_name }}</strong>
-                <span v-if="requirement.must_have" class="must-have-label">{{ t('analysis.mustHave') }}</span>
-              </span>
-              <span class="compact-disclosure__summary">{{ requirement.reason }}</span>
-              <strong class="compact-disclosure__score">{{ formatScore(requirement.score) }}</strong>
-              <span class="status-badge" :class="statusClass(requirement.status)">{{ requirementStatus(requirement.status) }}</span>
-              <span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span>
-            </summary>
-            <div class="compact-disclosure__content">
-              <p><strong>{{ t('analysis.reason') }}：</strong>{{ requirement.reason }}</p>
-              <p class="requirement-confidence">{{ t('analysis.confidence', { value: confidenceLabel(requirement.confidence) }) }}</p>
-              <div v-if="requirement.evidence?.length">
-                <h5>{{ t('analysis.resumeEvidence') }}</h5>
-                <ul class="plain-list"><li v-for="(evidence, index) in requirement.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul>
-              </div>
-              <div v-if="requirement.missing_information?.length">
-                <h5>{{ t('analysis.missingInformation') }}</h5>
-                <ul class="plain-list"><li v-for="item in requirement.missing_information" :key="item">{{ item }}</li></ul>
-              </div>
-              <div v-if="requirement.needs_raw_review" class="requirement-raw-review"><strong>{{ t('analysis.rawReview.title') }}</strong><p v-if="requirement.raw_review_reason">{{ requirement.raw_review_reason }}</p></div>
-            </div>
-          </details>
-        </div>
-      </article>
-
-      <article class="panel compact-panel talent-settings-panel">
-        <div class="panel__header compact-panel__header"><div><h3>{{ t('candidateDetail.talent.settingsTitle') }}</h3><p>{{ t('candidateDetail.talent.settingsDescription') }}</p></div></div>
-        <TalentSettings />
-      </article>
     </template>
 
     <div v-if="candidate" class="detail-grid candidate-resume-grid">

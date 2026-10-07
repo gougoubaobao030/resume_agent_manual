@@ -9,6 +9,7 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   modelValue: { type: Array, default: () => [] },
   multiple: { type: Boolean, default: false },
+  specifiedOnly: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 const traitInput = ref('')
@@ -16,9 +17,9 @@ const selectedModes = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value),
 })
-const showSpecifiedTraits = computed(() => props.multiple
+const showSpecifiedTraits = computed(() => props.specifiedOnly || (props.multiple
   ? props.modelValue.includes('specified')
-  : session.talentMode === 'specified')
+  : session.talentMode === 'specified'))
 
 function addTrait() {
   const value = traitInput.value.trim()
@@ -29,11 +30,11 @@ function addTrait() {
 
 <template>
   <div class="talent-settings">
-    <div v-if="multiple" class="talent-mode-options" role="group" :aria-label="t('talentSettings.modeLabel')">
+    <div v-if="multiple && !specifiedOnly" class="talent-mode-options" role="group" :aria-label="t('talentSettings.modeLabel')">
       <label><input v-model="selectedModes" type="checkbox" value="auto" :disabled="disabled" /> {{ t('talentSettings.autoMode') }}</label>
       <label><input v-model="selectedModes" type="checkbox" value="specified" :disabled="disabled" /> {{ t('talentSettings.specifiedMode') }}</label>
     </div>
-    <div v-else class="talent-mode-options" role="group" :aria-label="t('talentSettings.modeLabel')">
+    <div v-else-if="!specifiedOnly" class="talent-mode-options" role="group" :aria-label="t('talentSettings.modeLabel')">
       <label><input v-model="session.talentMode" type="radio" value="auto" :disabled="disabled" /> {{ t('talentSettings.autoMode') }}</label>
       <label><input v-model="session.talentMode" type="radio" value="specified" :disabled="disabled" /> {{ t('talentSettings.specifiedMode') }}</label>
     </div>
