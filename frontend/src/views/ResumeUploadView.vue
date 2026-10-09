@@ -14,6 +14,7 @@ import {
   setResumeTaskOptions,
 } from '../state/session'
 import TalentSettings from '../components/TalentSettings.vue'
+import PdfMergeTool from '../components/PdfMergeTool.vue'
 import {
   startResumeTaskRunner,
   terminalResumeTaskStatuses,
@@ -207,6 +208,8 @@ async function handleParse() {
         {{ hasCurrentJob ? session.currentJob.job_title : t('resumeUpload.jobRequired') }}
       </span>
     </div>
+
+    <PdfMergeTool />
 
     <article class="panel upload-panel">
       <div class="talent-upload-options">

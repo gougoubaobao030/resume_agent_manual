@@ -60,4 +60,7 @@ Candidate / raw_text 精确核验
         ↓
 必要时 needs_raw_review = True
         ↓
-最终 JobMatchResult
+最终 JobMatchResult、
+
+-- 完成jd，简历，评分，能力分持久化
+-- 实现全部增删改查

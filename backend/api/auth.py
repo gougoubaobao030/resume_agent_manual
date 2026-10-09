@@ -23,7 +23,7 @@ COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").strip().lower() in {
     "1", "true", "yes", "on"
 }
 
-
+# 由cookie依赖也帮忙注入了
 def get_current_user(
     session_token: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
     db: Session = Depends(get_db),
@@ -37,9 +37,15 @@ def get_current_user(
 
 
 @router.post("/login", response_model=UserPublic)
+# 这样db的生命周期就全部由fastAPI管理
+# 一整套操作也可以用同一个db
+# 且能实现依赖注入
+# db = SessionLocal()
+# 不用自己写，也不会忘记关
 def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = authenticate_user(db, request.username, request.password)
     if user is None:
+        # raise就结束了
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     # 用户登录成功同时给一个session
     raw_token = create_user_session(db, user.id)

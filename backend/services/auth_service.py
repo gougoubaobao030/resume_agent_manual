@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from models import UserModel, UserSessionModel
 from schemas.auth import UserPublic
 
+# 核心是数据库不是明文密码
 # 想要浏览器记住，下次依旧打开就是登录状态，那就需要用到cookie
 SESSION_COOKIE_NAME = "resume_agent_session"
 # 登录默认有效期 7天
@@ -27,6 +28,7 @@ def hash_password(password: str) -> str:
     return password_hasher.hash(password)
 
 # 密码也是把密码 和 数据库的哈希一起拿来验证
+# 不存在解密，就是把拿到的对比hash，看看是不是一样
 def verify_password(password: str, password_hash: str) -> bool:
     return password_hasher.verify(password, password_hash)
 
