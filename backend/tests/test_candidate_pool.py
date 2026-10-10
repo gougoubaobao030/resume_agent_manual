@@ -21,8 +21,8 @@ from models import (
 from schemas.jd import JDInfo, JDRequirement
 from schemas.resume import BasicInfo, Candidate, ExtractionMetadata, WorkExperience
 from services import resume_storage
-from services.candidate_repository import delete_candidate, save_candidate_for_job
-from services.jd_repository import delete_jd, save_jd
+from repositories.candidate_repository import delete_candidate, save_candidate_for_job
+from repositories.jd_repository import delete_jd, save_jd
 
 
 class CandidatePoolTest(unittest.TestCase):

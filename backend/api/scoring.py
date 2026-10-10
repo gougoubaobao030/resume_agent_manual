@@ -4,9 +4,9 @@ from api.auth import get_current_user
 from clients.llm_client import LLMConfigError, LLMRequestError, LLMResponseError
 from models import UserModel
 from schemas.scoring import JobMatchRequest, JobMatchResult
-from services.candidate_repository import candidate_belongs_to_job, get_candidate
-from services.jd_repository import get_jd, get_jd_revision
-from services.result_repository import (
+from repositories.candidate_repository import candidate_belongs_to_job, get_candidate
+from repositories.jd_repository import get_jd, get_jd_revision
+from repositories.result_repository import (
     get_scoring_result,
     list_scoring_results,
     save_scoring_result,

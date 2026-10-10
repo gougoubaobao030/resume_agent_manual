@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from uuid import uuid4
 
 from schemas.resume import ResumeTaskItem, ResumeTaskResponse
-from services.candidate_repository import save_candidate_for_job
+from repositories.candidate_repository import save_candidate_for_job
 from services.resume_service import parse_resume_batch
 from services.resume_storage import (
     delete_pending_resume,

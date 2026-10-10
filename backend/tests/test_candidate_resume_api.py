@@ -11,8 +11,8 @@ from app.main import app
 from schemas.jd import JDInfo, JDRequirement
 from schemas.resume import Candidate, ExtractionMetadata
 from services import resume_storage
-from services.candidate_repository import delete_candidate, save_candidate_for_job
-from services.jd_repository import delete_jd, save_jd
+from repositories.candidate_repository import delete_candidate, save_candidate_for_job
+from repositories.jd_repository import delete_jd, save_jd
 
 
 class CandidateResumeApiTest(unittest.TestCase):

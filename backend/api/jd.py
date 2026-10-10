@@ -19,7 +19,7 @@ from schemas.jd import (
 )
 from services.jd_service import parse_jd, build_jd_info
 
-from services.jd_repository import (
+from repositories.jd_repository import (
     save_jd,
     get_jd,
     update_jd,

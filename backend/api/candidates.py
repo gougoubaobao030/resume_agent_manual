@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import FileResponse
 
 from schemas.resume import Candidate, CandidatePoolItem
-from services.candidate_repository import (
+from repositories.candidate_repository import (
     delete_candidate,
     get_candidate,
     get_candidate_resume_info,

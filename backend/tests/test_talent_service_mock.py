@@ -12,8 +12,8 @@ from schemas.resume import BasicInfo, Candidate, Project
 from schemas.talent import LLMTalentDiscoveryResult
 from services import talent_service
 from schemas.jd import JDInfo, JDRequirement
-from services.jd_repository import save_jd, delete_jd
-from services.candidate_repository import save_candidate_for_job, delete_candidate
+from repositories.jd_repository import save_jd, delete_jd
+from repositories.candidate_repository import save_candidate_for_job, delete_candidate
 
 
 class TalentMockTest(unittest.TestCase):

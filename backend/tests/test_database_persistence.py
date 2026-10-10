@@ -10,14 +10,14 @@ from schemas.scoring import JobMatchResult
 from schemas.talent import TalentDiscoveryResult
 from services import resume_service, resume_task_service
 from services import resume_storage
-from services.candidate_repository import (
+from repositories.candidate_repository import (
     candidate_belongs_to_job,
     delete_candidate,
     get_candidate,
     get_candidate_resume_info,
 )
-from services.jd_repository import delete_jd, save_jd, update_jd
-from services.result_repository import (
+from repositories.jd_repository import delete_jd, save_jd, update_jd
+from repositories.result_repository import (
     get_scoring_result,
     get_talent_result,
     save_scoring_result,
@@ -121,7 +121,7 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
             requirements=[JDRequirement(name="Python")],
         ))
         candidate = Candidate(id="candidate_result_test", raw_text="Python")
-        from services.candidate_repository import save_candidate_for_job
+        from repositories.candidate_repository import save_candidate_for_job
         save_candidate_for_job(candidate, job.id, None)
         try:
             scoring = JobMatchResult(

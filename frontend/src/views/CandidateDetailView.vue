@@ -200,11 +200,11 @@ function scoringEvidenceState(item) {
 }
 
 function talentEvidenceState(item) {
-  if (!item?.evidence?.length) {
-    return { label: t('common.evidenceStatus.insufficient'), className: 'status-badge--neutral' }
-  }
   if (item.evidence_validation_issues?.length) {
     return { label: t('common.evidenceStatus.review'), className: 'status-badge--warning' }
+  }
+  if (!item?.evidence?.length) {
+    return { label: t('common.evidenceStatus.insufficient'), className: 'status-badge--neutral' }
   }
   return { label: t('common.evidenceStatus.verified'), className: 'status-badge--success' }
 }

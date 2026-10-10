@@ -11,8 +11,8 @@ from models import ScoringResultModel, UserModel
 from schemas.jd import JDInfo, JDRequirement
 from schemas.resume import Candidate
 from services.auth_service import create_user
-from services.candidate_repository import delete_candidate, save_candidate_for_job
-from services.jd_repository import delete_jd, save_jd
+from repositories.candidate_repository import delete_candidate, save_candidate_for_job
+from repositories.jd_repository import delete_jd, save_jd
 
 
 class PersistentResultApiTest(unittest.TestCase):

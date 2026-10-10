@@ -548,7 +548,7 @@ Pydantic校验
 
 新增：
 
-- services/jd_repository.py
+- repositories/jd_repository.py
 
 实现临时JD存储层：
 

@@ -74,8 +74,8 @@ GET /api/resume/tasks/{task_id}
 | backend/schemas/resume.py | 新增 ResumeTaskItem、ResumeTaskResponse | 明确 API 字段和允许的状态；继续复用 Candidate |
 | backend/services/resume_service.py | worker 可选接收状态项，在 Semaphore 内更新状态；批量函数可选接收 task_items | 让旧接口和新任务模式复用同一套 gather/Semaphore/worker |
 | backend/api/resume.py | 新增 POST /tasks 和 GET /tasks/{task_id} | 将 HTTP 上传/校验与后台处理连接起来；保留旧接口 |
-| backend/test_resume_task_service.py（新增） | 8 项 unittest 异步测试 | 验证状态、隔离、并发、API 和文件清理 |
-| backend/test_resume_service_mock.py | 将过时的串行断言改成并发断言 | 测试必须符合当前已经完成的第三步 |
+| backend/tests/test_resume_task_service.py（新增） | 8 项 unittest 异步测试 | 验证状态、隔离、并发、API 和文件清理 |
+| backend/tests/test_resume_service_mock.py | 将过时的串行断言改成并发断言 | 测试必须符合当前已经完成的第三步 |
 | docs/async_step5_task_status_learning.md（新增） | 本教学文档 | 以后能够沿真实调用链重新理解代码 |
 
 新增任务服务为什么不直接写在 API 里：API 已负责上传和 HTTP 错误，继续塞入 store、runner 和状态汇总会让资源所有权不清楚，也难以脱离 HTTP 测试。

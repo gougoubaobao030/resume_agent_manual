@@ -34,7 +34,7 @@ from services.resume_task_service import (
     get_resume_task,
     retry_resume_task_item,
 )
-from services.jd_repository import get_jd
+from repositories.jd_repository import get_jd
 
 # Swagger UI currently does not render a file picker for arrays whose items use
 # OpenAPI 3.1's ``contentMediaType``. Keep the runtime type as UploadFile while

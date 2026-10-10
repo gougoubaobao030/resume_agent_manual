@@ -114,7 +114,7 @@ Backend FastAPI
 
 - `backend/schemas/jd.py`
 - 各后端目录的 `__init__.py`
-- `backend/test_jd_schema.py`
+- `backend/tests/test_jd_schema.py`
 
 JD数据结构包括：
 
@@ -197,8 +197,8 @@ JD数据结构包括：
 
 - `backend/prompts/jd_prompt.py`
 - `backend/services/jd_service.py`
-- `backend/test_jd_prompt.py`
-- `backend/test_jd_service.py`
+- `backend/tests/test_jd_prompt.py`
+- `backend/tests/test_jd_service.py`
 
 已增加模型专用数据结构：
 
@@ -263,9 +263,9 @@ JD数据结构包括：
 已创建：
 
 - `backend/clients/llm_client.py`
-- `backend/test_llm_config.py`
-- `backend/test_jd_service_mock.py`
-- `backend/test_jd_service_real.py`
+- `backend/tests/test_llm_config.py`
+- `backend/tests/test_jd_service_mock.py`
+- `backend/tests/test_jd_service_real.py`
 - 项目根目录 `.env.example`
 
 模型配置：
@@ -510,7 +510,7 @@ Pydantic校验
 
 新增：
 
-- services/jd_repository.py
+- repositories/jd_repository.py
 
 实现临时JD存储层：
 

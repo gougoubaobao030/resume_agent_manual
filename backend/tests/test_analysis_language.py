@@ -17,9 +17,9 @@ from schemas.scoring import JobMatchRequest
 from schemas.talent import TalentDiscoveryRequest
 from services.scoring_service import evaluate_job_match
 from services.talent_service import discover_talent
-from services.jd_repository import save_jd
-from services.jd_repository import delete_jd
-from services.candidate_repository import save_candidate_for_job, delete_candidate
+from repositories.jd_repository import save_jd
+from repositories.jd_repository import delete_jd
+from repositories.candidate_repository import save_candidate_for_job, delete_candidate
 
 
 class AnalysisLanguageTest(unittest.TestCase):

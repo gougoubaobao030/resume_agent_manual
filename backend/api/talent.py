@@ -4,8 +4,8 @@ from api.auth import get_current_user
 from clients.llm_client import LLMConfigError, LLMRequestError, LLMResponseError
 from models import UserModel
 from schemas.talent import TalentDiscoveryRequest, TalentDiscoveryResult, TalentMode
-from services.candidate_repository import get_candidate
-from services.result_repository import get_talent_result, save_talent_result
+from repositories.candidate_repository import get_candidate
+from repositories.result_repository import get_talent_result, save_talent_result
 from services.talent_service import discover_talent
 
 

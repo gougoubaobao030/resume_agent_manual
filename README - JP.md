@@ -1,7 +1,5 @@
 ﻿# Resume Agent (RA)
 
-[日本語](./README.md) | [English](./README_EN.md) | [简体中文](./README_CN.md)
-
 Resume Agent（RA）は、採用担当者による求人情報の整理、履歴書の解析、候補者と求人のマッチング評価、および候補者能力の発見を支援するAI活用型の履歴書選考システムです。
 
 現在のシステムは、以下の構成で動作します。
