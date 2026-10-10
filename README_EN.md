@@ -105,6 +105,36 @@ git clone <repository-url>
 cd resume_agent_manual
 ```
 
+### Recommended: automated Windows setup
+
+After a fresh clone on Windows, the recommended approach is to double-click `setup_windows.bat` in the project root or run it from a terminal:
+
+```powershell
+.\setup_windows.bat
+```
+
+The script checks for Conda, creates or reuses the `resume_agent_py310` environment, installs the Python backend dependencies, creates `.env` from `.env.example` when `.env` does not exist, runs the Alembic database migrations, checks Node.js, and installs the frontend dependencies.
+
+The following steps still require manual action after setup:
+
+- For real LLM usage, edit `.env` in the project root and provide valid values for `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL`.
+- Create the first user. The password is entered interactively and must not be written into the command or README.
+
+```powershell
+cd backend
+python .\scripts\manage_user.py create japan_admin --display-name "Japan Admin" --language ja-JP
+```
+
+For normal daily startup after initialization, double-click `start_ra.bat` in the project root or run:
+
+```powershell
+.\start_ra.bat
+```
+
+The script activates `resume_agent_py310`, starts the FastAPI backend and Vue frontend in separate terminal windows that remain open, and opens `http://127.0.0.1:12140/login` in the browser.
+
+These automation scripts are wrappers around the existing manual commands documented below. If `setup_windows.bat` or `start_ra.bat` fails, you can continue the installation or startup by following the manual steps below.
+
 ## 5. Backend Setup
 
 ### Step 2: Create the Python environment

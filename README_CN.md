@@ -107,6 +107,36 @@ git clone <repository-url>
 cd resume_agent_manual
 ```
 
+### 推荐：Windows 自动初始化
+
+在 Windows 上 fresh clone 后，推荐双击项目根目录中的 `setup_windows.bat`，也可以在终端执行：
+
+```powershell
+.\setup_windows.bat
+```
+
+该脚本会自动检查 Conda，创建或使用 `resume_agent_py310` 环境，安装 Python 后端依赖，在 `.env` 不存在时从 `.env.example` 创建 `.env`，执行 Alembic 数据库迁移，检查 Node.js，并安装前端依赖。
+
+setup 完成后，以下步骤仍需人工完成：
+
+- 如果使用真实 LLM，需要编辑项目根目录中的 `.env`，为 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` 填写有效配置。
+- 创建首个用户。密码由脚本交互输入，不应写入命令或 README。
+
+```powershell
+cd backend
+python .\scripts\manage_user.py create japan_admin --display-name "Japan Admin" --language ja-JP
+```
+
+初始化完成后，日常启动时可以双击项目根目录中的 `start_ra.bat`，也可以执行：
+
+```powershell
+.\start_ra.bat
+```
+
+该脚本会激活 `resume_agent_py310`，分别在独立且保持打开的终端窗口中启动 FastAPI 后端和 Vue 前端，并打开浏览器访问 `http://127.0.0.1:12140/login`。
+
+自动脚本只是对下方原有手动命令的封装。如果 `setup_windows.bat` 或 `start_ra.bat` 执行失败，仍然可以按照下方手动步骤继续安装或启动。
+
 ## 5. 后端环境配置
 
 ### 第二步：创建 Python 环境

@@ -107,6 +107,36 @@ git clone <repository-url>
 cd resume_agent_manual
 ```
 
+### 推奨：Windows 自動セットアップ
+
+Windowsでは、fresh clone後にプロジェクトルートの `setup_windows.bat` をダブルクリックするか、ターミナルから以下を実行する方法を推奨します。
+
+```powershell
+.\setup_windows.bat
+```
+
+このスクリプトは、Condaの確認、`resume_agent_py310` 環境の作成または利用、Pythonバックエンド依存関係のインストール、`.env` が存在しない場合の `.env.example` からの作成、Alembicデータベースマイグレーション、Node.jsの確認、およびフロントエンド依存関係のインストールを自動で行います。
+
+セットアップ完了後も、以下の作業は手動で行う必要があります。
+
+- 実際のLLMを使用する場合は、プロジェクトルートの `.env` を編集し、`LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` に有効な値を設定します。
+- 最初のユーザーを作成します。パスワードはスクリプト実行中に対話形式で入力し、READMEやコマンドには記載しません。
+
+```powershell
+cd backend
+python .\scripts\manage_user.py create japan_admin --display-name "Japan Admin" --language ja-JP
+```
+
+初期化後の日常起動では、プロジェクトルートの `start_ra.bat` をダブルクリックするか、以下を実行できます。
+
+```powershell
+.\start_ra.bat
+```
+
+このスクリプトは `resume_agent_py310` を有効化し、FastAPIバックエンドとVueフロントエンドをそれぞれ独立したターミナルウィンドウで起動・保持したうえで、ブラウザーで `http://127.0.0.1:12140/login` を開きます。
+
+これらの自動スクリプトは、以下に記載する既存の手動コマンドをまとめたものです。`setup_windows.bat` または `start_ra.bat` が失敗した場合でも、以下の手動手順に従ってインストールまたは起動を続行できます。
+
 ## 5. バックエンド環境構築
 
 ### Step 2：Python環境を作成
