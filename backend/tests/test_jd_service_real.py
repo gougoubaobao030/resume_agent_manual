@@ -1,6 +1,14 @@
 ﻿from clients.llm_client import LLMClientError
 from services.jd_service import parse_jd
 
+import asyncio
+import os
+import pytest
+
+
+if os.getenv("RUN_LLM_INTEGRATION", "false").lower() != "true":
+    pytest.skip("设置 RUN_LLM_INTEGRATION=true 才运行真实 LLM 测试", allow_module_level=True)
+
 
 raw_text = """
 招聘 AI 应用开发工程师。
@@ -20,7 +28,7 @@ raw_text = """
 
 
 try:
-    result = parse_jd(raw_text)
+    result = asyncio.run(parse_jd(raw_text))
 
     print("JD解析成功：")
     print(result.model_dump_json(indent=2))

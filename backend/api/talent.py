@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.auth import get_current_user
@@ -23,22 +25,23 @@ def get_talent_discovery(
 
 
 @router.post("/discover", response_model=TalentDiscoveryResult)
-def discover_talent_api(
+async def discover_talent_api(
     request: TalentDiscoveryRequest,
     current_user: UserModel = Depends(get_current_user),
 ) -> TalentDiscoveryResult:
-    candidate = get_candidate(request.candidate_id)
+    candidate = await asyncio.to_thread(get_candidate, request.candidate_id)
     if candidate is None:
         raise HTTPException(status_code=404, detail="Candidate不存在")
 
     try:
-        result = discover_talent(
+        result = await discover_talent(
             candidate=candidate,
             mode=request.mode,
             desired_traits=request.desired_traits,
             analysis_language=request.analysis_language,
         )
-        return save_talent_result(
+        return await asyncio.to_thread(
+            save_talent_result,
             result,
             desired_traits=request.desired_traits,
             user_id=current_user.id,

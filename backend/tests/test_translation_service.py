@@ -1,6 +1,6 @@
 import os
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, patch
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -16,7 +16,7 @@ from schemas.translation import (
 from services.translation_service import translate_batch
 
 
-class TranslationServiceTest(unittest.TestCase):
+class TranslationServiceTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=None)
         self.addCleanup(app.dependency_overrides.clear)
@@ -44,27 +44,27 @@ class TranslationServiceTest(unittest.TestCase):
         )
         self.assertTrue(all(item["status"] == "success" for item in data["items"]))
 
-    def test_service_restores_request_order_and_marks_missing_item_failed(self) -> None:
-        client = Mock()
+    async def test_service_restores_request_order_and_marks_missing_item_failed(self) -> None:
+        client = AsyncMock()
         client.generate_structured.return_value = LLMBatchTranslationResult(items=[
             LLMTranslationItem(item_id="evidence-1", translated_text="Developed a recruiting API."),
         ])
 
-        result = translate_batch(self.request, llm_client=client)
+        result = await translate_batch(self.request, llm_client=client)
 
         self.assertEqual([item.item_id for item in result.items], ["summary", "evidence-1"])
         self.assertEqual(result.items[0].status, "failed")
         self.assertEqual(result.items[1].status, "success")
         self.assertTrue(result.warnings)
 
-    def test_unknown_item_id_is_rejected(self) -> None:
-        client = Mock()
+    async def test_unknown_item_id_is_rejected(self) -> None:
+        client = AsyncMock()
         client.generate_structured.return_value = LLMBatchTranslationResult(items=[
             LLMTranslationItem(item_id="unknown", translated_text="Unknown"),
         ])
 
         with self.assertRaises(LLMResponseError):
-            translate_batch(self.request, llm_client=client)
+            await translate_batch(self.request, llm_client=client)
 
 
 if __name__ == "__main__":

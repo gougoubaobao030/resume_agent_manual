@@ -1,7 +1,10 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.staticfiles import StaticFiles
+
+from clients.llm_client import close_llm_client
 
 from api.auth import get_current_user, router as auth_router
 from api.candidates import router as candidates_router
@@ -13,7 +16,15 @@ from api.translation import router as translation_router
 from api.users import router as users_router
 
 
-app = FastAPI(title="Resume Agent API")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    try:
+        yield
+    finally:
+        await close_llm_client()
+
+
+app = FastAPI(title="Resume Agent API", lifespan=lifespan)
 
 avatars_path = Path(__file__).resolve().parents[2] / "data" / "avatars"
 avatars_path.mkdir(parents=True, exist_ok=True)

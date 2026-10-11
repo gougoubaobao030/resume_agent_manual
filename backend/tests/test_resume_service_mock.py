@@ -1,5 +1,6 @@
 import asyncio
 import os
+import threading
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -7,6 +8,20 @@ from services import resume_service
 
 
 class ResumeMockTest(unittest.IsolatedAsyncioTestCase):
+    async def test_resume_text_awaits_async_provider(self) -> None:
+        client = AsyncMock()
+        client.generate_structured.return_value = resume_service.ResumeLLMResult()
+
+        with patch.object(resume_service, "get_llm_client", return_value=client):
+            candidate = await resume_service.parse_resume_text(
+                raw_text="Python backend engineer",
+                source_file="candidate.pdf",
+            )
+
+        client.generate_structured.assert_awaited_once()
+        self.assertEqual(candidate.raw_text, "Python backend engineer")
+        self.assertEqual(candidate.extraction_metadata.source_file, "candidate.pdf")
+
     async def test_mock_skips_pdf_and_llm_and_uses_expected_delay(self) -> None:
         with (
             patch.dict(os.environ, {"RESUME_USE_MOCK": "true"}),
@@ -22,7 +37,7 @@ class ResumeMockTest(unittest.IsolatedAsyncioTestCase):
             ),
             patch.object(
                 resume_service,
-                "_get_llm_client",
+                "get_llm_client",
                 side_effect=AssertionError("Mock 不应初始化 LLM"),
             ),
         ):
@@ -42,6 +57,13 @@ class ResumeMockTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_real_mode_has_no_mock_sleep(self) -> None:
+        event_loop_thread = threading.get_ident()
+        extraction_threads = []
+
+        def fake_extract(pdf_path: str) -> str:
+            extraction_threads.append(threading.get_ident())
+            return "真实简历文本"
+
         with (
             patch.dict(os.environ, {"RESUME_USE_MOCK": "false"}),
             patch.object(
@@ -52,11 +74,12 @@ class ResumeMockTest(unittest.IsolatedAsyncioTestCase):
             patch.object(
                 resume_service,
                 "_extract_pdf_text_real",
-                return_value="真实简历文本",
+                side_effect=fake_extract,
             ) as extract_mock,
             patch.object(
                 resume_service,
                 "parse_resume_text",
+                new_callable=AsyncMock,
                 return_value=resume_service.Candidate(
                     id="candidate_real_test",
                 ),
@@ -69,7 +92,8 @@ class ResumeMockTest(unittest.IsolatedAsyncioTestCase):
 
         sleep_mock.assert_not_awaited()
         extract_mock.assert_called_once_with("real-path.pdf")
-        parse_text_mock.assert_called_once_with(
+        self.assertNotEqual(extraction_threads, [event_loop_thread])
+        parse_text_mock.assert_awaited_once_with(
             raw_text="真实简历文本",
             source_file="real.pdf",
         )

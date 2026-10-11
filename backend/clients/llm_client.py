@@ -1,4 +1,5 @@
 ﻿import json
+import asyncio
 import logging
 import os
 import re
@@ -10,7 +11,7 @@ from openai import (
     APIConnectionError,
     APIStatusError,
     APITimeoutError,
-    OpenAI,
+    AsyncOpenAI,
 )
 from pydantic import BaseModel, ValidationError
 
@@ -64,6 +65,7 @@ class LLMClient:
         self.model = os.getenv("LLM_MODEL", "").strip()
 
         timeout_text = os.getenv("LLM_TIMEOUT", "60").strip()
+        max_concurrency_text = os.getenv("LLM_MAX_CONCURRENCY", "5").strip()
 
         try:
             self.timeout = float(timeout_text)
@@ -72,13 +74,21 @@ class LLMClient:
                 "LLM_TIMEOUT 必须是有效数字。"
             ) from exc
 
+        try:
+            self.max_concurrency = int(max_concurrency_text)
+        except ValueError as exc:
+            raise LLMConfigError(
+                "LLM_MAX_CONCURRENCY 必须是有效整数。"
+            ) from exc
+
         self._validate_config()
 
-        self.client = OpenAI(
+        self.client = AsyncOpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
             timeout=self.timeout,
         )
+        self._provider_semaphore = _get_provider_semaphore(self.max_concurrency)
 
     def _validate_config(self) -> None:
         """检查模型调用所需配置。"""
@@ -103,8 +113,13 @@ class LLMClient:
                 "LLM_TIMEOUT 必须大于 0。"
             )
 
+        if self.max_concurrency <= 0:
+            raise LLMConfigError(
+                "LLM_MAX_CONCURRENCY 必须大于 0。"
+            )
+
     #关键函数，大预言模型根据某个提供接口生成字符串，本地完成要求的格式校验
-    def generate_structured(
+    async def generate_structured(
         self,
         *,
         system_prompt: str,
@@ -126,23 +141,27 @@ class LLMClient:
         """
 
         try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt,
+            async with self._provider_semaphore:
+                completion = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": system_prompt,
+                        },
+                        {
+                            "role": "user",
+                            "content": user_prompt,
+                        },
+                    ],
+                    temperature=temperature,
+                    response_format={
+                        "type": "json_object",
                     },
-                    {
-                        "role": "user",
-                        "content": user_prompt,
-                    },
-                ],
-                temperature=temperature,
-                response_format={
-                    "type": "json_object",
-                },
-            )
+                )
+
+        except asyncio.CancelledError:
+            raise
 
         except APITimeoutError as exc:
             raise LLMRequestError(
@@ -215,6 +234,11 @@ class LLMClient:
                 "模型返回的 JSON 不符合规定的数据结构。"
             ) from exc
 
+    async def close(self) -> None:
+        """关闭底层异步 HTTP Client 及其连接池。"""
+
+        await self.client.close()
+
     @staticmethod
     def _get_schema_name(response_model: type[BaseModel]) -> str:
         """生成符合 Structured Outputs 命名限制的稳定 schema 名称。"""
@@ -278,3 +302,48 @@ class LLMClient:
             cleaned = cleaned[:-len("```")].strip()
 
         return cleaned
+
+
+_shared_llm_client: LLMClient | None = None
+_provider_semaphore: asyncio.Semaphore | None = None
+_provider_semaphore_limit: int | None = None
+
+
+def _get_provider_semaphore(max_concurrency: int) -> asyncio.Semaphore:
+    """返回进程内所有真实 provider 请求共享的并发限制器。"""
+
+    global _provider_semaphore, _provider_semaphore_limit
+
+    if _provider_semaphore is None:
+        _provider_semaphore = asyncio.Semaphore(max_concurrency)
+        _provider_semaphore_limit = max_concurrency
+    elif _provider_semaphore_limit != max_concurrency:
+        logger.warning(
+            "LLM_MAX_CONCURRENCY 已在进程内初始化为 %s，忽略运行期新值 %s。",
+            _provider_semaphore_limit,
+            max_concurrency,
+        )
+    return _provider_semaphore
+
+
+def get_llm_client() -> LLMClient:
+    """首次真实调用时创建并复用进程级异步 LLM Client。"""
+
+    global _shared_llm_client
+
+    if _shared_llm_client is None:
+        _shared_llm_client = LLMClient()
+    return _shared_llm_client
+
+
+async def close_llm_client() -> None:
+    """在应用关闭时释放共享 LLM Client 和连接池。"""
+
+    global _shared_llm_client, _provider_semaphore, _provider_semaphore_limit
+
+    client = _shared_llm_client
+    _shared_llm_client = None
+    if client is not None:
+        await client.close()
+    _provider_semaphore = None
+    _provider_semaphore_limit = None

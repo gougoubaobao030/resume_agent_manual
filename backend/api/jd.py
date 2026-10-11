@@ -45,7 +45,7 @@ def list_jds_api() -> list[JDInfo]:
     response_model=JDParseResponse,
 )
 #异常抛个前端用
-def parse_jd_api(
+async def parse_jd_api(
     request: JDParseRequest,
 ) -> JDParseResponse:
     """
@@ -57,7 +57,7 @@ def parse_jd_api(
     """
 
     try:
-        result = parse_jd(
+        result = await parse_jd(
             raw_text=request.raw_text,
         )
 

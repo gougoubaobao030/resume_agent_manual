@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import SessionLocal, get_db
 from models import UserModel
 from schemas.auth import LoginRequest, UserPublic
 from services.auth_service import (
@@ -26,14 +26,15 @@ COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").strip().lower() in {
 # 由cookie依赖也帮忙注入了
 def get_current_user(
     session_token: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
-    db: Session = Depends(get_db),
 ) -> UserModel:
     if not session_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未登录")
-    user = get_user_by_session_token(db, session_token)
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已过期")
-    return user
+    with SessionLocal() as db:
+        user = get_user_by_session_token(db, session_token)
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已过期")
+        db.expunge(user)
+        return user
 
 
 @router.post("/login", response_model=UserPublic)

@@ -1,6 +1,6 @@
 import os
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, patch
 
 from schemas.evidence import EvidenceIssueReason, EvidenceVerificationStatus
 from schemas.jd import JDInfo, JDRequirement
@@ -23,7 +23,7 @@ from services import scoring_service, talent_service
 from services.evidence_validation import verify_candidate_evidence
 
 
-class EvidenceValidationTest(unittest.TestCase):
+class EvidenceValidationTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.candidate = Candidate(
             id="candidate_evidence_test",
@@ -75,7 +75,7 @@ class EvidenceValidationTest(unittest.TestCase):
         self.assertEqual(wrong_locator.issue.reason, EvidenceIssueReason.LOCATOR_MISMATCH)
         self.assertEqual(wrong_locator.source_type, "raw_text")
 
-    def test_unverified_scoring_evidence_is_removed_and_confidence_reduced(self) -> None:
+    async def test_unverified_scoring_evidence_is_removed_and_confidence_reduced(self) -> None:
         jd = JDInfo(
             id="job_evidence_test",
             job_title="Python Engineer",
@@ -100,15 +100,15 @@ class EvidenceValidationTest(unittest.TestCase):
             overall_confidence=MatchConfidence.HIGH,
             summary="Strong match",
         )
-        client = Mock()
+        client = AsyncMock()
         client.generate_structured.return_value = llm_result
 
         with patch.dict(os.environ, {"SCORING_USE_MOCK": "false"}), patch.object(
             scoring_service,
-            "LLMClient",
+            "get_llm_client",
             return_value=client,
         ):
-            result = scoring_service.evaluate_job_match(
+            result = await scoring_service.evaluate_job_match(
                 jd,
                 self.candidate,
                 AnalysisLanguage.EN_US,
@@ -123,7 +123,7 @@ class EvidenceValidationTest(unittest.TestCase):
         self.assertTrue(result.warnings)
         self.assertNotEqual(result.summary, "Strong match")
 
-    def test_unsupported_talent_ability_is_not_returned(self) -> None:
+    async def test_unsupported_talent_ability_is_not_returned(self) -> None:
         llm_result = LLMTalentDiscoveryResult(
             mode="auto",
             attention_level="high",
@@ -141,10 +141,12 @@ class EvidenceValidationTest(unittest.TestCase):
         )
         with patch.dict(os.environ, {"TALENT_USE_MOCK": "false"}), patch.object(
             talent_service,
-            "LLMClient",
-        ) as client_class:
-            client_class.return_value.generate_structured.return_value = llm_result
-            result = talent_service.discover_talent(
+            "get_llm_client",
+        ) as client_getter:
+            client = AsyncMock()
+            client.generate_structured.return_value = llm_result
+            client_getter.return_value = client
+            result = await talent_service.discover_talent(
                 self.candidate,
                 AnalysisLanguage.EN_US,
             )
@@ -155,7 +157,7 @@ class EvidenceValidationTest(unittest.TestCase):
         self.assertTrue(result.warnings)
         self.assertNotEqual(result.summary, "High potential")
 
-    def test_unsupported_specified_trait_keeps_business_level(self) -> None:
+    async def test_unsupported_specified_trait_keeps_business_level(self) -> None:
         llm_result = LLMTalentDiscoveryResult(
             mode="specified",
             specified_fit_level="high",
@@ -173,10 +175,12 @@ class EvidenceValidationTest(unittest.TestCase):
         )
         with patch.dict(os.environ, {"TALENT_USE_MOCK": "false"}), patch.object(
             talent_service,
-            "LLMClient",
-        ) as client_class:
-            client_class.return_value.generate_structured.return_value = llm_result
-            result = talent_service.discover_talent(
+            "get_llm_client",
+        ) as client_getter:
+            client = AsyncMock()
+            client.generate_structured.return_value = llm_result
+            client_getter.return_value = client
+            result = await talent_service.discover_talent(
                 self.candidate,
                 AnalysisLanguage.EN_US,
                 mode="specified",

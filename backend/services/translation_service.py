@@ -1,6 +1,6 @@
 import os
 
-from clients.llm_client import LLMClient, LLMResponseError
+from clients.llm_client import LLMClient, LLMResponseError, get_llm_client
 from prompts.translation_prompt import (
     TRANSLATION_SYSTEM_PROMPT,
     build_translation_user_prompt,
@@ -88,14 +88,14 @@ def _map_translation_result(
     )
 
 
-def translate_batch(
+async def translate_batch(
     request: BatchTranslationRequest,
     llm_client: LLMClient | None = None,
 ) -> BatchTranslationResponse:
     """独立完成批量翻译，不修改任何评分、人才发现或原文对象。"""
 
     if llm_client is not None:
-        result = llm_client.generate_structured(
+        result = await llm_client.generate_structured(
             system_prompt=TRANSLATION_SYSTEM_PROMPT,
             user_prompt=build_translation_user_prompt(
                 target_language=request.target_language,
@@ -107,8 +107,8 @@ def translate_batch(
     elif _is_translation_mock_enabled():
         result = _build_mock_result(request)
     else:
-        client = LLMClient()
-        result = client.generate_structured(
+        client = get_llm_client()
+        result = await client.generate_structured(
             system_prompt=TRANSLATION_SYSTEM_PROMPT,
             user_prompt=build_translation_user_prompt(
                 target_language=request.target_language,

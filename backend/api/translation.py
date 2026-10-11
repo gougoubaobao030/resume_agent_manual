@@ -16,11 +16,11 @@ router = APIRouter(
 
 
 @router.post("/batch", response_model=BatchTranslationResponse)
-def translate_batch_api(
+async def translate_batch_api(
     request: BatchTranslationRequest,
 ) -> BatchTranslationResponse:
     try:
-        return translate_batch(request)
+        return await translate_batch(request)
     except LLMConfigError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except LLMRequestError as exc:

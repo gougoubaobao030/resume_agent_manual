@@ -1,6 +1,6 @@
 import os
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, patch
 
 from schemas.jd import JDInfo, JDRequirement
 from schemas.language import AnalysisLanguage
@@ -53,8 +53,8 @@ def _build_test_candidate() -> Candidate:
     )
 
 
-class ScoringMockTest(unittest.TestCase):
-    def test_mock_skips_prompt_and_llm_and_keeps_all_validation(self) -> None:
+class ScoringMockTest(unittest.IsolatedAsyncioTestCase):
+    async def test_mock_skips_prompt_and_llm_and_keeps_all_validation(self) -> None:
         jd = _build_test_jd()
         candidate = _build_test_candidate()
 
@@ -67,7 +67,7 @@ class ScoringMockTest(unittest.TestCase):
             ),
             patch.object(
                 scoring_service,
-                "LLMClient",
+                "get_llm_client",
                 side_effect=AssertionError("Mock 不应初始化 LLM"),
             ),
             patch.object(
@@ -81,7 +81,7 @@ class ScoringMockTest(unittest.TestCase):
                 wraps=scoring_service._validate_job_match_result_consistency,
             ) as consistency_mock,
         ):
-            result = scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.ZH_CN)
+            result = await scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.ZH_CN)
 
         coverage_mock.assert_called_once()
         consistency_mock.assert_called_once()
@@ -94,17 +94,17 @@ class ScoringMockTest(unittest.TestCase):
             all(item.evidence for item in validated_result.requirement_results)
         )
 
-    def test_mock_is_stable_for_same_candidate_and_jd(self) -> None:
+    async def test_mock_is_stable_for_same_candidate_and_jd(self) -> None:
         jd = _build_test_jd()
         candidate = _build_test_candidate()
 
         with patch.dict(os.environ, {"SCORING_USE_MOCK": "true"}):
-            first = scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.JA_JP)
-            second = scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.JA_JP)
+            first = await scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.JA_JP)
+            second = await scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.JA_JP)
 
         self.assertEqual(first, second)
 
-    def test_real_mode_uses_existing_prompt_and_llm_path(self) -> None:
+    async def test_real_mode_uses_existing_prompt_and_llm_path(self) -> None:
         jd = _build_test_jd()
         candidate = _build_test_candidate()
         llm_result = LLMJobMatchResult(
@@ -126,14 +126,14 @@ class ScoringMockTest(unittest.TestCase):
             overall_confidence=MatchConfidence.HIGH,
             summary="真实分支测试替身结果",
         )
-        client = Mock()
+        client = AsyncMock()
         client.generate_structured.return_value = llm_result
 
         with (
             patch.dict(os.environ, {"SCORING_USE_MOCK": "false"}),
             patch.object(
                 scoring_service,
-                "LLMClient",
+                "get_llm_client",
                 return_value=client,
             ) as client_class_mock,
             patch.object(
@@ -142,7 +142,7 @@ class ScoringMockTest(unittest.TestCase):
                 wraps=scoring_service._build_job_match_prompt,
             ) as prompt_mock,
         ):
-            result = scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.EN_US)
+            result = await scoring_service.evaluate_job_match(jd, candidate, AnalysisLanguage.EN_US)
 
         client_class_mock.assert_called_once_with()
         prompt_mock.assert_called_once_with(
@@ -150,7 +150,7 @@ class ScoringMockTest(unittest.TestCase):
             candidate=candidate,
             analysis_language=AnalysisLanguage.EN_US,
         )
-        client.generate_structured.assert_called_once()
+        client.generate_structured.assert_awaited_once()
         self.assertEqual(result.candidate_id, candidate.id)
         self.assertEqual(result.analysis_language, AnalysisLanguage.EN_US)
 

@@ -1,6 +1,6 @@
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -16,7 +16,7 @@ from repositories.jd_repository import save_jd, delete_jd
 from repositories.candidate_repository import save_candidate_for_job, delete_candidate
 
 
-class TalentMockTest(unittest.TestCase):
+class TalentMockTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.candidate = Candidate(
             id="candidate_mock_test",
@@ -37,7 +37,7 @@ class TalentMockTest(unittest.TestCase):
 
     def test_api_auto_and_specified_skip_llm(self):
         with patch.dict(os.environ, {"TALENT_USE_MOCK": "true"}), patch.object(
-            talent_service, "LLMClient", side_effect=AssertionError("LLM must not be initialized")
+            talent_service, "get_llm_client", side_effect=AssertionError("LLM must not be initialized")
         ), TestClient(app) as client:
             auto = client.post("/api/talent/discover", json={
                 "candidate_id": self.candidate.id, "mode": "auto", "desired_traits": [],
@@ -72,16 +72,16 @@ class TalentMockTest(unittest.TestCase):
             self.assertIn("missing_information", data["specified_traits"][0])
             self.assertIn("warnings", data)
 
-    def test_stable_different_profiles_and_real_branch(self):
+    async def test_stable_different_profiles_and_real_branch(self):
         with patch.dict(os.environ, {"TALENT_USE_MOCK": "true"}):
-            first = talent_service.discover_talent(self.candidate, AnalysisLanguage.ZH_CN)
-            again = talent_service.discover_talent(self.candidate, AnalysisLanguage.ZH_CN)
+            first = await talent_service.discover_talent(self.candidate, AnalysisLanguage.ZH_CN)
+            again = await talent_service.discover_talent(self.candidate, AnalysisLanguage.ZH_CN)
             self.assertEqual(first, again)
             profiles = {
-                talent_service.discover_talent(
+                (await talent_service.discover_talent(
                     Candidate(id=f"candidate_{index}", skills=["Python"]),
                     AnalysisLanguage.ZH_CN,
-                ).attention_level
+                )).attention_level
                 for index in range(20)
             }
             self.assertGreaterEqual(len(profiles), 4)
@@ -90,12 +90,14 @@ class TalentMockTest(unittest.TestCase):
             mode="auto", attention_level="medium", summary="真实分支测试", abilities=[],
         )
         with patch.dict(os.environ, {"TALENT_USE_MOCK": "false"}), patch.object(
-            talent_service, "LLMClient"
-        ) as client_class:
-            client_class.return_value.generate_structured.return_value = expected
-            result = talent_service.discover_talent(self.candidate, AnalysisLanguage.ZH_CN)
-            client_class.assert_called_once_with()
-            client_class.return_value.generate_structured.assert_called_once()
+            talent_service, "get_llm_client"
+        ) as client_getter:
+            client = AsyncMock()
+            client.generate_structured.return_value = expected
+            client_getter.return_value = client
+            result = await talent_service.discover_talent(self.candidate, AnalysisLanguage.ZH_CN)
+            client_getter.assert_called_once_with()
+            client.generate_structured.assert_awaited_once()
             self.assertEqual(result.summary, "真实分支测试")
 
 

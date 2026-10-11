@@ -2,6 +2,15 @@
 from schemas.language import AnalysisLanguage
 from services.talent_service import discover_talent
 
+import asyncio
+import os
+import pytest
+
+
+if os.getenv("RUN_LLM_INTEGRATION", "false").lower() != "true":
+    pytest.skip("设置 RUN_LLM_INTEGRATION=true 才运行真实 LLM 测试", allow_module_level=True)
+
+
 # 放了现成测试Candidate版
 # 且是压缩省token版哈哈哈哈
 candidate = Candidate.model_validate(
@@ -201,7 +210,7 @@ candidate = Candidate.model_validate(
     }
 )
 
-result = discover_talent(
+result = asyncio.run(discover_talent(
     candidate=candidate,
     analysis_language=AnalysisLanguage.ZH_CN,
     mode="specified",
@@ -210,7 +219,7 @@ result = discover_talent(
         "负责",
         "细致",
     ],
-)
+))
 
 print(
     result.model_dump_json(

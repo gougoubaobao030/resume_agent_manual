@@ -13,7 +13,7 @@ import hashlib
 import logging
 import os
 
-from clients.llm_client import LLMClient
+from clients.llm_client import get_llm_client
 from prompts.scoring_prompt import (
     JOB_MATCH_SYSTEM_PROMPT,
     build_job_match_user_prompt,
@@ -249,7 +249,7 @@ def _validate_requirement_coverage(
 # 核心函数一号
 # 业务层第一件事，就是把已经有的jbinfo和candidate拿去让大模型评分给个
 # LLM响应总结果
-def evaluate_job_match_with_llm(
+async def evaluate_job_match_with_llm(
     jd: JDInfo,
     candidate: Candidate,
     analysis_language: AnalysisLanguage,
@@ -282,9 +282,9 @@ def evaluate_job_match_with_llm(
         analysis_language=analysis_language,
     )
 
-    llm_client = LLMClient()
+    llm_client = get_llm_client()
 
-    result = llm_client.generate_structured(
+    result = await llm_client.generate_structured(
         system_prompt=JOB_MATCH_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         response_model=LLMJobMatchResult,
@@ -652,14 +652,14 @@ def _build_job_match_result(
 
 # 正真的业务函数
 # LLM结果 + Mapper
-def evaluate_job_match(
+async def evaluate_job_match(
     jd: JDInfo,
     candidate: Candidate,
     analysis_language: AnalysisLanguage,
 ) -> JobMatchResult:
     """完成候选人与岗位的完整岗位匹配评分。"""
 
-    llm_result = evaluate_job_match_with_llm(
+    llm_result = await evaluate_job_match_with_llm(
         jd=jd,
         candidate=candidate,
         analysis_language=analysis_language,

@@ -3,6 +3,7 @@ from prompts.jd_prompt import (
     JD_PARSE_SYSTEM_PROMPT,
     build_jd_parse_user_prompt,
 )
+from clients.llm_client import get_llm_client
 
 import os
 
@@ -142,7 +143,7 @@ def build_jd_info(
 
 #调用大语言模型，生成回应，并解析成JDInfo加上warnning
 #成为响应前端需要的JDParseResponse
-def parse_jd(
+async def parse_jd(
     raw_text: str,
     llm_client: LLMClient | None = None,
 ) -> JDParseResponse:
@@ -163,7 +164,7 @@ def parse_jd(
         raise ValueError("JD 文本不能为空。")
 
     if llm_client is not None:
-        llm_result = llm_client.generate_structured(
+        llm_result = await llm_client.generate_structured(
             system_prompt=JD_PARSE_SYSTEM_PROMPT,
             user_prompt=build_jd_parse_user_prompt(cleaned_raw_text),
             response_model=LLMJDResult,
@@ -172,9 +173,9 @@ def parse_jd(
     elif _is_jd_mock_enabled():
         llm_result = _build_mock_jd_result()
     else:
-        client = LLMClient()
+        client = get_llm_client()
 
-        llm_result = client.generate_structured(
+        llm_result = await client.generate_structured(
             system_prompt=JD_PARSE_SYSTEM_PROMPT,
             user_prompt=build_jd_parse_user_prompt(cleaned_raw_text),
             response_model=LLMJDResult,

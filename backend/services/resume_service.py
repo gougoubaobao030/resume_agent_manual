@@ -11,7 +11,7 @@ import os
 import random
 import time
 
-from clients.llm_client import LLMClient
+from clients.llm_client import get_llm_client
 
 from prompts.resume_prompt import (
     RESUME_SYSTEM_PROMPT,
@@ -32,8 +32,6 @@ from schemas.resume import (
 )
 logger = logging.getLogger("uvicorn.error")
 
-_llm_client: LLMClient | None = None
-
 
 @dataclass(frozen=True)
 class ResumeCandidateResolution:
@@ -53,17 +51,6 @@ def _is_resume_mock_enabled() -> bool:
         "yes",
         "on",
     }
-
-
-def _get_llm_client() -> LLMClient:
-    """只在真实简历解析分支中初始化并复用 LLM 客户端。"""
-
-    global _llm_client
-
-    if _llm_client is None:
-        _llm_client = LLMClient()
-
-    return _llm_client
 
 
 def _extract_pdf_text_real(pdf_path: str) -> str:
@@ -183,7 +170,7 @@ def _build_candidate(
     )
 
 
-def parse_resume_text(
+async def parse_resume_text(
     raw_text: str,
     source_file: str | None = None,
 ) -> Candidate:
@@ -200,7 +187,7 @@ def parse_resume_text(
     #以后要批量的
     #llm_client = LLMClient()
 
-    llm_result = _get_llm_client().generate_structured(
+    llm_result = await get_llm_client().generate_structured(
         system_prompt=RESUME_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         response_model=ResumeLLMResult,
@@ -212,18 +199,15 @@ def parse_resume_text(
         source_file=source_file,
     )
 
-# 另外拆出一个同步的pdf解析函数
-# 里面有同步的text解析
-# 也是在text里面调用大模型的
-# 拆出来为了在异步适配器里一步步学习异步并发以及
-# 临时asyncio.to_thread用
-def _parse_resume_pdf_real(
+# PDF 提取保持同步并放入线程池；提取完成后回到异步 LLM 调用链。
+async def _parse_resume_pdf_real(
     path: Path,
     source_file: str | None = None,
 ) -> Candidate:
 
-    raw_text = _extract_pdf_text_real(
-        str(path)
+    raw_text = await asyncio.to_thread(
+        _extract_pdf_text_real,
+        str(path),
     )
 
     if not raw_text.strip():
@@ -231,7 +215,7 @@ def _parse_resume_pdf_real(
             "无法解析简历，请上传文本型PDF"
         )
 
-    return parse_resume_text(
+    return await parse_resume_text(
         raw_text=raw_text,
         source_file=source_file or path.name,
     )
@@ -249,10 +233,7 @@ async def parse_resume_pdf(
             source_file=source_file or path.name,
         )
 
-    # 这里是移出一个线程不是协程；
-    # 但依旧用异步方式等线程返回
-    return await asyncio.to_thread(
-        _parse_resume_pdf_real,
+    return await _parse_resume_pdf_real(
         path,
         source_file,
     )

@@ -18,7 +18,7 @@ from prompts.talent_prompt import (
     build_talent_user_prompt,
 )
 
-from clients.llm_client import LLMClient
+from clients.llm_client import get_llm_client
 from services.evidence_validation import verify_candidate_evidence
 
 import hashlib
@@ -152,7 +152,7 @@ def _build_mock_llm_talent_result(
     )
 
 
-def discover_talent(
+async def discover_talent(
     candidate: Candidate,
     analysis_language: AnalysisLanguage,
     mode: TalentMode = "auto",
@@ -181,8 +181,8 @@ def discover_talent(
             analysis_language=analysis_language,
             desired_traits=traits,
         )
-        llm_client = LLMClient()
-        llm_result = llm_client.generate_structured(
+        llm_client = get_llm_client()
+        llm_result = await llm_client.generate_structured(
             system_prompt=TALENT_SYSTEM_PROMPT,
             user_prompt=user_prompt,
             response_model=LLMTalentDiscoveryResult,

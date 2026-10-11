@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.auth import get_current_user
@@ -17,6 +19,20 @@ from services.scoring_service import evaluate_job_match
 router = APIRouter(prefix="/api/scoring", tags=["scoring"])
 
 
+def _load_job_match_context(job_id: str, candidate_id: str):
+    """在一个完整同步阶段中读取评分所需数据库快照。"""
+
+    jd = get_jd(job_id)
+    if jd is None:
+        raise HTTPException(status_code=404, detail="岗位不存在")
+    candidate = get_candidate(candidate_id)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Candidate不存在")
+    if not candidate_belongs_to_job(job_id, candidate_id):
+        raise HTTPException(status_code=404, detail="Candidate未关联到该岗位")
+    return jd, candidate, get_jd_revision(job_id)
+
+
 @router.get("/job-match", response_model=list[JobMatchResult])
 def list_job_matches(job_id: str) -> list[JobMatchResult]:
     return list_scoring_results(job_id)
@@ -31,27 +47,24 @@ def get_job_match(job_id: str, candidate_id: str) -> JobMatchResult:
 
 
 @router.post("/job-match", response_model=JobMatchResult)
-def score_job_match(
+async def score_job_match(
     request: JobMatchRequest,
     current_user: UserModel = Depends(get_current_user),
 ) -> JobMatchResult:
-    jd = get_jd(request.job_id)
-    if jd is None:
-        raise HTTPException(status_code=404, detail="岗位不存在")
-    candidate = get_candidate(request.candidate_id)
-    if candidate is None:
-        raise HTTPException(status_code=404, detail="Candidate不存在")
-    if not candidate_belongs_to_job(request.job_id, request.candidate_id):
-        raise HTTPException(status_code=404, detail="Candidate未关联到该岗位")
-    job_revision = get_jd_revision(request.job_id)
+    jd, candidate, job_revision = await asyncio.to_thread(
+        _load_job_match_context,
+        request.job_id,
+        request.candidate_id,
+    )
 
     try:
-        result = evaluate_job_match(
+        result = await evaluate_job_match(
             jd=jd,
             candidate=candidate,
             analysis_language=request.analysis_language,
         )
-        return save_scoring_result(
+        return await asyncio.to_thread(
+            save_scoring_result,
             result,
             job_revision=job_revision,
             user_id=current_user.id,

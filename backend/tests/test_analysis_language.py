@@ -22,7 +22,7 @@ from repositories.jd_repository import delete_jd
 from repositories.candidate_repository import save_candidate_for_job, delete_candidate
 
 
-class AnalysisLanguageTest(unittest.TestCase):
+class AnalysisLanguageTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.jd = JDInfo(
             id="job_language_test",
@@ -82,17 +82,17 @@ class AnalysisLanguageTest(unittest.TestCase):
         self.assertIn("ja-JP", talent_prompt)
         self.assertIn("evidence.text 必须保持候选人资料中的原始语言", talent_prompt)
 
-    def test_mock_results_echo_language_without_changing_scores(self) -> None:
+    async def test_mock_results_echo_language_without_changing_scores(self) -> None:
         with patch.dict(os.environ, {
             "SCORING_USE_MOCK": "true",
             "TALENT_USE_MOCK": "true",
         }):
             scoring_results = {
-                language: evaluate_job_match(self.jd, self.candidate, language)
+                language: await evaluate_job_match(self.jd, self.candidate, language)
                 for language in AnalysisLanguage
             }
             talent_results = {
-                language: discover_talent(self.candidate, language)
+                language: await discover_talent(self.candidate, language)
                 for language in AnalysisLanguage
             }
 

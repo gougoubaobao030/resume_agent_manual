@@ -1,5 +1,10 @@
 ﻿from typing import TypeVar
 
+import asyncio
+import os
+from types import SimpleNamespace
+from unittest.mock import patch
+
 from pydantic import BaseModel
 
 from schemas.jd import (
@@ -21,7 +26,7 @@ T = TypeVar("T", bound=BaseModel)
 class FakeLLMClient:
     """测试用假模型客户端，不会发起网络请求。"""
 
-    def generate_structured(
+    async def generate_structured(
         self,
         *,
         system_prompt: str,
@@ -68,26 +73,20 @@ raw_text = """
 """
 
 
-result = parse_jd(
+result = asyncio.run(parse_jd(
     raw_text=raw_text,
     llm_client=FakeLLMClient(),
-)
+))
 
 print(result.model_dump_json(indent=2))
 
 
-class UnexpectedLLMClient:
-    """启用 JD mock 时不应实例化真实模型客户端。"""
-
-    def __init__(self) -> None:
-        raise AssertionError("JD mock 模式不应调用真实 LLM")
-
-
-jd_service.LLMClient = UnexpectedLLMClient
-
-mock_result = jd_service.parse_jd(
-    raw_text=raw_text,
-)
+with patch.dict(os.environ, {"JD_USE_MOCK": "true"}), patch.object(
+    jd_service,
+    "get_llm_client",
+    side_effect=AssertionError("JD mock 模式不应调用真实 LLM"),
+):
+    mock_result = asyncio.run(jd_service.parse_jd(raw_text=raw_text))
 
 assert mock_result.job.job_title == "AI应用开发工程师"
 mock_requirements = mock_result.job.requirements
@@ -124,7 +123,8 @@ save_response = save_jd_api(
                 must_have=True,
             ),
         ],
-    )
+    ),
+    current_user=SimpleNamespace(id=None),
 )
 
 assert save_response.job.requirements[0].must_have is True

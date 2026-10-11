@@ -23,10 +23,13 @@ def update_preferred_language(
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UserPublic:
-    current_user.preferred_language = request.preferred_language.value
+    managed_user = db.get(UserModel, current_user.id)
+    if managed_user is None:
+        raise HTTPException(status_code=401, detail="登录已过期")
+    managed_user.preferred_language = request.preferred_language.value
     db.commit()
-    db.refresh(current_user)
-    return to_user_public(current_user)
+    db.refresh(managed_user)
+    return to_user_public(managed_user)
 
 
 @router.put("/me/password", response_model=UserPublic)
@@ -36,9 +39,12 @@ def change_password(
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UserPublic:
+    managed_user = db.get(UserModel, current_user.id)
+    if managed_user is None:
+        raise HTTPException(status_code=401, detail="登录已过期")
     try:
         raw_token = change_user_password(
-            db, current_user, request.current_password, request.new_password
+            db, managed_user, request.current_password, request.new_password
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -51,4 +57,4 @@ def change_password(
         samesite="lax",
         path="/",
     )
-    return to_user_public(current_user)
+    return to_user_public(managed_user)

@@ -1,6 +1,8 @@
 import json
+import os
 from pathlib import Path
 
+import pytest
 from pydantic import ValidationError
 
 from clients.llm_client import LLMClient
@@ -45,7 +47,11 @@ def _print_exception_chain(exc: BaseException) -> None:
         current = current.__cause__
 
 
-def test_real_deepseek_job_match_structured_output() -> None:
+@pytest.mark.skipif(
+    os.getenv("RUN_LLM_INTEGRATION", "false").lower() != "true",
+    reason="设置 RUN_LLM_INTEGRATION=true 才运行真实 LLM 测试",
+)
+async def test_real_deepseek_job_match_structured_output() -> None:
     """Exercise the real scoring prompt/client/DeepSeek/Pydantic chain."""
 
     test_data = json.loads(TEST_DATA_PATH.read_text(encoding="utf-8"))
@@ -66,7 +72,7 @@ def test_real_deepseek_job_match_structured_output() -> None:
     print("Timeout:", client.timeout)
 
     try:
-        result = client.generate_structured(
+        result = await client.generate_structured(
             system_prompt=JOB_MATCH_SYSTEM_PROMPT,
             user_prompt=user_prompt,
             response_model=LLMJobMatchResult,
@@ -75,6 +81,8 @@ def test_real_deepseek_job_match_structured_output() -> None:
     except Exception as exc:
         _print_exception_chain(exc)
         raise
+    finally:
+        await client.close()
 
     print("type(result):", type(result))
     print(

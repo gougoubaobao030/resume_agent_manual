@@ -1,6 +1,15 @@
 ﻿from services.resume_service import parse_resume_text
 
 
+import asyncio
+import os
+import pytest
+
+
+if os.getenv("RUN_LLM_INTEGRATION", "false").lower() != "true":
+    pytest.skip("设置 RUN_LLM_INTEGRATION=true 才运行真实 LLM 测试", allow_module_level=True)
+
+
 resume_text = """
 姓名︓勾勾 | 求职岗位︓U3D初级⼯程师
 ⾃我介绍
@@ -109,10 +118,10 @@ ORM对接数据库, 数据库设计
 CSS(VSCode) 真⼼呈现。
 """
 
-candidate = parse_resume_text(
+candidate = asyncio.run(parse_resume_text(
     raw_text=resume_text,
     source_file="manual_test.txt",
-)
+))
 
 print(
     candidate.model_dump_json(
