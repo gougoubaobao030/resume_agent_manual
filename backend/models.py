@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -102,8 +103,12 @@ class JobModel(TimestampMixin, Base):
 
 class CandidateModel(TimestampMixin, Base):
     __tablename__ = "candidates"
+    __table_args__ = (
+        Index("ux_candidates_resume_hash", "resume_hash", unique=True),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    resume_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     raw_text: Mapped[str | None] = mapped_column(Text)
     # python方面是dict处理，数据库里是json存
     structured_data_json: Mapped[dict] = mapped_column(JSON, nullable=False)

@@ -120,6 +120,10 @@ Preferred qualifications:
     actions: { selectFiles: 'Select PDF Files', parsing: 'Parsing…', start: 'Start Batch Parsing', removeLabel: 'Remove {filename}', remove: 'Remove', retry: 'Parse Again', retrying: 'Parsing Again…', viewCandidates: 'View Candidates' },
     status: { pending: 'Pending', running: 'Parsing', success: 'Parsed', failed: 'Failed' },
     summary: { completed: 'Completed', success: 'Parsed', failed: 'Failed', running: 'Processing', pending: 'Pending' },
+    outcomes: {
+      reused: 'The existing candidate and original resume data were reused.',
+      alreadyLinked: 'This candidate is already linked to the current job. The duplicate upload was skipped.',
+    },
     scoring: { running: 'Job scoring…', failed: 'Job scoring failed', completed: 'Job scoring complete' },
     failedFiles: 'Files That Could Not Be Parsed', sessionNote: 'Successfully parsed candidates have been saved to the database.',
     note: { title: 'Processing Notes', description: 'Each resume is parsed independently; one failure will not interrupt other files.' },

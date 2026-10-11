@@ -280,10 +280,12 @@ async function handleParse() {
             <div class="task-file-row__content">
               <strong>{{ item.filename }}</strong>
               <small v-if="item.status === 'failed'">{{ getFriendlyResumeItemError(item.error) }}</small>
+              <small v-if="item.status === 'success' && item.outcome === 'reused'">{{ t('resumeUpload.outcomes.reused') }}</small>
+              <small v-if="item.status === 'success' && item.outcome === 'already_linked'">{{ t('resumeUpload.outcomes.alreadyLinked') }}</small>
               <small v-if="retryErrors[item.item_id]" class="task-file-row__retry-error">{{ retryErrors[item.item_id] }}</small>
-              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'loading'">{{ t('resumeUpload.scoring.running') }}</small>
-              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'error'">{{ t('resumeUpload.scoring.failed') }}</small>
-              <small v-else-if="item.status === 'success' && session.jobMatchStatuses[item.candidate?.id] === 'success'">{{ t('resumeUpload.scoring.completed') }}</small>
+              <small v-else-if="item.status === 'success' && item.outcome !== 'already_linked' && session.jobMatchStatuses[item.candidate?.id] === 'loading'">{{ t('resumeUpload.scoring.running') }}</small>
+              <small v-else-if="item.status === 'success' && item.outcome !== 'already_linked' && session.jobMatchStatuses[item.candidate?.id] === 'error'">{{ t('resumeUpload.scoring.failed') }}</small>
+              <small v-else-if="item.status === 'success' && item.outcome !== 'already_linked' && session.jobMatchStatuses[item.candidate?.id] === 'success'">{{ t('resumeUpload.scoring.completed') }}</small>
             </div>
             <div class="task-file-row__actions">
               <button

@@ -207,7 +207,7 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
         files = self.make_files(["persist.pdf"])
         with patch.object(resume_service, "parse_resume_pdf", side_effect=fake_parse), patch.object(
             resume_task_service,
-            "save_candidate_for_job",
+            "save_candidate_for_job_with_hash",
             side_effect=RuntimeError("数据库暂时不可用"),
         ):
             created = resume_task_service.create_resume_task(files, job_id="job-test")

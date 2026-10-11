@@ -186,6 +186,10 @@ export default {
     },
     status: { pending: '等待中', running: '解析中', success: '解析成功', failed: '解析失败' },
     summary: { completed: '已完成', success: '解析成功', failed: '解析失败', running: '处理中', pending: '等待中' },
+    outcomes: {
+      reused: '已存在候选人，已复用原始简历与候选人资料。',
+      alreadyLinked: '该候选人已存在于当前岗位，已跳过重复上传。',
+    },
     scoring: { running: '岗位评分中…', failed: '岗位评分失败', completed: '岗位评分完成' },
     failedFiles: '未能解析的文件',
     sessionNote: '成功解析的候选人已保存到数据库。',

@@ -1,6 +1,8 @@
 ﻿from pathlib import Path
 from uuid import uuid4
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Literal
 
 import asyncio
 import hashlib
@@ -31,6 +33,12 @@ from schemas.resume import (
 logger = logging.getLogger("uvicorn.error")
 
 _llm_client: LLMClient | None = None
+
+
+@dataclass(frozen=True)
+class ResumeCandidateResolution:
+    candidate: Candidate
+    outcome: Literal["created", "reused", "already_linked"]
 
 
 def _is_resume_mock_enabled() -> bool:
@@ -283,7 +291,12 @@ async def _parse_resume_item(
     pdf_path: str,
     semaphore: asyncio.Semaphore,
     task_item: ResumeTaskItem | None = None,
-    on_candidate_parsed: Callable[[Candidate, str], Awaitable[None]] | None = None,
+    resolve_existing_candidate: Callable[
+        [str], Awaitable[ResumeCandidateResolution | None]
+    ] | None = None,
+    on_candidate_parsed: Callable[
+        [Candidate, str], Awaitable[ResumeCandidateResolution | None]
+    ] | None = None,
 ) -> ResumeParseItemResult:
 
     async with semaphore:
@@ -291,17 +304,31 @@ async def _parse_resume_item(
         if task_item is not None:
             task_item.status = "running"
         try:
-            candidate = await parse_resume_pdf(
-                pdf_path=pdf_path,
-                source_file=filename,
-            )
+            resolution = None
+            if resolve_existing_candidate is not None:
+                resolution = await resolve_existing_candidate(pdf_path)
 
-            # 数据库提交成功后，任务项才对轮询端显示 success。
-            if on_candidate_parsed is not None:
-                await on_candidate_parsed(candidate, pdf_path)
+            if resolution is None:
+                candidate = await parse_resume_pdf(
+                    pdf_path=pdf_path,
+                    source_file=filename,
+                )
+
+                # 数据库提交成功后，任务项才对轮询端显示 success。
+                if on_candidate_parsed is not None:
+                    resolution = await on_candidate_parsed(candidate, pdf_path)
+
+                if resolution is None:
+                    resolution = ResumeCandidateResolution(
+                        candidate=candidate,
+                        outcome="created",
+                    )
+
+            candidate = resolution.candidate
 
             if task_item is not None:
                 task_item.candidate = candidate
+                task_item.outcome = resolution.outcome
                 task_item.status = "success"
 
             return ResumeParseItemResult(
@@ -329,7 +356,12 @@ async def parse_resume_batch(
     files: list[tuple[str, str]],
     *,
     task_items: list[ResumeTaskItem] | None = None,
-    on_candidate_parsed: Callable[[Candidate, str], Awaitable[None]] | None = None,
+    resolve_existing_candidate: Callable[
+        [str], Awaitable[ResumeCandidateResolution | None]
+    ] | None = None,
+    on_candidate_parsed: Callable[
+        [Candidate, str], Awaitable[ResumeCandidateResolution | None]
+    ] | None = None,
 ) -> ResumeBatchParseResponse:
 
     if task_items is not None and len(task_items) != len(files):
@@ -344,6 +376,7 @@ async def parse_resume_batch(
             pdf_path=pdf_path,
             semaphore=semaphore,
             task_item=task_items[index] if task_items is not None else None,
+            resolve_existing_candidate=resolve_existing_candidate,
             on_candidate_parsed=on_candidate_parsed,
         )
         for index, (filename, pdf_path) in enumerate(files)

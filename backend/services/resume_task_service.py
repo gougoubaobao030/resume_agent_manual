@@ -1,12 +1,17 @@
 import asyncio
+import hashlib
 import logging
 import os
 from dataclasses import dataclass
 from uuid import uuid4
 
 from schemas.resume import ResumeTaskItem, ResumeTaskResponse
-from repositories.candidate_repository import save_candidate_for_job
-from services.resume_service import parse_resume_batch
+from repositories.candidate_repository import (
+    add_candidate_to_job,
+    get_candidate_by_resume_hash,
+    save_candidate_for_job_with_hash,
+)
+from services.resume_service import ResumeCandidateResolution, parse_resume_batch
 from services.resume_storage import (
     delete_pending_resume,
     resolve_resume_path,
@@ -61,22 +66,15 @@ def _pending_files(record: ResumeTaskRecord) -> list[tuple[str, str]]:
     ]
 
 
-async def _persist_candidate(
-    record: ResumeTaskRecord,
-    candidate,
-    pdf_path: str,
-    pending_resume_path: str,
-) -> None:
-    if record.job_id is not None:
-        await asyncio.to_thread(
-            save_candidate_for_job,
-            candidate,
-            record.job_id,
-            record.user_id,
-            pdf_path,
-        )
+def _calculate_resume_hash(pdf_path: str) -> str:
+    digest = hashlib.sha256()
+    with open(pdf_path, "rb") as pdf_file:
+        for chunk in iter(lambda: pdf_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
-    # 只有 Candidate 的正式 PDF 和数据库提交成功后，才删除 pending PDF。
+
+async def _delete_pending_after_success(pending_resume_path: str) -> None:
     try:
         await asyncio.to_thread(delete_pending_resume, pending_resume_path)
     except OSError:
@@ -85,6 +83,70 @@ async def _persist_candidate(
             "[Resume Task] 清理 pending PDF 失败 %s",
             pending_resume_path,
         )
+
+
+def _build_item_handlers(
+    record: ResumeTaskRecord,
+    pending_by_path: dict[str, str],
+):
+    resume_hashes: dict[str, str] = {}
+
+    async def resolve_existing_candidate(
+        pdf_path: str,
+    ) -> ResumeCandidateResolution | None:
+        resume_hash = await asyncio.to_thread(_calculate_resume_hash, pdf_path)
+        resume_hashes[pdf_path] = resume_hash
+
+        if record.job_id is None:
+            return None
+
+        candidate = await asyncio.to_thread(
+            get_candidate_by_resume_hash,
+            resume_hash,
+        )
+        if candidate is None or not candidate.id:
+            return None
+
+        relation_created = await asyncio.to_thread(
+            add_candidate_to_job,
+            candidate.id,
+            record.job_id,
+            record.user_id,
+        )
+        await _delete_pending_after_success(pending_by_path[pdf_path])
+        return ResumeCandidateResolution(
+            candidate=candidate,
+            outcome="reused" if relation_created else "already_linked",
+        )
+
+    async def persist_candidate(
+        candidate,
+        pdf_path: str,
+    ) -> ResumeCandidateResolution:
+        if record.job_id is None:
+            await _delete_pending_after_success(pending_by_path[pdf_path])
+            return ResumeCandidateResolution(candidate=candidate, outcome="created")
+
+        result = await asyncio.to_thread(
+            save_candidate_for_job_with_hash,
+            candidate,
+            record.job_id,
+            record.user_id,
+            pdf_path,
+            resume_hashes[pdf_path],
+        )
+        await _delete_pending_after_success(pending_by_path[pdf_path])
+
+        if result.candidate_created:
+            outcome = "created"
+        else:
+            outcome = "reused" if result.relation_created else "already_linked"
+        return ResumeCandidateResolution(
+            candidate=result.candidate,
+            outcome=outcome,
+        )
+
+    return resolve_existing_candidate, persist_candidate
 
 
 def create_resume_task(
@@ -173,17 +235,15 @@ async def run_resume_task(task_id: str) -> None:
     }
     logger.info("[Resume Task] START %s total=%s", task_id, task.total)
     try:
-        async def persist_candidate(candidate, pdf_path: str) -> None:
-            await _persist_candidate(
-                record,
-                candidate,
-                pdf_path,
-                pending_by_path[pdf_path],
-            )
+        resolve_existing_candidate, persist_candidate = _build_item_handlers(
+            record,
+            pending_by_path,
+        )
 
         await parse_resume_batch(
             files,
             task_items=task.items,
+            resolve_existing_candidate=resolve_existing_candidate,
             on_candidate_parsed=persist_candidate,
         )
         _refresh_task_summary(task)
@@ -210,17 +270,15 @@ async def run_resume_task_item(task_id: str, item_id: str) -> None:
     pdf_path = str(resolve_resume_path(pending_resume_path))
 
     try:
-        async def persist_candidate(candidate, parsed_pdf_path: str) -> None:
-            await _persist_candidate(
-                record,
-                candidate,
-                parsed_pdf_path,
-                pending_resume_path,
-            )
+        resolve_existing_candidate, persist_candidate = _build_item_handlers(
+            record,
+            {pdf_path: pending_resume_path},
+        )
 
         await parse_resume_batch(
             [(item.filename, pdf_path)],
             task_items=[item],
+            resolve_existing_candidate=resolve_existing_candidate,
             on_candidate_parsed=persist_candidate,
         )
     except Exception as exc:
@@ -261,6 +319,7 @@ def retry_resume_task_item(
     item.status = "running"
     item.error = None
     item.candidate = None
+    item.outcome = None
     record.task.status = "running"
     record.task.error = None
     _refresh_task_summary(record.task)

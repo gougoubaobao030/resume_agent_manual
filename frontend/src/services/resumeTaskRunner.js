@@ -14,6 +14,7 @@ import {
   setResumeTaskPollingError,
 } from '../state/session'
 import { analyzeTalent } from './talent'
+import { shouldStartCandidateAnalysis } from './resumeTaskOutcome'
 
 const POLL_INTERVAL_MS = 800
 export const terminalResumeTaskStatuses = new Set(['completed', 'completed_with_errors', 'failed'])
@@ -54,6 +55,7 @@ function applyTaskSnapshot(task, run) {
     if (item.status !== 'success' || !item.candidate) continue
 
     addCandidate(item.candidate)
+    if (!shouldStartCandidateAnalysis(item)) continue
     if (run.startedCandidates.has(item.candidate.id)) continue
     run.startedCandidates.add(item.candidate.id)
     void startCandidateScoring(item.candidate, run)

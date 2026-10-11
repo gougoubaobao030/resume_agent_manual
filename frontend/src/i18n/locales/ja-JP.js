@@ -120,6 +120,10 @@ export default {
     actions: { selectFiles: 'PDF ファイルを選択', parsing: '解析中…', start: '一括解析を開始', removeLabel: '{filename} を削除', remove: '削除', retry: '再解析', retrying: '再解析中…', viewCandidates: '候補者を表示' },
     status: { pending: '待機中', running: '解析中', success: '解析完了', failed: '解析エラー' },
     summary: { completed: '完了', success: '解析完了', failed: '解析エラー', running: '処理中', pending: '待機中' },
+    outcomes: {
+      reused: '既存の候補者と元の履歴書データを再利用しました。',
+      alreadyLinked: 'この候補者はすでに現在の求人に登録されているため、重複アップロードをスキップしました。',
+    },
     scoring: { running: '求人スコア算出中…', failed: '求人スコア算出失敗', completed: '求人スコア算出完了' },
     failedFiles: '解析できなかったファイル', sessionNote: '解析に成功した候補者をデータベースに保存しました。',
     note: { title: '処理について', description: '履歴書は個別に解析され、1 件の失敗で他のファイルが中断されることはありません。' },

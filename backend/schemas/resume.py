@@ -227,6 +227,7 @@ class ResumeTaskItem(BaseModel):
     item_id: str
     filename: str
     status: Literal["pending", "running", "success", "failed"] = "pending"
+    outcome: Optional[Literal["created", "reused", "already_linked"]] = None
     candidate: Optional[Candidate] = None
     error: Optional[str] = None
 

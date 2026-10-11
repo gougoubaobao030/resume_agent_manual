@@ -1,4 +1,7 @@
+from dataclasses import dataclass
+
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 
 from database import SessionLocal
 from models import CandidateModel, JobCandidateModel, JobModel, ScoringResultModel
@@ -8,6 +11,13 @@ from services.resume_storage import (
     stage_candidate_resume_deletion,
     store_candidate_resume,
 )
+
+
+@dataclass(frozen=True)
+class CandidateJobSaveResult:
+    candidate: Candidate
+    candidate_created: bool
+    relation_created: bool
 
 
 def _to_schema(row: CandidateModel) -> Candidate:
@@ -71,6 +81,104 @@ def save_candidate_for_job(
         with store_candidate_resume(resume_source_path, candidate.id) as resume_path:
             persist(resume_path)
     return candidate
+
+
+def get_candidate_by_resume_hash(resume_hash: str) -> Candidate | None:
+    with SessionLocal() as db:
+        row = db.scalar(
+            select(CandidateModel).where(CandidateModel.resume_hash == resume_hash)
+        )
+        return _to_schema(row) if row else None
+
+
+def add_candidate_to_job(
+    candidate_id: str,
+    job_id: str,
+    user_id: str | None,
+) -> bool:
+    """Idempotently link an existing Candidate to a Job.
+
+    Returns True only when this call created the relation. A concurrent insert of
+    the same composite primary key is recovered as an already-existing relation.
+    """
+
+    with SessionLocal() as db:
+        if db.get(JobCandidateModel, (job_id, candidate_id)) is not None:
+            return False
+
+        db.add(JobCandidateModel(
+            job_id=job_id,
+            candidate_id=candidate_id,
+            added_by=user_id,
+        ))
+        try:
+            db.commit()
+            return True
+        except IntegrityError:
+            db.rollback()
+            if db.get(JobCandidateModel, (job_id, candidate_id)) is not None:
+                return False
+            raise
+
+
+def save_candidate_for_job_with_hash(
+    candidate: Candidate,
+    job_id: str,
+    user_id: str | None,
+    resume_source_path: str,
+    resume_hash: str,
+) -> CandidateJobSaveResult:
+    """Persist a newly parsed Candidate, recovering a concurrent hash winner."""
+
+    if not candidate.id:
+        raise ValueError("Candidate缺少id，无法保存")
+    if len(resume_hash) != 64:
+        raise ValueError("简历SHA-256格式无效")
+
+    payload = candidate.model_dump(mode="json")
+    payload.pop("id", None)
+    raw_text = payload.pop("raw_text", None)
+    source_file = (
+        candidate.extraction_metadata.source_file
+        if candidate.extraction_metadata else None
+    )
+
+    try:
+        # If commit loses the UNIQUE(resume_hash) race, this context removes only
+        # the losing candidate_id's promoted PDF before recovery continues.
+        with store_candidate_resume(resume_source_path, candidate.id) as resume_path:
+            with SessionLocal() as db:
+                db.add(CandidateModel(
+                    id=candidate.id,
+                    resume_hash=resume_hash,
+                    raw_text=raw_text,
+                    structured_data_json=payload,
+                    source_file=source_file,
+                    resume_path=resume_path,
+                    created_by=user_id,
+                ))
+                db.add(JobCandidateModel(
+                    job_id=job_id,
+                    candidate_id=candidate.id,
+                    added_by=user_id,
+                ))
+                db.commit()
+    except IntegrityError:
+        winner = get_candidate_by_resume_hash(resume_hash)
+        if winner is None or not winner.id:
+            raise
+        relation_created = add_candidate_to_job(winner.id, job_id, user_id)
+        return CandidateJobSaveResult(
+            candidate=winner,
+            candidate_created=False,
+            relation_created=relation_created,
+        )
+
+    return CandidateJobSaveResult(
+        candidate=candidate,
+        candidate_created=True,
+        relation_created=True,
+    )
 
 
 def get_candidate(candidate_id: str) -> Candidate | None:
