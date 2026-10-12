@@ -14,16 +14,19 @@ import {
   setResumeTaskOptions,
 } from '../state/session'
 import TalentSettings from '../components/TalentSettings.vue'
-import PdfMergeTool from '../components/PdfMergeTool.vue'
 import {
   startResumeTaskRunner,
   terminalResumeTaskStatuses,
 } from '../services/resumeTaskRunner'
+import { prepareCandidateFolderUpload } from '../services/folderResumeUpload'
 
 const { locale, t } = useI18n()
 
 const fileInput = ref(null)
+const folderInput = ref(null)
 const selectedFiles = ref([])
+const selectedCandidateNames = ref([])
+const skippedCandidateNames = ref([])
 const uploadStatus = ref('idle')
 const uploadMessage = ref('')
 const selectedTalentModes = ref([])
@@ -95,18 +98,22 @@ function formatFileSize(bytes) {
 }
 
 function acceptFiles(fileList) {
-  const files = Array.from(fileList ?? [])
+  const newFiles = Array.from(fileList ?? [])
 
-  if (!files.length) {
+  if (!newFiles.length) {
     return
   }
 
-  const nonPdf = files.find((file) => !file.name.toLowerCase().endsWith('.pdf'))
+  const nonPdf = newFiles.find((file) => !file.name.toLowerCase().endsWith('.pdf'))
   if (nonPdf) {
     uploadStatus.value = 'error'
     uploadMessage.value = t('resumeUpload.messages.notPdf', { filename: nonPdf.name })
     return
   }
+
+  const startsNewBatch = Boolean(session.resumeTaskId)
+  const existingFiles = startsNewBatch ? [] : selectedFiles.value
+  const files = [...existingFiles, ...newFiles]
 
   if (files.length > 30) {
     uploadStatus.value = 'error'
@@ -115,9 +122,67 @@ function acceptFiles(fileList) {
   }
 
   selectedFiles.value = files
+  selectedCandidateNames.value = [
+    ...existingFiles.map((_, index) => selectedCandidateNames.value[index] ?? ''),
+    ...newFiles.map(() => ''),
+  ]
+  skippedCandidateNames.value = []
   uploadStatus.value = 'idle'
   uploadMessage.value = ''
   clearResumeTask()
+}
+
+async function handleFolderInput(event) {
+  const files = Array.from(event.target.files ?? [])
+  console.debug('[FolderResumeUpload] handleFolderInput raw files', files.map((file) => ({
+    name: file.name,
+    webkitRelativePath: file.webkitRelativePath,
+    size: file.size,
+  })))
+  event.target.value = ''
+  if (!files.length) return
+
+  const startsNewBatch = Boolean(session.resumeTaskId)
+  const existingFiles = startsNewBatch ? [] : selectedFiles.value
+  const existingCandidateNames = startsNewBatch ? [] : selectedCandidateNames.value
+
+  uploadStatus.value = 'loading'
+  uploadMessage.value = t('resumeUpload.messages.preparingFolder')
+  skippedCandidateNames.value = []
+  clearResumeTask()
+
+  try {
+    const prepared = await prepareCandidateFolderUpload(files)
+    if (existingFiles.length + prepared.uploadFiles.length > 30) {
+      uploadStatus.value = 'error'
+      uploadMessage.value = t('resumeUpload.messages.tooMany')
+      return
+    }
+    if (!prepared.uploadFiles.length) {
+      uploadStatus.value = 'error'
+      uploadMessage.value = t('resumeUpload.messages.noFolderPdfs')
+      skippedCandidateNames.value = prepared.skippedCandidateNames
+      return
+    }
+
+    selectedFiles.value = [...existingFiles, ...prepared.uploadFiles]
+    selectedCandidateNames.value = [
+      ...existingCandidateNames,
+      ...prepared.candidateNames,
+    ]
+    console.debug('[FolderResumeUpload] selectedFiles before parsing', selectedFiles.value.map((file) => ({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    })))
+    skippedCandidateNames.value = prepared.skippedCandidateNames
+    uploadStatus.value = 'idle'
+    uploadMessage.value = ''
+  } catch (error) {
+    console.error('Preparing candidate folder upload failed', error)
+    uploadStatus.value = 'error'
+    uploadMessage.value = t('resumeUpload.messages.folderPrepareFailed')
+  }
 }
 
 function handleFileInput(event) {
@@ -132,6 +197,7 @@ function handleDrop(event) {
 
 function removeFile(index) {
   selectedFiles.value.splice(index, 1)
+  selectedCandidateNames.value.splice(index, 1)
   uploadStatus.value = 'idle'
   uploadMessage.value = ''
   clearResumeTask()
@@ -209,8 +275,6 @@ async function handleParse() {
       </span>
     </div>
 
-    <PdfMergeTool />
-
     <article class="panel upload-panel">
       <div class="talent-upload-options">
         <h3>{{ t('resumeUpload.talentExecution.title') }}</h3>
@@ -235,9 +299,32 @@ async function handleParse() {
           :disabled="isParsing"
           @change="handleFileInput"
         />
-        <button class="button button--secondary" type="button" :disabled="isParsing" @click="fileInput.click()">
-          {{ t('resumeUpload.actions.selectFiles') }}
-        </button>
+        <input
+          ref="folderInput"
+          class="visually-hidden"
+          type="file"
+          webkitdirectory
+          directory
+          multiple
+          :disabled="isParsing"
+          @change="handleFolderInput"
+        />
+        <div class="upload-zone__actions">
+          <button class="button button--primary" type="button" :disabled="isParsing" @click="fileInput.click()">
+            {{ t('resumeUpload.actions.selectFiles') }}
+          </button>
+          <div class="upload-zone__folder-option">
+            <span>{{ t('resumeUpload.folderUpload.prompt') }}</span>
+            <button class="button button--secondary button--small" type="button" :disabled="isParsing" @click="folderInput.click()">
+              {{ t('resumeUpload.actions.selectFolder') }}
+            </button>
+            <small>{{ t('resumeUpload.folderUpload.description') }}</small>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="skippedCandidateNames.length" class="upload-status upload-status--warning" role="status">
+        <span>{{ t('resumeUpload.messages.skippedCandidates', { names: skippedCandidateNames.join(', ') }) }}</span>
       </div>
 
       <div v-if="selectedFiles.length" class="selected-files">
@@ -248,9 +335,9 @@ async function handleParse() {
           </button>
         </div>
         <ul>
-          <li v-for="(file, index) in selectedFiles" :key="`${file.name}-${file.size}-${file.lastModified}`">
+          <li v-for="(file, index) in selectedFiles" :key="`${file.name}-${file.size}-${file.lastModified}-${index}`">
             <span class="file-type-mark">PDF</span>
-            <div><strong>{{ file.name }}</strong><small>{{ formatFileSize(file.size) }}</small></div>
+            <div><strong>{{ selectedCandidateNames[index] || file.name }}</strong><small>{{ file.name }} · {{ formatFileSize(file.size) }}</small></div>
             <button type="button" :disabled="isParsing" :aria-label="t('resumeUpload.actions.removeLabel', { filename: file.name })" @click="removeFile(index)">{{ t('resumeUpload.actions.remove') }}</button>
           </li>
         </ul>
