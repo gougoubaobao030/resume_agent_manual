@@ -1,10 +1,20 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
+import { getCandidatePool } from '../services/api'
 import { session } from '../state/session'
 
 const hasCurrentJob = computed(() => Boolean(session.currentJob?.id))
 const scoredCandidateCount = computed(() => Object.keys(session.jobMatches).length)
+const totalCandidateCount = ref(null)
+
+onMounted(async () => {
+  try {
+    totalCandidateCount.value = (await getCandidatePool()).length
+  } catch (error) {
+    console.error('Load candidate total failed', error)
+  }
+})
 </script>
 
 <template>
@@ -73,15 +83,20 @@ const scoredCandidateCount = computed(() => Object.keys(session.jobMatches).leng
       <article class="panel">
         <div class="panel__header">
           <div>
-            <span class="section-kicker">{{ $t('dashboard.scope.eyebrow') }}</span>
-            <h3>{{ $t('dashboard.scope.title') }}</h3>
+            <span class="section-kicker">{{ $t('dashboard.overview.eyebrow') }}</span>
+            <h3>{{ $t('dashboard.overview.title') }}</h3>
           </div>
         </div>
-        <ul class="capability-list">
-          <li><span class="status-dot"></span>{{ $t('dashboard.scope.jd') }}</li>
-          <li><span class="status-dot"></span>{{ $t('dashboard.scope.resume') }}</li>
-          <li><span class="status-dot"></span>{{ $t('dashboard.scope.scoring') }}</li>
-        </ul>
+        <div class="system-overview">
+          <div>
+            <span>{{ $t('dashboard.overview.jobs') }}</span>
+            <strong>{{ $t('dashboard.overview.jobCount', { count: session.jobs.length }) }}</strong>
+          </div>
+          <div>
+            <span>{{ $t('dashboard.overview.candidates') }}</span>
+            <strong>{{ totalCandidateCount === null ? '—' : $t('dashboard.overview.candidateCount', { count: totalCandidateCount }) }}</strong>
+          </div>
+        </div>
       </article>
     </div>
   </section>

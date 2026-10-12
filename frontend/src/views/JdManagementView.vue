@@ -277,7 +277,7 @@ async function handleSave() {
         <button class="button button--secondary button--small" type="button" :disabled="isBusy" @click="startNewJob">{{ t('jd.actions.newJob') }}</button>
         <button
           v-if="canDeleteJob"
-          class="danger-link"
+          class="button button--secondary button--small button--danger-secondary"
           type="button"
           :disabled="isBusy"
           @click="handleDeleteJob"

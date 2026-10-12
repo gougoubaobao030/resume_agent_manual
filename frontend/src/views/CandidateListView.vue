@@ -14,7 +14,6 @@ import {
   setJobMatchLoading,
   setJobMatchResult,
 } from '../state/session'
-import TalentSettings from '../components/TalentSettings.vue'
 import {
   analyzeTalent,
   isPotentialSignalResult,
@@ -25,8 +24,9 @@ import {
 
 const { locale, t } = useI18n()
 const sortDirection = ref('desc')
-const selectedTalentModes = ref([])
-const rescoringSelected = ref(false)
+const selectedAnalysisTypes = ref(['match', 'auto', 'specified'])
+const traitInput = ref('')
+const batchProcessing = ref(false)
 const rescoreStatus = ref('idle')
 const rescoreMessage = ref('')
 const removingCandidateIds = ref([])
@@ -42,15 +42,10 @@ const sortedCandidates = computed(() => [...session.candidates].sort((a, b) => {
 const selectedIds = computed(() => session.selectedTalentCandidateIds)
 const allSelected = computed(() => sortedCandidates.value.length > 0
   && sortedCandidates.value.every((item) => selectedIds.value.includes(item.id)))
-const canAnalyze = computed(() => selectedIds.value.length > 0
-  && selectedTalentModes.value.length > 0
-  && (!selectedTalentModes.value.includes('specified') || session.desiredTraits.length > 0)
-  && selectedIds.value.some((id) => selectedTalentModes.value.some(
-    (mode) => session.talentStatuses[id]?.[mode] !== 'loading',
-  )))
-const canRescore = computed(() => Boolean(session.currentJob?.id)
+const canRunBatch = computed(() => selectedAnalysisTypes.value.length > 0
   && selectedIds.value.length > 0
-  && !rescoringSelected.value)
+  && (!selectedAnalysisTypes.value.includes('match') || Boolean(session.currentJob?.id))
+  && !batchProcessing.value)
 
 function toggleAll() {
   session.selectedTalentCandidateIds = allSelected.value ? [] : sortedCandidates.value.map((item) => item.id)
@@ -62,67 +57,80 @@ function toggleCandidate(id) {
     : [...selectedIds.value, id]
 }
 
-function analyzeSelected() {
-  const modes = [...selectedTalentModes.value]
-  const traits = [...session.desiredTraits]
-  const selected = sortedCandidates.value.filter((item) => selectedIds.value.includes(item.id))
-  void Promise.allSettled(selected.flatMap((item) =>
-    modes.map((mode) => analyzeTalent(item, mode, traits, locale.value)),
-  ))
+function addTrait() {
+  const value = traitInput.value.trim()
+  if (value && !session.desiredTraits.includes(value)) session.desiredTraits.push(value)
+  traitInput.value = ''
+  rescoreMessage.value = ''
+  rescoreStatus.value = 'idle'
 }
 
-async function rescoreSelected() {
-  if (!canRescore.value) return
+async function runBatchReevaluation() {
+  if (!canRunBatch.value) return
+  if (selectedAnalysisTypes.value.includes('specified') && !session.desiredTraits.length) {
+    rescoreStatus.value = 'error'
+    rescoreMessage.value = t('candidates.validation.specifiedTraitsRequired')
+    return
+  }
 
-  const jobId = session.currentJob.id
+  const analysisTypes = [...selectedAnalysisTypes.value]
+  const jobId = session.currentJob?.id
   const candidateIds = [...selectedIds.value]
+  const selectedCandidates = sortedCandidates.value.filter((item) => candidateIds.includes(item.id))
+  const traits = [...session.desiredTraits]
   const analysisLanguage = locale.value
-  rescoringSelected.value = true
+  batchProcessing.value = true
   rescoreStatus.value = 'loading'
   rescoreMessage.value = t('candidates.actions.rescoring')
 
-  candidateIds.forEach((candidateId) => setJobMatchLoading(candidateId))
+  if (analysisTypes.includes('match')) {
+    candidateIds.forEach((candidateId) => setJobMatchLoading(candidateId))
+  }
 
   try {
-    const results = await Promise.allSettled(candidateIds.map(async (candidateId) => {
-      try {
-        const result = await scoreJobMatch(jobId, candidateId, analysisLanguage)
-        if (session.currentJob?.id === jobId) setJobMatchResult(candidateId, result)
-        return result
-      } catch (error) {
-        if (session.currentJob?.id === jobId) {
-          setJobMatchError(
-            candidateId,
-            getFriendlyApiError(error, t('candidates.operations.rescore')),
-          )
-        }
-        throw error
-      }
-    }))
+    const operations = []
 
-    if (session.currentJob?.id !== jobId) {
-      rescoreStatus.value = 'idle'
-      rescoreMessage.value = ''
-      return
+    if (analysisTypes.includes('match')) {
+      operations.push(...candidateIds.map(async (candidateId) => {
+        try {
+          const result = await scoreJobMatch(jobId, candidateId, analysisLanguage)
+          if (session.currentJob?.id === jobId) setJobMatchResult(candidateId, result)
+          return result
+        } catch (error) {
+          if (session.currentJob?.id === jobId) {
+            setJobMatchError(
+              candidateId,
+              getFriendlyApiError(error, t('candidates.operations.rescore')),
+            )
+          }
+          throw error
+        }
+      }))
     }
 
+    const talentModes = analysisTypes.filter((type) => type === 'auto' || type === 'specified')
+    operations.push(...selectedCandidates.flatMap((candidate) => talentModes.map(async (mode) => {
+      await analyzeTalent(candidate, mode, traits, analysisLanguage)
+      if (session.talentStatuses[candidate.id]?.[mode] === 'error') {
+        throw new Error(`Talent analysis failed: ${candidate.id}:${mode}`)
+      }
+    })))
+
+    const results = await Promise.allSettled(operations)
     const failedCount = results.filter((result) => result.status === 'rejected').length
     const successCount = results.length - failedCount
     if (!failedCount) {
       rescoreStatus.value = 'success'
-      rescoreMessage.value = t('candidates.messages.rescoreSuccess')
+      rescoreMessage.value = t('candidates.messages.reevaluationSuccess')
     } else if (successCount) {
       rescoreStatus.value = 'error'
-      rescoreMessage.value = t('candidates.messages.rescorePartialFailed', {
-        success: successCount,
-        failed: failedCount,
-      })
+      rescoreMessage.value = t('candidates.messages.reevaluationPartialFailed')
     } else {
       rescoreStatus.value = 'error'
-      rescoreMessage.value = t('candidates.messages.rescoreFailed', { failed: failedCount })
+      rescoreMessage.value = t('candidates.messages.reevaluationFailed')
     }
   } finally {
-    rescoringSelected.value = false
+    batchProcessing.value = false
   }
 }
 
@@ -251,13 +259,46 @@ function talentKeywords(candidate, mode) {
         </label>
       </div>
       <div v-if="session.candidates.length" class="talent-batch-controls">
-        <TalentSettings v-model="selectedTalentModes" multiple />
-        <div class="talent-batch-actions">
-          <label><input type="checkbox" :checked="allSelected" @change="toggleAll" /> {{ t('candidates.selectAll') }}</label>
-          <button class="button button--secondary button--small" type="button" :disabled="!selectedIds.length" @click="session.selectedTalentCandidateIds = []">{{ t('candidates.clearSelection') }}</button>
-          <span>{{ t('candidates.selectedCount', { count: selectedIds.length }) }}</span>
-          <button class="button button--secondary button--small" type="button" :disabled="!canRescore" @click="rescoreSelected">{{ t(rescoringSelected ? 'candidates.actions.rescoring' : 'candidates.actions.rescoreSelected') }}</button>
-          <button class="button button--primary button--small" type="button" :disabled="!canAnalyze" @click="analyzeSelected">{{ t('candidates.analyzeSelected') }}</button>
+        <section class="reevaluation-settings" aria-labelledby="reevaluation-settings-title">
+          <div class="reevaluation-settings__heading">
+            <h3 id="reevaluation-settings-title">{{ t('candidates.reevaluationSettings.title') }}</h3>
+            <p>{{ t('candidates.reevaluationSettings.description') }}</p>
+          </div>
+          <div class="reevaluation-options">
+            <label class="reevaluation-option">
+              <input v-model="selectedAnalysisTypes" type="checkbox" value="match" :disabled="batchProcessing" />
+              <span><strong>{{ t('candidates.matchScore') }}</strong><small>{{ t('candidates.reevaluationSettings.matchDescription') }}</small></span>
+            </label>
+            <label class="reevaluation-option">
+              <input v-model="selectedAnalysisTypes" type="checkbox" value="auto" :disabled="batchProcessing" />
+              <span><strong>{{ t('talentSettings.autoMode') }}</strong><small>{{ t('candidates.reevaluationSettings.potentialDescription') }}</small></span>
+            </label>
+            <label class="reevaluation-option">
+              <input v-model="selectedAnalysisTypes" type="checkbox" value="specified" :disabled="batchProcessing" />
+              <span><strong>{{ t('talentSettings.specifiedMode') }}</strong><small>{{ t('candidates.reevaluationSettings.specifiedDescription') }}</small></span>
+            </label>
+          </div>
+          <div v-if="selectedAnalysisTypes.includes('specified')" class="trait-editor reevaluation-settings__traits">
+            <label for="candidate-list-trait-input">{{ t('talentSettings.traitLabel') }}</label>
+            <div class="trait-editor__input">
+              <input id="candidate-list-trait-input" v-model="traitInput" class="text-input" type="text" :placeholder="t('talentSettings.traitPlaceholder')" :disabled="batchProcessing" @keydown.enter.prevent="addTrait" />
+              <button class="button button--secondary button--small" type="button" :disabled="batchProcessing || !traitInput.trim()" @click="addTrait">{{ t('talentSettings.add') }}</button>
+            </div>
+            <div v-if="session.desiredTraits.length" class="trait-chips">
+              <button v-for="trait in session.desiredTraits" :key="trait" type="button" :disabled="batchProcessing" :aria-label="t('talentSettings.removeLabel', { trait })" @click="session.desiredTraits.splice(session.desiredTraits.indexOf(trait), 1)">{{ trait }} ×</button>
+            </div>
+            <small v-else>{{ t('candidates.validation.specifiedTraitsRequired') }}</small>
+          </div>
+        </section>
+        <div class="selection-action-bar">
+          <div class="selection-action-bar__summary">
+            <label><input type="checkbox" :checked="allSelected" :disabled="batchProcessing" @change="toggleAll" /> {{ t('candidates.selectAll') }}</label>
+            <span class="selection-action-bar__divider" aria-hidden="true"></span>
+            <span>{{ t('candidates.selectedCount', { count: selectedIds.length }) }}</span>
+            <span class="selection-action-bar__divider" aria-hidden="true"></span>
+            <button class="selection-action-bar__clear" type="button" :disabled="!selectedIds.length || batchProcessing" @click="session.selectedTalentCandidateIds = []">{{ t('candidates.clearSelection') }}</button>
+          </div>
+          <button class="button button--primary" type="button" :disabled="!canRunBatch" @click="runBatchReevaluation">{{ t(batchProcessing ? 'candidates.actions.rescoring' : 'candidates.actions.rescoreSelected') }}</button>
         </div>
         <p v-if="rescoreMessage" class="inline-message" :class="`inline-message--${rescoreStatus}`" role="status" aria-live="polite"><span v-if="rescoreStatus === 'loading'" class="loading-spinner" aria-hidden="true"></span>{{ rescoreMessage }}</p>
       </div>

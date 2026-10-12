@@ -122,10 +122,7 @@ function closeNavigation() {
 
       <div class="sidebar__footer">
         <span class="status-dot status-dot--muted"></span>
-        <div>
-          <strong>{{ t('layout.footer.phase') }}</strong>
-          <span>{{ t('layout.footer.status') }}</span>
-        </div>
+        <strong>{{ t('layout.footer.phase') }}</strong>
       </div>
     </aside>
 

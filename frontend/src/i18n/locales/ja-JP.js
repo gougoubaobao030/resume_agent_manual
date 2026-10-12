@@ -28,7 +28,7 @@ export default {
     },
     talent: {
       analyzing: '分析中', analyzingProgress: '分析中…', failed: '分析失敗', notAnalyzed: '未分析', completed: '完了',
-      specifiedFit: '指定した候補者像との適合度', attention: '総合ポテンシャルシグナル', reanalyze: '再分析', analyze: '候補者の能力を分析', reanalyzePotential: 'ポテンシャルシグナルを再分析', analyzePotential: 'ポテンシャルシグナルを分析',
+      specifiedFit: '求める人材像との適合度', attention: '総合ポテンシャルシグナル', reanalyze: '再分析', analyze: '候補者の能力を分析', reanalyzePotential: 'ポテンシャルシグナルを再分析', analyzePotential: 'ポテンシャルシグナルを分析',
       level: { high: '高', mediumHigh: 'やや高い', medium: '中', mediumLow: 'やや低い', low: '低' },
     },
     requirementStatus: { matched: '適合', partiallyMatched: '一部適合', notMatched: '不適合', insufficientEvidence: '根拠不足' },
@@ -39,8 +39,8 @@ export default {
     },
   },
   talentSettings: {
-    modeLabel: '候補者の能力分析モード', autoMode: 'ポテンシャルシグナル分析', specifiedMode: 'HR 指定の候補者像', traitLabel: '重視する候補者の特性',
-    traitPlaceholder: '例：誠実、学習が速い', add: '追加', removeLabel: '{trait}を削除', traitRequired: '分析するには特性を 1 件以上追加してください。',
+    modeLabel: '候補者の能力分析モード', autoMode: 'ポテンシャルシグナル分析', specifiedMode: '求める人材像', traitLabel: '重視する特性',
+    traitPlaceholder: '例：真面目、学習が速い', add: '追加', removeLabel: '{trait}を削除', traitRequired: '分析するには特性を 1 件以上追加してください。',
   },
   dashboard: {
     eyebrow: '概要', title: '候補者スクリーニングを開始',
@@ -59,9 +59,9 @@ export default {
       eyebrow: '現在の選考', title: '今回の処理', currentJob: '現在の JD', notSet: '未設定', candidates: '候補者', scored: 'スコア算出済み',
       note: '現在選択中の JD のデータをデータベースから表示します。',
     },
-    scope: {
-      eyebrow: 'システム範囲', title: '現在利用できる機能', jd: 'JD 解析・HR 確認 API を利用できます',
-      resume: '単一・一括履歴書解析 API を利用できます', scoring: '求人マッチング評価 API に接続済みです',
+    overview: {
+      eyebrow: 'システムデータ', title: 'システム概要', jobs: '求人票', candidates: '候補者',
+      jobCount: '{count}件', candidateCount: '{count}名',
     },
   },
   jd: {
@@ -152,16 +152,21 @@ export default {
   candidates: {
     eyebrow: '候補者', title: '候補者一覧', description: 'まず求人とのマッチ度を確認し、さらに詳しく見たい人材を選択します。',
     importResumes: '履歴書をインポート', currentCandidates: '現在の候補者', personCount: '{count} 人', matchScore: '求人マッチ度',
-    sortLabel: '求人マッチ度で並べ替え', sortDescending: '高い順', sortAscending: '低い順', selectAll: '現在の候補者をすべて選択',
+    sortLabel: '求人マッチ度で並べ替え', sortDescending: '高い順', sortAscending: '低い順', selectAll: '全選択',
     clearSelection: '選択を解除', selectedCount: '{count} 人を選択中', analyzeSelected: '選択した候補者の能力を分析', selectCandidate: '{name} を選択',
+    reevaluationSettings: {
+      title: '再評価・分析の設定', description: '選択した項目を対象に、候補者の再評価・分析を実行します。',
+      matchDescription: '求人との適合度を再評価します。', potentialDescription: '候補者のポテンシャルを分析します。', specifiedDescription: '下の条件をもとに候補者を分析します。',
+    },
     actions: { rescoreSelected: '選択した候補者を再評価', rescoring: '再評価中…', viewResume: '元の履歴書', viewDetails: '詳細', more: 'その他の操作' },
-    messages: { rescoreSuccess: '評価を更新しました', rescorePartialFailed: '{success}名の再評価が完了し、{failed}名が失敗しました', rescoreFailed: '{failed}名の再評価に失敗しました', removeSuccess: '{name} を現在の求人から削除しました。' },
+    messages: { rescoreSuccess: '評価を更新しました', rescorePartialFailed: '{success}名の再評価が完了し、{failed}名が失敗しました', rescoreFailed: '{failed}名の再評価に失敗しました', reevaluationSuccess: '選択した再評価・分析が完了しました。', reevaluationPartialFailed: '一部の再評価・分析に失敗しました。結果を確認してください。', reevaluationFailed: '再評価・分析に失敗しました。もう一度お試しください。', removeSuccess: '{name} を現在の求人から削除しました。' },
+    validation: { specifiedTraitsRequired: '求める人材像で分析するには、少なくとも1つの特性を追加してください。' },
     operations: { rescore: '再評価', remove: '現在の求人から削除' },
     removeFromJob: '現在の求人から削除', removing: '削除中…',
     removeConfirm: '{name} を現在の求人からのみ削除し、この求人のマッチング評価を削除します。候補者情報と元の履歴書は候補者一覧に保持されます。',
     locationMissing: '所在地情報なし', highlights: '強み：', noHighlights: '明確な強みなし', viewResume: '元の履歴書を表示', viewDetails: '詳細を表示',
     mustHaveSummary: { allMet: '{passed}/{total} 充足', unmet: '{passed}/{total} {count}項目不足' },
-    table: { select: '選択', candidate: '候補者', matchScore: '求人マッチ度', mustHave: '必須条件', assessment: '求人判定', autoTalent: '総合ポテンシャルシグナル', specifiedTalent: 'HR 指定の候補者像', actions: '操作' },
+    table: { select: '選択', candidate: '候補者', matchScore: 'マッチ度', mustHave: '必須条件', assessment: '求人判定', autoTalent: '総合ポテンシャル', specifiedTalent: '人材像との適合度', actions: '操作' },
     empty: { title: '候補者はまだいません', description: '履歴書のインポート後、解析に成功した候補者がここに表示されます。', action: '履歴書インポートへ →' },
   },
   candidatePool: {
@@ -181,14 +186,14 @@ export default {
       autoEvidence: '一部のポテンシャルシグナルの根拠を履歴書で確認できなかったため、該当領域を残したまま要確認としました。',
       specifiedEvidence: '一部の指定人材特性には検証可能な根拠がなく、根拠不足として人による確認が必要です。',
     },
-    metrics: { mustHave: '必須条件', autoTalent: '総合ポテンシャルシグナル', specifiedTalent: 'HR 指定能力適合度' },
+    metrics: { mustHave: '必須条件', autoTalent: '総合ポテンシャルシグナル', specifiedTalent: '人材像との適合度' },
     empty: { title: '候補者データを利用できません', description: '候補者がデータベースに存在しないか、選択中の JD に関連付けられていません。', action: '候補者一覧に戻る →', poolAction: '候補者一覧に戻る →' },
     basicInfo: { title: '基本情報', name: '氏名', location: '所在地', email: 'メール', phone: '電話' },
     match: { title: '求人マッチング概要', score: '求人マッチ度', requirements: '求人要件との適合', noResult: '現在のセッションにこの候補者の求人マッチング結果はありません。', highlights: '主な強み', risks: 'リスク / 要確認事項', noHighlights: '明確な高適合項目はありません。', noRisks: '明確なリスク項目はありません。', warningTitle: '根拠の確認が必要' },
     talent: {
-      title: '候補者の能力分析', specifiedProfile: 'HR 指定の候補者像', evidence: '主な根拠', missingInformation: '要確認情報',
+      title: '候補者の能力分析', specifiedProfile: '求める人材像', evidence: '主な根拠', missingInformation: '要確認情報',
       additionalFindings: 'AI による追加発見', abilityProfile: '能力プロフィール', noAbilities: '追加能力を示す明確な根拠はありません。', warnings: '分析上の注意',
-      autoTitle: 'ポテンシャルシグナル分析', specifiedTitle: 'HR 指定能力', overallSignal: '総合ポテンシャルシグナル', signalStrength: 'シグナル強度',
+      autoTitle: 'ポテンシャルシグナル分析', specifiedTitle: '求める人材像', overallSignal: '総合ポテンシャルシグナル', signalStrength: 'シグナル強度',
     },
     resume: {
       education: '学歴', degreeMissing: '学位・専攻情報なし', noEducation: '学歴情報なし', workExperience: '職務経歴', noWorkExperience: '職務経歴なし',
@@ -230,7 +235,6 @@ export default {
     },
     footer: {
       phase: 'MVP 開発段階',
-      status: '求人マッチング評価を実装済み',
     },
     header: {
       workbench: '採用一次選考ワークスペース',

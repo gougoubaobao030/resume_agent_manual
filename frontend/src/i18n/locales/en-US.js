@@ -59,9 +59,9 @@ export default {
       eyebrow: 'Current Session', title: 'This Session', currentJob: 'Current JD', notSet: 'Not set', candidates: 'Candidates', scored: 'Scored',
       note: 'Data for the currently selected JD is loaded from the database.',
     },
-    scope: {
-      eyebrow: 'System Scope', title: 'Currently Available', jd: 'JD parsing and HR confirmation APIs are available',
-      resume: 'Single and batch resume parsing APIs are available', scoring: 'Job-match scoring API is connected',
+    overview: {
+      eyebrow: 'System Data', title: 'System Overview', jobs: 'Jobs', candidates: 'Candidates',
+      jobCount: '{count}', candidateCount: '{count}',
     },
   },
   jd: {
@@ -152,10 +152,15 @@ Preferred qualifications:
   candidates: {
     eyebrow: 'Candidates', title: 'Candidate List', description: 'Review job matches first, then select candidates worth exploring further.',
     importResumes: 'Import Resumes', currentCandidates: 'Current Candidates', personCount: '{count} people', matchScore: 'Match Score',
-    sortLabel: 'Sort by match score', sortDescending: 'High to Low', sortAscending: 'Low to High', selectAll: 'Select All Current Candidates',
+    sortLabel: 'Sort by match score', sortDescending: 'High to Low', sortAscending: 'Low to High', selectAll: 'Select all',
     clearSelection: 'Clear Selection', selectedCount: '{count} selected', analyzeSelected: 'Analyze Selected Candidates', selectCandidate: 'Select {name}',
-    actions: { rescoreSelected: 'Rescore selected candidates', rescoring: 'Rescoring…', viewResume: 'Resume', viewDetails: 'Details', more: 'More actions' },
-    messages: { rescoreSuccess: 'Scores updated', rescorePartialFailed: '{success} candidates rescored, {failed} failed', rescoreFailed: '{failed} candidates failed to rescore', removeSuccess: '{name} was removed from the current job.' },
+    reevaluationSettings: {
+      title: 'Reevaluation & analysis settings', description: 'Run the selected reevaluations and analyses for the chosen candidates.',
+      matchDescription: 'Reevaluate fit with the job.', potentialDescription: 'Analyze each candidate’s potential.', specifiedDescription: 'Analyze candidates using the criteria below.',
+    },
+    actions: { rescoreSelected: 'Reevaluate selected candidates', rescoring: 'Reevaluating…', viewResume: 'Resume', viewDetails: 'Details', more: 'More actions' },
+    messages: { rescoreSuccess: 'Scores updated', rescorePartialFailed: '{success} candidates rescored, {failed} failed', rescoreFailed: '{failed} candidates failed to rescore', reevaluationSuccess: 'The selected reevaluations and analyses are complete.', reevaluationPartialFailed: 'Some reevaluations or analyses failed. Please review the results.', reevaluationFailed: 'The reevaluation and analysis failed. Please try again.', removeSuccess: '{name} was removed from the current job.' },
+    validation: { specifiedTraitsRequired: 'Add at least one trait to analyze candidates against the HR target profile.' },
     operations: { rescore: 'Candidate rescoring', remove: 'Remove from current job' },
     removeFromJob: 'Remove from Current Job', removing: 'Removing…',
     removeConfirm: 'This only removes {name} from the current job and deletes the match score for this job. The candidate profile and original resume will remain in Candidate Pool.',
@@ -230,8 +235,7 @@ Preferred qualifications:
       closeHint: 'Close navigation',
     },
     footer: {
-      phase: 'MVP Development',
-      status: 'Job matching scores enabled',
+      phase: 'MVP Stage',
     },
     header: {
       workbench: 'Recruiting Screening Workspace',
