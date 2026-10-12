@@ -16,6 +16,10 @@ export default {
     candidateNameMissing: '氏名を抽出できませんでした', noInformation: '情報なし', dateMissing: '期間情報なし', colon: '：',
     sourceLabel: '出典：{source}', sourceWithIndex: '出典：{source} #{index}', sourceNameWithIndex: '{source} #{index}',
     evidenceStatus: { verified: '確認済み', review: '要確認', insufficient: '根拠不足', confirmationRequired: '確認待ち' },
+    potentialDimensions: {
+      learningTransfer: '学習・応用力', analyticalProblemSolving: '分析・問題解決力', initiativeDrive: '主体性・自律性', persistenceExecution: '粘り強さ・遂行力',
+      adaptabilityResilience: '適応・対応力', reflectionGrowth: '振り返り・成長力', socialLearningCollaboration: '社会的学習・協働力',
+    },
     match: {
       waiting: 'スコア算出待ち', noAssessment: '判定なし', mustHaveFailed: '必須条件を満たしていません',
       mustHaveConfirmation: '必須条件の確認が必要です', mustHavePassed: '必須条件を満たしています',
@@ -24,7 +28,7 @@ export default {
     },
     talent: {
       analyzing: '分析中', analyzingProgress: '分析中…', failed: '分析失敗', notAnalyzed: '未分析', completed: '完了',
-      specifiedFit: '指定した候補者像との適合度', attention: '注目度', reanalyze: '再分析', analyze: '候補者の能力を分析',
+      specifiedFit: '指定した候補者像との適合度', attention: '総合ポテンシャルシグナル', reanalyze: '再分析', analyze: '候補者の能力を分析', reanalyzePotential: 'ポテンシャルシグナルを再分析', analyzePotential: 'ポテンシャルシグナルを分析',
       level: { high: '高', mediumHigh: 'やや高い', medium: '中', mediumLow: 'やや低い', low: '低' },
     },
     requirementStatus: { matched: '適合', partiallyMatched: '一部適合', notMatched: '不適合', insufficientEvidence: '根拠不足' },
@@ -35,7 +39,7 @@ export default {
     },
   },
   talentSettings: {
-    modeLabel: '候補者の能力分析モード', autoMode: 'AI による自動分析', specifiedMode: 'HR 指定の候補者像', traitLabel: '重視する候補者の特性',
+    modeLabel: '候補者の能力分析モード', autoMode: 'ポテンシャルシグナル分析', specifiedMode: 'HR 指定の候補者像', traitLabel: '重視する候補者の特性',
     traitPlaceholder: '例：誠実、学習が速い', add: '追加', removeLabel: '{trait}を削除', traitRequired: '分析するには特性を 1 件以上追加してください。',
   },
   dashboard: {
@@ -157,7 +161,7 @@ export default {
     removeConfirm: '{name} を現在の求人からのみ削除し、この求人のマッチング評価を削除します。候補者情報と元の履歴書は候補者一覧に保持されます。',
     locationMissing: '所在地情報なし', highlights: '強み：', noHighlights: '明確な強みなし', viewResume: '元の履歴書を表示', viewDetails: '詳細を表示',
     mustHaveSummary: { allMet: '{passed}/{total} 充足', unmet: '{passed}/{total} {count}項目不足' },
-    table: { select: '選択', candidate: '候補者', matchScore: '求人マッチ度', mustHave: '必須条件', assessment: '求人判定', autoTalent: 'AI による能力分析', specifiedTalent: 'HR 指定の候補者像', actions: '操作' },
+    table: { select: '選択', candidate: '候補者', matchScore: '求人マッチ度', mustHave: '必須条件', assessment: '求人判定', autoTalent: '総合ポテンシャルシグナル', specifiedTalent: 'HR 指定の候補者像', actions: '操作' },
     empty: { title: '候補者はまだいません', description: '履歴書のインポート後、解析に成功した候補者がここに表示されます。', action: '履歴書インポートへ →' },
   },
   candidatePool: {
@@ -174,17 +178,17 @@ export default {
     messages: { rescoreSuccess: '評価を更新しました。' },
     warnings: {
       scoringEvidence: '一部の求人マッチング根拠は原文または出典位置を確認できず、関連する結論を人による確認が必要としてマークしました。',
-      autoEvidence: '一部の AI 能力の根拠を履歴書で確認できませんでした。有効な根拠のない評価は自動的に除外し、要確認のまま残る評価は人による確認が必要です。',
+      autoEvidence: '一部のポテンシャルシグナルの根拠を履歴書で確認できなかったため、該当領域を残したまま要確認としました。',
       specifiedEvidence: '一部の指定人材特性には検証可能な根拠がなく、根拠不足として人による確認が必要です。',
     },
-    metrics: { mustHave: '必須条件', autoTalent: 'AI 能力注目度', specifiedTalent: 'HR 指定能力適合度' },
+    metrics: { mustHave: '必須条件', autoTalent: '総合ポテンシャルシグナル', specifiedTalent: 'HR 指定能力適合度' },
     empty: { title: '候補者データを利用できません', description: '候補者がデータベースに存在しないか、選択中の JD に関連付けられていません。', action: '候補者一覧に戻る →', poolAction: '候補者一覧に戻る →' },
     basicInfo: { title: '基本情報', name: '氏名', location: '所在地', email: 'メール', phone: '電話' },
     match: { title: '求人マッチング概要', score: '求人マッチ度', requirements: '求人要件との適合', noResult: '現在のセッションにこの候補者の求人マッチング結果はありません。', highlights: '主な強み', risks: 'リスク / 要確認事項', noHighlights: '明確な高適合項目はありません。', noRisks: '明確なリスク項目はありません。', warningTitle: '根拠の確認が必要' },
     talent: {
       title: '候補者の能力分析', specifiedProfile: 'HR 指定の候補者像', evidence: '主な根拠', missingInformation: '要確認情報',
       additionalFindings: 'AI による追加発見', abilityProfile: '能力プロフィール', noAbilities: '追加能力を示す明確な根拠はありません。', warnings: '分析上の注意',
-      autoTitle: 'AI 能力発見', specifiedTitle: 'HR 指定能力',
+      autoTitle: 'ポテンシャルシグナル分析', specifiedTitle: 'HR 指定能力', overallSignal: '総合ポテンシャルシグナル', signalStrength: 'シグナル強度',
     },
     resume: {
       education: '学歴', degreeMissing: '学位・専攻情報なし', noEducation: '学歴情報なし', workExperience: '職務経歴', noWorkExperience: '職務経歴なし',

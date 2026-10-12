@@ -7,7 +7,9 @@ from unittest.mock import patch
 from schemas.jd import JDInfo, JDRequirement
 from schemas.resume import Candidate
 from schemas.scoring import JobMatchResult
-from schemas.talent import TalentDiscoveryResult
+from database import SessionLocal
+from models import TalentDiscoveryResultModel
+from schemas.talent import PotentialSignalAbility, TalentDiscoveryResult
 from services import resume_service, resume_task_service
 from services import resume_storage
 from repositories.candidate_repository import (
@@ -141,6 +143,12 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
                 mode="auto",
                 attention_level="high",
                 summary="值得关注",
+                abilities=[PotentialSignalAbility(
+                    ability_name="learning_transfer",
+                    level="high",
+                    reason="存在学习迁移事实",
+                    evidence_status="verified",
+                )],
             )
             specified_talent = TalentDiscoveryResult(
                 candidate_id=candidate.id,
@@ -157,9 +165,40 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
                 get_talent_result(candidate.id, "auto").summary, "值得关注"
             )
             self.assertEqual(
+                get_talent_result(candidate.id, "auto").abilities[0].evidence_status,
+                "verified",
+            )
+            self.assertEqual(
                 get_talent_result(candidate.id, "specified").summary,
                 "符合指定人才像",
             )
+
+            with SessionLocal() as db:
+                row = db.query(TalentDiscoveryResultModel).filter_by(
+                    candidate_id=candidate.id,
+                    mode="auto",
+                ).one()
+                row.result_json = {
+                    "candidate_id": candidate.id,
+                    "analysis_language": "zh-CN",
+                    "mode": "auto",
+                    "attention_level": "medium",
+                    "summary": "旧格式结果",
+                    "abilities": [{
+                        "ability_name": "旧版自由能力",
+                        "level": "medium",
+                        "reason": "旧版理由",
+                        "evidence": [],
+                        "evidence_validation_issues": [],
+                    }],
+                }
+                db.commit()
+
+            legacy = get_talent_result(candidate.id, "auto")
+            self.assertEqual(legacy.abilities[0].ability_name, "旧版自由能力")
+            self.assertFalse(hasattr(legacy.abilities[0], "evidence_status"))
+
+            save_talent_result(auto_talent, desired_traits=[], user_id=None)
 
             updated_auto_talent = auto_talent.model_copy(
                 update={"summary": "更新后的自动发现结果"}

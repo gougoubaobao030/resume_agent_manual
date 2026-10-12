@@ -15,7 +15,13 @@ import {
   setJobMatchResult,
 } from '../state/session'
 import TalentSettings from '../components/TalentSettings.vue'
-import { analyzeTalent, talentLevelLabel } from '../services/talent'
+import {
+  analyzeTalent,
+  isPotentialSignalResult,
+  talentAbilityLabel,
+  talentEvidenceStatus,
+  talentLevelLabel,
+} from '../services/talent'
 
 const { locale, t } = useI18n()
 const sortDirection = ref('desc')
@@ -189,21 +195,39 @@ function talentLabel(candidate, mode) {
     const status = talentStatus(candidate, mode)
     return t(status === 'loading' ? 'common.talent.analyzing' : status === 'error' ? 'common.talent.failed' : 'common.talent.notAnalyzed')
   }
+  if (mode === 'auto' && isPotentialSignalResult(result)) {
+    return talentLevelLabel(result.attention_level)
+  }
   const hasEvidence = mode === 'specified'
     ? result.specified_traits?.some((item) => item.evidence?.length)
-    : result.abilities?.length > 0
+    : result.abilities?.some((item) => item.evidence?.length)
   if (!hasEvidence) return t('common.evidenceStatus.insufficient')
   return talentLevelLabel(mode === 'specified' ? result.specified_fit_level : result.attention_level)
 }
 function talentItems(candidate, mode) {
   const result = talentResult(candidate, mode)
   if (!result) return []
-  return mode === 'specified'
-    ? (result.specified_traits || []).map((item) => ({ name: item.trait, level: item.fit_level, hasEvidence: Boolean(item.evidence?.length) }))
-    : (result.abilities || []).map((item) => ({ name: item.ability_name, level: item.level, hasEvidence: true }))
+  if (mode === 'specified') {
+    return (result.specified_traits || []).map((item) => ({
+      name: item.trait,
+      level: item.fit_level,
+      evidenceStatus: talentEvidenceStatus(item),
+    }))
+  }
+  return (result.abilities || [])
+    .map((item) => ({
+      name: talentAbilityLabel(item.ability_name),
+      level: item.level,
+      evidenceStatus: talentEvidenceStatus(item),
+    }))
+    .filter((item) => item.evidenceStatus !== 'insufficient_evidence')
 }
 function talentItemLabel(item) {
-  return item.hasEvidence ? talentLevelLabel(item.level) : t('common.evidenceStatus.insufficient')
+  if (item.evidenceStatus === 'insufficient_evidence') return t('common.evidenceStatus.insufficient')
+  if (item.evidenceStatus === 'needs_review') {
+    return `${talentLevelLabel(item.level)} · ${t('common.evidenceStatus.review')}`
+  }
+  return talentLevelLabel(item.level)
 }
 function talentKeywords(candidate, mode) {
   return talentItems(candidate, mode)

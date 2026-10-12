@@ -14,6 +14,7 @@ from schemas.scoring import (
     MatchStatus,
 )
 from schemas.talent import (
+    POTENTIAL_DIMENSION_IDS,
     LLMTalentAbility,
     LLMTalentDiscoveryResult,
     LLMTalentEvidence,
@@ -123,21 +124,30 @@ class EvidenceValidationTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.warnings)
         self.assertNotEqual(result.summary, "Strong match")
 
-    async def test_unsupported_talent_ability_is_not_returned(self) -> None:
+    async def test_unsupported_talent_evidence_keeps_dimension_for_review(self) -> None:
+        abilities = [
+            LLMTalentAbility(
+                ability_name=dimension_id,
+                level="low",
+                reason="Insufficient evidence",
+            )
+            for dimension_id in POTENTIAL_DIMENSION_IDS
+        ]
+        abilities[0] = LLMTalentAbility(
+            ability_name=POTENTIAL_DIMENSION_IDS[0],
+            level="high",
+            reason="Large-team leadership",
+            evidence=[LLMTalentEvidence(
+                text="Led a global team of 100 engineers",
+                source_type="projects",
+                source_index=0,
+            )],
+        )
         llm_result = LLMTalentDiscoveryResult(
             mode="auto",
             attention_level="high",
             summary="High potential",
-            abilities=[LLMTalentAbility(
-                ability_name="Leadership",
-                level="high",
-                reason="Large-team leadership",
-                evidence=[LLMTalentEvidence(
-                    text="Led a global team of 100 engineers",
-                    source_type="projects",
-                    source_index=0,
-                )],
-            )],
+            abilities=abilities,
         )
         with patch.dict(os.environ, {"TALENT_USE_MOCK": "false"}), patch.object(
             talent_service,
@@ -151,7 +161,9 @@ class EvidenceValidationTest(unittest.IsolatedAsyncioTestCase):
                 AnalysisLanguage.EN_US,
             )
 
-        self.assertEqual(result.abilities, [])
+        self.assertEqual(len(result.abilities), 7)
+        self.assertEqual(result.abilities[0].evidence_status, "needs_review")
+        self.assertEqual(result.abilities[0].evidence, [])
         self.assertEqual(result.attention_level, "high")
         self.assertTrue(result.evidence_validation_issues)
         self.assertTrue(result.warnings)

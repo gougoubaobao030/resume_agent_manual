@@ -2,9 +2,11 @@
 from schemas.language import AnalysisLanguage
 from schemas.evidence import EvidenceValidationIssue
 from schemas.talent import (
+    POTENTIAL_DIMENSION_IDS,
     TalentMode,
     TalentEvidence,
     TalentAbility,
+    PotentialSignalAbility,
     SpecifiedTraitResult,
     TalentDiscoveryResult,
     LLMTalentEvidence,
@@ -40,40 +42,52 @@ _MOCK_PROFILE_LEVELS = (
 _TALENT_LANGUAGE_TEXT = {
     AnalysisLanguage.ZH_CN: {
         "summary": "Mock 人才能力分析已完成；当前等级为 {level}，请结合原始资料人工复核。",
+        "auto_summary": "Mock 潜力信号分析已完成；综合潜力信号为 {level}，请结合原始资料人工复核。",
         "ability_name": "事实归纳能力",
         "ability_reason": "候选人资料中存在可供进一步核实的事实线索。",
+        "potential_insufficient_reason": "当前资料缺少能够直接支持该潜力维度的行为过程或结果事实。",
+        "potential_missing_information": "请补充或核实与该潜力维度相关的具体行为、过程和结果",
+        "potential_review_information": "请查看原始简历并核实该潜力维度所引用事实的位置和内容",
         "specified_supported": "资料中存在与「{trait}」相关的事实线索，建议面试核实具体贡献。",
         "specified_missing": "当前资料缺少足够直接证据，暂无法确认「{trait}」。",
         "missing_information": "请核实「{trait}」的具体行为和结果",
-        "no_abilities": "当前候选人资料中未发现足够明确的额外能力证据",
+        "no_abilities": "当前候选人资料对七个潜力维度均缺少足够明确的事实证据",
         "missing_traits": "以下指定人才特征当前资料证据不足: {traits}",
-        "auto_evidence_warning": "部分 AI 能力证据未能通过简历核验；无有效证据的能力结论已自动移除，标记为待复核的保留结论需要人工确认。",
+        "auto_evidence_warning": "部分潜力信号证据未能通过简历核验，相关维度已保留并标记为待复核。",
         "specified_evidence_warning": "部分指定人才像缺少可验证证据，相关项目已标记为证据不足，需要人工确认。",
         "unsupported_summary": "当前人才分析结论缺少可验证证据，已按证据不足处理，需要人工复核候选人原始资料。",
     },
     AnalysisLanguage.JA_JP: {
         "summary": "Mock 人材能力分析が完了しました。現在のレベルは {level} です。原資料と照合して確認してください。",
+        "auto_summary": "Mock ポテンシャルシグナル分析が完了しました。総合シグナルは {level} です。原資料と照合して確認してください。",
         "ability_name": "事実整理力",
         "ability_reason": "候補者資料には、さらに確認できる事実上の手がかりがあります。",
+        "potential_insufficient_reason": "現在の資料には、このポテンシャル領域を直接裏付ける行動過程や成果の事実が不足しています。",
+        "potential_missing_information": "このポテンシャル領域に関する具体的な行動、過程、成果を確認してください",
+        "potential_review_information": "原文の履歴書を確認し、このポテンシャル領域で引用された事実の位置と内容を照合してください",
         "specified_supported": "資料には「{trait}」に関連する事実上の手がかりがあります。面接で具体的な貢献を確認してください。",
         "specified_missing": "現在の資料には十分な直接的根拠がなく、「{trait}」は現時点で確認できません。",
         "missing_information": "「{trait}」に関する具体的な行動と結果を確認してください",
-        "no_abilities": "現在の候補者資料では、明確な追加能力の根拠を十分に確認できませんでした",
+        "no_abilities": "現在の候補者資料では、7つのポテンシャル領域すべてについて十分に明確な事実根拠を確認できませんでした",
         "missing_traits": "次の指定人材特性は現在の資料で根拠が不足しています: {traits}",
-        "auto_evidence_warning": "一部の AI 能力の根拠を履歴書で確認できませんでした。有効な根拠のない評価は自動的に除外し、要確認のまま残る評価は人による確認が必要です。",
+        "auto_evidence_warning": "一部のポテンシャルシグナルの根拠を履歴書で確認できなかったため、該当領域を残したまま要確認としました。",
         "specified_evidence_warning": "一部の指定人材特性には検証可能な根拠がなく、根拠不足として人による確認が必要です。",
         "unsupported_summary": "現在の人材分析結論には検証可能な根拠が不足しているため、根拠不足として扱い、候補者の原資料を人が確認する必要があります。",
     },
     AnalysisLanguage.EN_US: {
         "summary": "Mock capability analysis completed at level {level}; review it against the original candidate material.",
+        "auto_summary": "Mock potential signal analysis completed with an overall signal of {level}; review it against the original candidate material.",
         "ability_name": "Fact synthesis",
         "ability_reason": "The candidate material contains factual signals that can be verified further.",
+        "potential_insufficient_reason": "The current material lacks behavioral process or outcome facts that directly support this potential dimension.",
+        "potential_missing_information": "Confirm specific behaviors, processes, and outcomes related to this potential dimension",
+        "potential_review_information": "Review the original resume and verify the location and wording of the facts cited for this potential dimension",
         "specified_supported": "The material contains factual signals related to “{trait}”; verify the candidate's specific contribution in an interview.",
         "specified_missing": "The current material lacks sufficient direct evidence to determine “{trait}”.",
         "missing_information": "Confirm the specific behavior and outcome related to “{trait}”",
-        "no_abilities": "No sufficiently clear evidence of additional capabilities was found in the current candidate material",
+        "no_abilities": "The current candidate material lacks sufficiently clear factual evidence across all seven potential dimensions",
         "missing_traits": "The current material has insufficient evidence for these target traits: {traits}",
-        "auto_evidence_warning": "Some AI capability evidence could not be verified against the resume; findings without valid evidence were removed automatically, and retained findings marked for review need human confirmation.",
+        "auto_evidence_warning": "Some potential-signal evidence could not be verified against the resume; the affected dimensions were retained and marked for review.",
         "specified_evidence_warning": "Some specified talent traits lack verifiable evidence and were marked as insufficient evidence for human confirmation.",
         "unsupported_summary": "The current talent-analysis conclusions lack verifiable evidence and were treated as insufficiently supported; review the original candidate material.",
     },
@@ -120,14 +134,38 @@ def _build_mock_llm_talent_result(
     level = _MOCK_PROFILE_LEVELS[profile_index]
     messages = _TALENT_LANGUAGE_TEXT[analysis_language]
     candidate_fact = _mock_candidate_evidence(candidate)
-    abilities = [
-        LLMTalentAbility(
-            ability_name=messages["ability_name"],
-            level=level,
-            reason=messages["ability_reason"],
-            evidence=[candidate_fact.model_copy(deep=True)],
-        )
-    ] if candidate_fact else []
+    if mode == "auto":
+        abilities = [
+            LLMTalentAbility(
+                ability_name=dimension_id,
+                level=level if index == 0 and candidate_fact else "low",
+                reason=(
+                    messages["ability_reason"]
+                    if index == 0 and candidate_fact
+                    else messages["potential_insufficient_reason"]
+                ),
+                evidence=(
+                    [candidate_fact.model_copy(deep=True)]
+                    if index == 0 and candidate_fact
+                    else []
+                ),
+                missing_information=(
+                    []
+                    if index == 0 and candidate_fact
+                    else [messages["potential_missing_information"]]
+                ),
+            )
+            for index, dimension_id in enumerate(POTENTIAL_DIMENSION_IDS)
+        ]
+    else:
+        abilities = [
+            LLMTalentAbility(
+                ability_name=messages["ability_name"],
+                level=level,
+                reason=messages["ability_reason"],
+                evidence=[candidate_fact.model_copy(deep=True)],
+            )
+        ] if candidate_fact else []
 
     specified_traits = []
     if mode == "specified":
@@ -146,7 +184,9 @@ def _build_mock_llm_talent_result(
         mode=mode,
         attention_level=level if mode == "auto" else None,
         specified_fit_level=level if mode == "specified" else None,
-        summary=messages["summary"].format(level=level),
+        summary=messages[
+            "auto_summary" if mode == "auto" else "summary"
+        ].format(level=level),
         abilities=abilities,
         specified_traits=specified_traits,
     )
@@ -194,18 +234,33 @@ async def discover_talent(
             llm_result=llm_result,
         )
 
-    abilities: list[TalentAbility] = []
+    if mode == "auto":
+        _validate_auto_dimension_coverage(llm_result)
+
+    llm_abilities = llm_result.abilities
+    if mode == "auto":
+        abilities_by_name = {
+            ability.ability_name: ability
+            for ability in llm_result.abilities
+        }
+        llm_abilities = [
+            abilities_by_name[dimension_id]
+            for dimension_id in POTENTIAL_DIMENSION_IDS
+        ]
+
+    abilities: list[TalentAbility | PotentialSignalAbility] = []
     removed_ability_count = 0
     evidence_validation_issues: list[EvidenceValidationIssue] = []
-    for index, ability in enumerate(llm_result.abilities):
+    for index, ability in enumerate(llm_abilities):
         built_ability = _build_talent_ability(
             ability,
             candidate,
             f"abilities[{index}]",
+            analysis_language,
+            mode == "auto",
         )
         evidence_validation_issues.extend(built_ability.evidence_validation_issues)
-        # 人才能力结论必须有可验证事实；否则不作为正式能力发现返回。
-        if built_ability.evidence:
+        if mode == "auto" or built_ability.evidence:
             abilities.append(built_ability)
         else:
             removed_ability_count += 1
@@ -231,10 +286,21 @@ async def discover_talent(
     )
 
     summary = llm_result.summary
+    attention_level = llm_result.attention_level
+    if (
+        mode == "auto"
+        and abilities
+        and all(
+            ability.evidence_status == "insufficient_evidence"
+            for ability in abilities
+        )
+    ):
+        attention_level = "low"
+        summary = _TALENT_LANGUAGE_TEXT[analysis_language]["unsupported_summary"]
     if (
         (
             mode == "auto"
-            and not abilities
+            and not any(ability.evidence for ability in abilities)
             and evidence_validation_issues
         )
         or (
@@ -249,7 +315,7 @@ async def discover_talent(
         candidate_id=candidate.id,
         analysis_language=analysis_language,
         mode=mode,
-        attention_level=llm_result.attention_level,
+        attention_level=attention_level,
         specified_fit_level=llm_result.specified_fit_level,
         summary=summary,
         abilities=abilities,
@@ -312,6 +378,37 @@ def _validate_specified_trait_coverage(
         )
 
 
+def _validate_auto_dimension_coverage(
+    llm_result: LLMTalentDiscoveryResult,
+) -> None:
+    """检查新生成的auto结果是否完整且唯一地覆盖固定七维。"""
+
+    expected_dimensions = set(POTENTIAL_DIMENSION_IDS)
+    actual_dimensions = [
+        ability.ability_name
+        for ability in llm_result.abilities
+    ]
+    actual_dimension_set = set(actual_dimensions)
+
+    if len(actual_dimensions) != len(actual_dimension_set):
+        raise ValueError("LLM潜力信号分析结果包含重复dimension")
+
+    missing_dimensions = expected_dimensions - actual_dimension_set
+    unknown_dimensions = actual_dimension_set - expected_dimensions
+
+    if missing_dimensions:
+        raise ValueError(
+            f"LLM潜力信号分析结果缺少dimension: "
+            f"{sorted(missing_dimensions)}"
+        )
+
+    if unknown_dimensions:
+        raise ValueError(
+            f"LLM潜力信号分析结果包含未知dimension: "
+            f"{sorted(unknown_dimensions)}"
+        )
+
+
 def _build_talent_evidence(
     evidence_items: list[LLMTalentEvidence],
     candidate: Candidate,
@@ -348,7 +445,9 @@ def _build_talent_ability(
     llm_ability: LLMTalentAbility,
     candidate: Candidate,
     location: str,
-) -> TalentAbility:
+    analysis_language: AnalysisLanguage,
+    potential_signal: bool,
+) -> TalentAbility | PotentialSignalAbility:
     """将LLM能力发现结果转换为正式业务模型。"""
 
     evidence, issues = _build_talent_evidence(
@@ -356,12 +455,42 @@ def _build_talent_ability(
         candidate,
         location,
     )
-    return TalentAbility(
-        ability_name=llm_ability.ability_name,
-        level=llm_ability.level,
-        reason=llm_ability.reason,
-        evidence=evidence,
-        evidence_validation_issues=issues,
+    if issues:
+        evidence_status = "needs_review"
+    elif evidence:
+        evidence_status = "verified"
+    else:
+        evidence_status = "insufficient_evidence"
+
+    missing_information = list(llm_ability.missing_information)
+    if evidence_status != "verified" and not missing_information:
+        message_key = (
+            "potential_review_information"
+            if evidence_status == "needs_review"
+            else "potential_missing_information"
+        )
+        missing_information.append(
+            _TALENT_LANGUAGE_TEXT[analysis_language][message_key]
+        )
+
+    ability_fields = {
+        "ability_name": llm_ability.ability_name,
+        "level": (
+            "low"
+            if evidence_status == "insufficient_evidence"
+            else llm_ability.level
+        ),
+        "reason": llm_ability.reason,
+        "evidence": evidence,
+        "evidence_validation_issues": issues,
+    }
+    if not potential_signal:
+        return TalentAbility(**ability_fields)
+
+    return PotentialSignalAbility(
+        **ability_fields,
+        evidence_status=evidence_status,
+        missing_information=missing_information,
     )
 
 
@@ -404,7 +533,7 @@ def _build_specified_trait_result(
 
 def _build_warnings(
     mode: TalentMode,
-    abilities: list[TalentAbility],
+    abilities: list[TalentAbility | PotentialSignalAbility],
     specified_traits: list[SpecifiedTraitResult],
     evidence_issue_count: int,
     removed_ability_count: int,
@@ -417,9 +546,12 @@ def _build_warnings(
 
     if (
         mode == "auto"
-        and not abilities
+        and abilities
+        and all(
+            ability.evidence_status == "insufficient_evidence"
+            for ability in abilities
+        )
         and not evidence_issue_count
-        and not removed_ability_count
     ):
         warnings.append(
             messages["no_abilities"]

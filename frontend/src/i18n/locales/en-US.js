@@ -16,6 +16,10 @@ export default {
     candidateNameMissing: 'Name not extracted', noInformation: 'No information available', dateMissing: 'Dates unavailable', colon: ': ',
     sourceLabel: 'Source: {source}', sourceWithIndex: 'Source: {source} #{index}', sourceNameWithIndex: '{source} #{index}',
     evidenceStatus: { verified: 'Verified', review: 'Review needed', insufficient: 'Insufficient evidence', confirmationRequired: 'Pending confirmation' },
+    potentialDimensions: {
+      learningTransfer: 'Learning & Transfer', analyticalProblemSolving: 'Analysis & Problem Solving', initiativeDrive: 'Initiative & Self-direction', persistenceExecution: 'Persistence & Execution',
+      adaptabilityResilience: 'Adaptability & Resilience', reflectionGrowth: 'Reflection & Growth', socialLearningCollaboration: 'Social Learning & Collaboration',
+    },
     match: {
       waiting: 'Awaiting score', noAssessment: 'No assessment', mustHaveFailed: 'Must-have criteria not met',
       mustHaveConfirmation: 'Must-have criteria need confirmation', mustHavePassed: 'Must-have criteria met',
@@ -24,7 +28,7 @@ export default {
     },
     talent: {
       analyzing: 'Analyzing', analyzingProgress: 'Analyzing…', failed: 'Analysis failed', notAnalyzed: 'Not analyzed', completed: 'Completed',
-      specifiedFit: 'Target profile fit', attention: 'Talent priority', reanalyze: 'Analyze again', analyze: 'Analyze capabilities',
+      specifiedFit: 'Target profile fit', attention: 'Overall Potential Signal', reanalyze: 'Analyze again', analyze: 'Analyze capabilities', reanalyzePotential: 'Analyze potential signals again', analyzePotential: 'Analyze potential signals',
       level: { high: 'High', mediumHigh: 'Medium-high', medium: 'Medium', mediumLow: 'Medium-low', low: 'Low' },
     },
     requirementStatus: { matched: 'Met', partiallyMatched: 'Partially met', notMatched: 'Not met', insufficientEvidence: 'Insufficient evidence' },
@@ -35,7 +39,7 @@ export default {
     },
   },
   talentSettings: {
-    modeLabel: 'Talent analysis mode', autoMode: 'AI discovery', specifiedMode: 'HR target profile', traitLabel: 'Target traits',
+    modeLabel: 'Talent analysis mode', autoMode: 'Potential Signal Analysis', specifiedMode: 'HR target profile', traitLabel: 'Target traits',
     traitPlaceholder: 'For example: dependable, quick learner', add: 'Add', removeLabel: 'Remove {trait}', traitRequired: 'Add at least one trait before running the analysis.',
   },
   dashboard: {
@@ -157,7 +161,7 @@ Preferred qualifications:
     removeConfirm: 'This only removes {name} from the current job and deletes the match score for this job. The candidate profile and original resume will remain in Candidate Pool.',
     locationMissing: 'Location unavailable', highlights: 'Highlights: ', noHighlights: 'No clear highlights', viewResume: 'View Original Resume', viewDetails: 'View Details',
     mustHaveSummary: { allMet: '{passed}/{total} met', unmet: '{passed}/{total} {count} unmet' },
-    table: { select: 'Select', candidate: 'Candidate', matchScore: 'Match Score', mustHave: 'Must-haves', assessment: 'Job Assessment', autoTalent: 'AI Capabilities', specifiedTalent: 'HR Target Profile', actions: 'Actions' },
+    table: { select: 'Select', candidate: 'Candidate', matchScore: 'Match Score', mustHave: 'Must-haves', assessment: 'Job Assessment', autoTalent: 'Overall Potential Signal', specifiedTalent: 'HR Target Profile', actions: 'Actions' },
     empty: { title: 'No Candidates Yet', description: 'Candidates whose resumes are parsed successfully will appear here.', action: 'Go to Resume Import →' },
   },
   candidatePool: {
@@ -174,17 +178,17 @@ Preferred qualifications:
     messages: { rescoreSuccess: 'Score updated.' },
     warnings: {
       scoringEvidence: 'Some job-match evidence failed source-text or locator validation; the related conclusions were marked for human review.',
-      autoEvidence: 'Some AI capability evidence could not be verified against the resume; findings without valid evidence were removed automatically, and retained findings marked for review need human confirmation.',
+      autoEvidence: 'Some potential-signal evidence could not be verified against the resume; the affected dimensions were retained and marked for review.',
       specifiedEvidence: 'Some specified talent traits lack verifiable evidence and were marked as insufficient evidence for human confirmation.',
     },
-    metrics: { mustHave: 'Must-have Conditions', autoTalent: 'AI Capability Attention', specifiedTalent: 'HR Target Fit' },
+    metrics: { mustHave: 'Must-have Conditions', autoTalent: 'Overall Potential Signal', specifiedTalent: 'HR Target Fit' },
     empty: { title: 'Candidate Data Unavailable', description: 'This candidate is not in the database or is not linked to the selected JD.', action: 'Back to Candidate List →', poolAction: 'Back to Candidate Pool →' },
     basicInfo: { title: 'Basic Information', name: 'Name', location: 'Location', email: 'Email', phone: 'Phone' },
     match: { title: 'Job Match Summary', score: 'Match Score', requirements: 'Requirement Matches', noResult: 'No job-match result for this candidate exists in the current session.', highlights: 'Key Strengths', risks: 'Risks / Items to Confirm', noHighlights: 'No clear high-match requirements.', noRisks: 'No material risks identified.', warningTitle: 'Evidence review needed' },
     talent: {
       title: 'Capability Discovery', specifiedProfile: 'HR Target Profile', evidence: 'Key Evidence', missingInformation: 'Information to Confirm',
       additionalFindings: 'Additional AI Findings', abilityProfile: 'Capability Profile', noAbilities: 'No clear evidence of additional capabilities.', warnings: 'Analysis Notes',
-      autoTitle: 'AI Capability Discovery', specifiedTitle: 'HR-Specified Capabilities',
+      autoTitle: 'Potential Signal Analysis', specifiedTitle: 'HR-Specified Capabilities', overallSignal: 'Overall Potential Signal', signalStrength: 'Signal Strength',
     },
     resume: {
       education: 'Education', degreeMissing: 'Degree and major unavailable', noEducation: 'No education information', workExperience: 'Work Experience',

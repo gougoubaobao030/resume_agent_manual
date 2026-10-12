@@ -10,7 +10,13 @@ import {
   getFriendlyApiError,
   scoreJobMatch,
 } from '../services/api'
-import { analyzeTalent, talentLevelLabel } from '../services/talent'
+import {
+  analyzeTalent,
+  isPotentialSignalResult,
+  talentAbilityLabel,
+  talentEvidenceStatus,
+  talentLevelLabel,
+} from '../services/talent'
 import {
   session,
   setJobMatchError,
@@ -200,10 +206,11 @@ function scoringEvidenceState(item) {
 }
 
 function talentEvidenceState(item) {
-  if (item.evidence_validation_issues?.length) {
+  const status = talentEvidenceStatus(item)
+  if (status === 'needs_review') {
     return { label: t('common.evidenceStatus.review'), className: 'status-badge--warning' }
   }
-  if (!item?.evidence?.length) {
+  if (status === 'insufficient_evidence') {
     return { label: t('common.evidenceStatus.insufficient'), className: 'status-badge--neutral' }
   }
   return { label: t('common.evidenceStatus.verified'), className: 'status-badge--success' }
@@ -211,9 +218,12 @@ function talentEvidenceState(item) {
 
 function talentResultLabel(result, mode) {
   if (!result) return talentStatusLabel(mode)
+  if (mode === 'auto' && isPotentialSignalResult(result)) {
+    return talentLevelLabel(result.attention_level)
+  }
   const hasEvidence = mode === 'specified'
     ? result.specified_traits?.some((item) => item.evidence?.length)
-    : result.abilities?.length > 0
+    : result.abilities?.some((item) => item.evidence?.length)
   if (!hasEvidence) return t('common.evidenceStatus.insufficient')
   return talentLevelLabel(mode === 'specified' ? result.specified_fit_level : result.attention_level)
 }
@@ -398,13 +408,13 @@ watch(
       <div class="talent-summary-grid">
         <article class="panel compact-panel talent-summary-card">
           <div class="panel__header compact-panel__header">
-            <div><h3>{{ t('candidateDetail.talent.autoTitle') }}</h3><p v-if="autoTalentResult">{{ autoTalentResult.summary }}</p></div>
+            <div><h3>{{ t('candidateDetail.talent.autoTitle') }}</h3><p v-if="autoTalentResult"><strong>{{ t('candidateDetail.talent.overallSignal') }}：{{ talentLevelLabel(autoTalentResult.attention_level) }}</strong></p><p v-if="autoTalentResult">{{ autoTalentResult.summary }}</p></div>
             <span class="status-badge" :class="talentStatusClass('auto')">{{ talentStatusLabel('auto') }}</span>
           </div>
           <div v-if="autoTalentResult" class="compact-talent-list">
             <details v-for="item in autoTalentResult.abilities" :key="item.ability_name" class="compact-disclosure compact-disclosure--talent">
-              <summary><strong>{{ item.ability_name }}</strong><span class="talent-result-badges"><span class="status-badge status-badge--neutral">{{ talentLevelLabel(item.level) }}</span><span class="status-badge" :class="talentEvidenceState(item).className">{{ talentEvidenceState(item).label }}</span></span><span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span></summary>
-              <div class="compact-disclosure__content"><p>{{ item.reason }}</p><div v-if="item.evidence?.length"><h5>{{ t('candidateDetail.talent.evidence') }}</h5><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div></div>
+              <summary><strong>{{ talentAbilityLabel(item.ability_name) }}</strong><span class="talent-result-badges"><span class="status-badge status-badge--neutral">{{ t('candidateDetail.talent.signalStrength') }}：{{ talentLevelLabel(item.level) }}</span><span class="status-badge" :class="talentEvidenceState(item).className">{{ talentEvidenceState(item).label }}</span></span><span class="disclosure-action">{{ t('candidateDetail.viewEvidence') }}</span></summary>
+              <div class="compact-disclosure__content"><p>{{ item.reason }}</p><div v-if="item.evidence?.length"><h5>{{ t('candidateDetail.talent.evidence') }}</h5><ul class="plain-list"><li v-for="(evidence, index) in item.evidence" :key="index">{{ evidence.text }} <small>{{ evidenceSource(evidence) }}</small></li></ul></div><div v-if="item.missing_information?.length"><h5>{{ t('candidateDetail.talent.missingInformation') }}</h5><ul class="plain-list"><li v-for="info in item.missing_information" :key="info">{{ info }}</li></ul></div></div>
             </details>
             <p v-if="!autoTalentResult.abilities.length" class="empty-copy">{{ t('candidateDetail.talent.noAbilities') }}</p>
             <details v-if="talentWarnings(autoTalentResult, 'auto').length" class="talent-notes">
@@ -414,7 +424,7 @@ watch(
           </div>
           <p v-else-if="talentStatus('auto') === 'error'" class="talent-error">{{ session.talentErrors[candidate.id]?.auto }}</p>
           <p v-else class="empty-copy">{{ talentStatusLabel('auto') }}</p>
-          <div class="talent-summary-card__footer"><button class="button button--secondary button--small" type="button" :disabled="!canAnalyzeTalent('auto')" @click="handleAnalyzeTalent('auto')">{{ t(talentStatus('auto') === 'loading' ? 'common.talent.analyzingProgress' : autoTalentResult ? 'common.talent.reanalyze' : 'common.talent.analyze') }}</button></div>
+          <div class="talent-summary-card__footer"><button class="button button--secondary button--small" type="button" :disabled="!canAnalyzeTalent('auto')" @click="handleAnalyzeTalent('auto')">{{ t(talentStatus('auto') === 'loading' ? 'common.talent.analyzingProgress' : autoTalentResult ? 'common.talent.reanalyzePotential' : 'common.talent.analyzePotential') }}</button></div>
         </article>
 
         <article class="panel compact-panel talent-summary-card">

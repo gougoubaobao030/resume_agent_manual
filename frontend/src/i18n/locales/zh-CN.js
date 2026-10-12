@@ -21,6 +21,10 @@ export default {
     sourceWithIndex: '来源：{source} #{index}',
     sourceNameWithIndex: '{source} #{index}',
     evidenceStatus: { verified: '已验证', review: '待复核', insufficient: '证据不足', confirmationRequired: '待确认' },
+    potentialDimensions: {
+      learningTransfer: '学习与迁移能力', analyticalProblemSolving: '分析与解决问题能力', initiativeDrive: '主动性与自驱力', persistenceExecution: '坚持与执行力',
+      adaptabilityResilience: '适应与应变能力', reflectionGrowth: '反思与成长能力', socialLearningCollaboration: '社会学习与协作能力',
+    },
     match: {
       waiting: '等待评分',
       noAssessment: '暂无判断',
@@ -41,9 +45,11 @@ export default {
       notAnalyzed: '未分析',
       completed: '已完成',
       specifiedFit: '指定人才像符合度',
-      attention: '人才关注度',
+      attention: '综合潜力信号',
       reanalyze: '重新分析',
       analyze: '分析人才能力',
+      reanalyzePotential: '重新分析潜力信号',
+      analyzePotential: '分析潜力信号',
       level: { high: '高', mediumHigh: '中高', medium: '中', mediumLow: '中低', low: '低' },
     },
     requirementStatus: {
@@ -68,7 +74,7 @@ export default {
     },
   },
   talentSettings: {
-    modeLabel: '人才能力分析模式', autoMode: 'AI 自动发现', specifiedMode: 'HR 指定人才像', traitLabel: '指定人才特征',
+    modeLabel: '人才能力分析模式', autoMode: '潜力信号分析', specifiedMode: 'HR 指定人才像', traitLabel: '指定人才特征',
     traitPlaceholder: '例如：认真、学习快', add: '添加', removeLabel: '移除 {trait}', traitRequired: '至少添加一项后才能分析。',
   },
   dashboard: {
@@ -243,7 +249,7 @@ export default {
     viewResume: '查看原简历',
     viewDetails: '查看详情',
     mustHaveSummary: { allMet: '{passed}/{total} 满足', unmet: '{passed}/{total} {count}项不足' },
-    table: { select: '选择', candidate: '候选人', matchScore: '岗位匹配分', mustHave: '硬条件', assessment: '岗位判断', autoTalent: 'AI 自动能力', specifiedTalent: 'HR 指定人才像', actions: '操作' },
+    table: { select: '选择', candidate: '候选人', matchScore: '岗位匹配分', mustHave: '硬条件', assessment: '岗位判断', autoTalent: '综合潜力信号', specifiedTalent: 'HR 指定人才像', actions: '操作' },
     empty: { title: '还没有候选人', description: '完成简历导入后，解析成功的候选人会出现在这里。', action: '前往简历导入 →' },
   },
   candidatePool: {
@@ -266,17 +272,17 @@ export default {
     messages: { rescoreSuccess: '评分已更新。' },
     warnings: {
       scoringEvidence: '部分岗位匹配证据未能通过原文或来源定位校验，相关结论已标记为需要人工复核。',
-      autoEvidence: '部分 AI 能力证据未能通过简历核验；无有效证据的能力结论已自动移除，标记为待复核的保留结论需要人工确认。',
+      autoEvidence: '部分潜力信号证据未能通过简历核验，相关维度已保留并标记为待复核。',
       specifiedEvidence: '部分指定人才像缺少可验证证据，相关项目已标记为证据不足，需要人工确认。',
     },
-    metrics: { mustHave: '硬条件', autoTalent: 'AI 能力关注度', specifiedTalent: 'HR 指定能力适配度' },
+    metrics: { mustHave: '硬条件', autoTalent: '综合潜力信号', specifiedTalent: 'HR 指定能力适配度' },
     empty: { title: '候选人数据不可用', description: '当前数据库中没有该候选人，或其未关联到所选 JD。', action: '返回候选人列表 →', poolAction: '返回候选人库 →' },
     basicInfo: { title: '基本信息', name: '姓名', location: '所在地', email: '邮箱', phone: '电话' },
     match: { title: '岗位匹配摘要', score: '岗位匹配分', requirements: '岗位要求匹配', noResult: '当前会话中没有这位候选人的岗位匹配结果。', highlights: '主要优势', risks: '主要风险 / 待确认', noHighlights: '暂无明确的高匹配项。', noRisks: '暂无明显风险项。', warningTitle: '证据待复核' },
     talent: {
       title: '人才能力发现', specifiedProfile: 'HR 指定人才像', evidence: '主要证据', missingInformation: '待确认信息',
       additionalFindings: 'AI 额外发现', abilityProfile: '能力画像', noAbilities: '暂无明确的额外能力证据。', warnings: '分析提示',
-      autoTitle: 'AI 能力发现', specifiedTitle: 'HR 指定能力',
+      autoTitle: '潜力信号分析', specifiedTitle: 'HR 指定能力', overallSignal: '综合潜力信号', signalStrength: '信号强度',
     },
     resume: {
       education: '教育经历', degreeMissing: '学历及专业暂无信息', noEducation: '暂无教育信息',

@@ -20,6 +20,22 @@ TalentLevel = Literal[
     "low",
 ]
 
+TalentEvidenceStatus = Literal[
+    "verified",
+    "needs_review",
+    "insufficient_evidence",
+]
+
+POTENTIAL_DIMENSION_IDS = (
+    "learning_transfer",
+    "analytical_problem_solving",
+    "initiative_drive",
+    "persistence_execution",
+    "adaptability_resilience",
+    "reflection_growth",
+    "social_learning_collaboration",
+)
+
 
 class TalentEvidence(BaseModel):
     """支持人才能力判断的候选人事实证据。"""
@@ -63,6 +79,16 @@ class TalentAbility(BaseModel):
     )
 
     evidence_validation_issues: list[EvidenceValidationIssue] = Field(
+        default_factory=list,
+    )
+
+
+class PotentialSignalAbility(TalentAbility):
+    """固定潜力维度的分析结果；只用于新生成的auto结果。"""
+
+    evidence_status: TalentEvidenceStatus
+
+    missing_information: list[str] = Field(
         default_factory=list,
     )
 
@@ -141,7 +167,7 @@ class TalentDiscoveryResult(BaseModel):
         min_length=1,
     )
 
-    abilities: list[TalentAbility] = Field(
+    abilities: list[PotentialSignalAbility | TalentAbility] = Field(
         default_factory=list,
     )
 
@@ -219,6 +245,10 @@ class LLMTalentAbility(BaseModel):
         default_factory=list,
     )
 
+    missing_information: list[str] = Field(
+        default_factory=list,
+    )
+
 
 class LLMSpecifiedTraitResult(BaseModel):
     """LLM对某一个HR指定人才特征的分析结果。"""
@@ -282,6 +312,30 @@ class LLMTalentDiscoveryResult(BaseModel):
             if self.specified_traits:
                 raise ValueError(
                     "auto模式不应包含specified_traits"
+                )
+
+            ability_names = [ability.ability_name for ability in self.abilities]
+            ability_name_set = set(ability_names)
+            expected_dimensions = set(POTENTIAL_DIMENSION_IDS)
+
+            if len(ability_names) != len(ability_name_set):
+                raise ValueError(
+                    "auto潜力信号分析结果包含重复dimension identifier"
+                )
+
+            missing_dimensions = expected_dimensions - ability_name_set
+            unknown_dimensions = ability_name_set - expected_dimensions
+
+            if missing_dimensions:
+                raise ValueError(
+                    f"auto潜力信号分析结果缺少dimension: "
+                    f"{sorted(missing_dimensions)}"
+                )
+
+            if unknown_dimensions:
+                raise ValueError(
+                    f"auto潜力信号分析结果包含未知dimension: "
+                    f"{sorted(unknown_dimensions)}"
                 )
 
         if self.mode == "specified":

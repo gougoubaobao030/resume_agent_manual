@@ -9,7 +9,7 @@ from app.main import app
 from api.auth import get_current_user
 from schemas.language import AnalysisLanguage
 from schemas.resume import BasicInfo, Candidate, Project
-from schemas.talent import LLMTalentDiscoveryResult
+from schemas.talent import POTENTIAL_DIMENSION_IDS, LLMTalentAbility, LLMTalentDiscoveryResult
 from services import talent_service
 from schemas.jd import JDInfo, JDRequirement
 from repositories.jd_repository import save_jd, delete_jd
@@ -51,9 +51,17 @@ class TalentMockTest(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(auto_data["specified_fit_level"])
             self.assertEqual(auto_data["specified_traits"], [])
             self.assertTrue(auto_data["summary"])
-            self.assertTrue(auto_data["abilities"])
+            self.assertEqual(
+                [item["ability_name"] for item in auto_data["abilities"]],
+                list(POTENTIAL_DIMENSION_IDS),
+            )
             self.assertTrue(auto_data["abilities"][0]["reason"])
             self.assertTrue(auto_data["abilities"][0]["evidence"])
+            self.assertEqual(auto_data["abilities"][0]["evidence_status"], "verified")
+            self.assertTrue(all(
+                item["evidence_status"] == "insufficient_evidence"
+                for item in auto_data["abilities"][1:]
+            ))
             self.assertIn("warnings", auto_data)
 
             traits = ["认真", "负责", "学习快"]
@@ -68,6 +76,8 @@ class TalentMockTest(unittest.IsolatedAsyncioTestCase):
             self.assertIsNotNone(data["specified_fit_level"])
             self.assertEqual([item["trait"] for item in data["specified_traits"]], traits)
             self.assertTrue(data["abilities"])
+            self.assertNotIn("evidence_status", data["abilities"][0])
+            self.assertNotIn("missing_information", data["abilities"][0])
             self.assertTrue(data["specified_traits"][0]["reason"])
             self.assertIn("missing_information", data["specified_traits"][0])
             self.assertIn("warnings", data)
@@ -87,7 +97,17 @@ class TalentMockTest(unittest.IsolatedAsyncioTestCase):
             self.assertGreaterEqual(len(profiles), 4)
 
         expected = LLMTalentDiscoveryResult(
-            mode="auto", attention_level="medium", summary="真实分支测试", abilities=[],
+            mode="auto",
+            attention_level="medium",
+            summary="真实分支测试",
+            abilities=[
+                LLMTalentAbility(
+                    ability_name=dimension_id,
+                    level="low",
+                    reason="当前资料不足",
+                )
+                for dimension_id in POTENTIAL_DIMENSION_IDS
+            ],
         )
         with patch.dict(os.environ, {"TALENT_USE_MOCK": "false"}), patch.object(
             talent_service, "get_llm_client"
@@ -98,7 +118,8 @@ class TalentMockTest(unittest.IsolatedAsyncioTestCase):
             result = await talent_service.discover_talent(self.candidate, AnalysisLanguage.ZH_CN)
             client_getter.assert_called_once_with()
             client.generate_structured.assert_awaited_once()
-            self.assertEqual(result.summary, "真实分支测试")
+            self.assertEqual(result.attention_level, "low")
+            self.assertNotEqual(result.summary, "真实分支测试")
 
 
 if __name__ == "__main__":
