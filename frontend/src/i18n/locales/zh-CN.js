@@ -187,12 +187,12 @@ export default {
     },
     dropzone: { title: '拖放简历到此处', description: '仅支持文本型 PDF，单次最多 30 份。扫描版 PDF 暂不支持。' },
     folderUpload: {
-      prompt: '一个候选人有多份 PDF？',
-      description: '文件夹中的直属 PDF 将自动合并为一份简历，子文件夹中的文件不会被合并。',
+      prompt: '需要按候选人文件夹批量上传？',
+      description: '请选择一个批次根文件夹。其一级子文件夹分别作为候选人，仅处理候选人文件夹直属的 PDF；根目录文件和更深层文件将被忽略。',
     },
     selectedFiles: '已选择文件',
     actions: {
-      selectFiles: '选择 PDF 简历', selectFolder: '尝试上传文件夹', parsing: '解析中…', start: '开始批量解析',
+      selectFiles: '选择 PDF 简历', selectFolder: '选择批次根文件夹', parsing: '解析中…', start: '开始批量解析',
       removeLabel: '移除 {filename}', remove: '移除', retry: '重新解析', retrying: '正在重新解析…', viewCandidates: '查看候选人',
     },
     status: { pending: '等待中', running: '解析中', success: '解析成功', failed: '解析失败' },

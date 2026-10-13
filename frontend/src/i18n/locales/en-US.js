@@ -121,11 +121,11 @@ Preferred qualifications:
     },
     dropzone: { title: 'Drop Resumes Here', description: 'Text-based PDFs only, up to 30 at a time. Scanned PDFs are not supported yet.' },
     folderUpload: {
-      prompt: 'Multiple PDFs for one candidate?',
-      description: 'PDFs directly inside the folder will be merged into one resume. Files in subfolders will not be merged.',
+      prompt: 'Upload a batch of candidate folders?',
+      description: 'Select one batch root folder. Each direct child folder is treated as a candidate, and only PDFs directly inside it are processed. Root files and deeper files are ignored.',
     },
     selectedFiles: 'Selected Files',
-    actions: { selectFiles: 'Select PDF Resumes', selectFolder: 'Try Folder Upload', parsing: 'Parsing…', start: 'Start Batch Parsing', removeLabel: 'Remove {filename}', remove: 'Remove', retry: 'Parse Again', retrying: 'Parsing Again…', viewCandidates: 'View Candidates' },
+    actions: { selectFiles: 'Select PDF Resumes', selectFolder: 'Select Batch Root Folder', parsing: 'Parsing…', start: 'Start Batch Parsing', removeLabel: 'Remove {filename}', remove: 'Remove', retry: 'Parse Again', retrying: 'Parsing Again…', viewCandidates: 'View Candidates' },
     status: { pending: 'Pending', running: 'Parsing', success: 'Parsed', failed: 'Failed' },
     summary: { completed: 'Completed', success: 'Parsed', failed: 'Failed', running: 'Processing', pending: 'Pending' },
     outcomes: {

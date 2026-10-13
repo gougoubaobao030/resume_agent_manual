@@ -121,11 +121,11 @@ export default {
     },
     dropzone: { title: 'ここに履歴書をドロップ', description: 'テキスト形式の PDF のみ、1 回につき最大 30 件。スキャン PDF は現在未対応です。' },
     folderUpload: {
-      prompt: '1 人の候補者に複数の PDF がありますか？',
-      description: 'フォルダー直下の PDF は 1 件の履歴書に自動結合されます。サブフォルダー内のファイルは結合されません。',
+      prompt: '候補者フォルダー単位で一括アップロードしますか？',
+      description: 'バッチのルートフォルダーを 1 つ選択してください。直下の各フォルダーを候補者として扱い、候補者フォルダー直下の PDF のみ処理します。ルート直下とさらに深い階層のファイルは無視されます。',
     },
     selectedFiles: '選択済みファイル',
-    actions: { selectFiles: 'PDF 履歴書を選択', selectFolder: 'フォルダーアップロードを試す', parsing: '解析中…', start: '一括解析を開始', removeLabel: '{filename} を削除', remove: '削除', retry: '再解析', retrying: '再解析中…', viewCandidates: '候補者を表示' },
+    actions: { selectFiles: 'PDF 履歴書を選択', selectFolder: 'バッチのルートフォルダーを選択', parsing: '解析中…', start: '一括解析を開始', removeLabel: '{filename} を削除', remove: '削除', retry: '再解析', retrying: '再解析中…', viewCandidates: '候補者を表示' },
     status: { pending: '待機中', running: '解析中', success: '解析完了', failed: '解析エラー' },
     summary: { completed: '完了', success: '解析完了', failed: '解析エラー', running: '処理中', pending: '待機中' },
     outcomes: {

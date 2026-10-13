@@ -305,7 +305,6 @@ async function handleParse() {
           type="file"
           webkitdirectory
           directory
-          multiple
           :disabled="isParsing"
           @change="handleFolderInput"
         />

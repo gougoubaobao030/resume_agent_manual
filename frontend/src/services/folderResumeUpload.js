@@ -6,17 +6,25 @@ function stableNameSort(left, right) {
 
 export function groupCandidateFolderFiles(files) {
   const candidates = new Map()
+  const batchRootNames = new Set()
 
   for (const file of Array.from(files ?? [])) {
     const parts = (file.webkitRelativePath ?? '').split('/').filter(Boolean)
     if (parts.length < 2) continue
 
-    const candidateName = parts[0]
+    batchRootNames.add(parts[0])
+    if (batchRootNames.size > 1) {
+      throw new Error('Only one batch root folder can be selected at a time')
+    }
+
+    // Files directly inside the selected batch root are ignored. Each direct
+    // child folder is a candidate, and only PDFs directly inside it are used.
+    if (parts.length < 3) continue
+
+    const candidateName = parts[1]
     if (!candidates.has(candidateName)) candidates.set(candidateName, [])
 
-    // The selected folder itself is the candidate. Only its direct PDF files
-    // are eligible; every deeper subdirectory is ignored.
-    if (parts.length === 2 && file.name.toLowerCase().endsWith('.pdf')) {
+    if (parts.length === 3 && file.name.toLowerCase().endsWith('.pdf')) {
       candidates.get(candidateName).push(file)
     }
   }
@@ -42,8 +50,8 @@ export async function prepareCandidateFolderUpload(
     const ignoredDeepPdfFiles = Array.from(files ?? [])
       .filter((file) => {
         const parts = (file.webkitRelativePath ?? '').split('/').filter(Boolean)
-        return parts[0] === group.name
-          && parts.length > 2
+        return parts[1] === group.name
+          && parts.length > 3
           && file.name.toLowerCase().endsWith('.pdf')
       })
       .map((file) => file.webkitRelativePath)
