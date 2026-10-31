@@ -16,8 +16,17 @@ const router = createRouter({
     { path: '/', name: 'dashboard', component: DashboardView },
     { path: '/jobs', name: 'jobs', component: JdManagementView },
     { path: '/resumes', name: 'resumes', component: ResumeUploadView },
-    { path: '/candidates', name: 'candidates', component: CandidateListView },
-    { path: '/candidate-pool', name: 'candidate-pool', component: CandidatePoolView },
+    {
+      path: '/candidates',
+      name: 'candidates',
+      component: CandidateListView,
+      meta: { keepAlive: true },
+    },
+    {
+      path: '/candidate-pool',
+      name: 'candidate-pool',
+      component: CandidatePoolView,
+    },
     {
       path: '/candidate-pool/:id',
       name: 'candidate-pool-detail',
@@ -30,7 +39,7 @@ const router = createRouter({
       component: CandidateDetailView,
     },
   ],
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior: (to, from, savedPosition) => savedPosition || { top: 0 },
 })
 
 router.beforeEach(async (to) => {

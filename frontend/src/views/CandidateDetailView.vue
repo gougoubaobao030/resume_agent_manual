@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import TalentSettings from '../components/TalentSettings.vue'
 import {
@@ -25,6 +25,7 @@ import {
 } from '../state/session'
 
 const route = useRoute()
+const router = useRouter()
 const { locale, t } = useI18n()
 const props = defineProps({ poolMode: { type: Boolean, default: false } })
 const poolCandidate = ref(null)
@@ -41,6 +42,23 @@ const matchStatus = computed(() => session.jobMatchStatuses[route.params.id])
 const autoTalentResult = computed(() => session.talentResults[route.params.id]?.auto)
 const specifiedTalentResult = computed(() => session.talentResults[route.params.id]?.specified)
 const isRescoring = computed(() => matchStatus.value === 'loading')
+const listRouteName = computed(() => (props.poolMode ? 'candidate-pool' : 'candidates'))
+const backLabelKey = computed(() => (props.poolMode ? 'candidateDetail.backToPool' : 'candidateDetail.back'))
+
+function returnToList() {
+  const listLocation = router.resolve({ name: listRouteName.value })
+  const previousLocation = window.history.state?.back
+  const previousPath = typeof previousLocation === 'string'
+    ? previousLocation.split(/[?#]/, 1)[0]
+    : ''
+
+  if (previousPath === listLocation.path) {
+    router.back()
+    return
+  }
+
+  void router.replace({ name: listRouteName.value })
+}
 
 const statusLabels = {
   matched: 'common.requirementStatus.matched',
@@ -264,7 +282,7 @@ watch(
   <section class="page-stack candidate-detail-page">
     <div class="page-heading page-heading--split candidate-detail-heading">
       <div class="candidate-detail-heading__identity">
-        <RouterLink class="back-link" :to="poolMode ? '/candidate-pool' : '/candidates'">{{ t(poolMode ? 'candidateDetail.backToPool' : 'candidateDetail.back') }}</RouterLink>
+        <button class="back-link candidate-detail-back-link" type="button" @click="returnToList">{{ t(backLabelKey) }}</button>
         <h2>{{ candidate?.basic_info?.name || t('candidateDetail.title') }}</h2>
         <div v-if="candidate" class="candidate-contact-line">
           <span>{{ display(candidate.basic_info?.location) }}</span>
@@ -461,6 +479,18 @@ watch(
       </div>
 
     </template>
+
+    <button
+      class="candidate-detail-floating-back"
+      type="button"
+      :aria-label="t(backLabelKey)"
+      :title="t(backLabelKey)"
+      @click="returnToList"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </button>
 
     <div v-if="candidate" class="detail-grid candidate-resume-grid">
       <article class="panel detail-grid__main resume-section">

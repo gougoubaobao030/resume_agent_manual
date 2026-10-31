@@ -181,7 +181,20 @@ function closeNavigation() {
       </header>
 
       <main class="page-container">
-        <RouterView />
+        <RouterView v-slot="{ Component, route: resolvedRoute }">
+          <KeepAlive>
+            <component
+              :is="Component"
+              v-if="resolvedRoute.meta.keepAlive"
+              :key="resolvedRoute.name"
+            />
+          </KeepAlive>
+          <component
+            :is="Component"
+            v-if="!resolvedRoute.meta.keepAlive"
+            :key="resolvedRoute.name"
+          />
+        </RouterView>
       </main>
     </div>
   </div>
