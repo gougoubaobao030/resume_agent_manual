@@ -10,7 +10,7 @@ Resume Agent（RA）是一套面向招聘场景的 AI 辅助简历筛选系统�
 - Vue 3 前端
 - SQLite 数据库
 - Alembic 数据库迁移
-- OpenAI-compatible LLM API
+- OpenAI 兼容 LLM API
 - PDF 简历解析与保存
 - 中文 / 日文 / 英文多语言支持
 
@@ -19,20 +19,48 @@ Resume Agent（RA）是一套面向招聘场景的 AI 辅助简历筛选系统�
 当前 RA 提供以下主要功能：
 
 - 用户登录与 Session 认证
-- JD 创建与 AI 解析
+- Job Description（JD）创建与 AI 解析
 - PDF 简历上传与结构化解析
 - 候选人管理
 - 候选人与岗位匹配评分
 - Talent Discovery
 - AI 自动能力发现
-- HR 指定能力分析
+- HR 指定人才分析
 - 查看原始简历
 - 多语言支持
   - 简体中文
   - 日文
   - 英文
 
-## 2. 运行环境
+## 2. 文档
+
+### 产品规格
+
+- [最终实现版 PRD（中文）](docs/RA_PRD_Final_ZH.md)
+
+> 关于当前最终产品规格，请参阅 Final PRD 以及当前源码实现。
+
+### 用户手册
+
+- [用户手册（中文 / PDF）](docs/manual/用户手册.pdf)
+
+### 初期规划与需求资料
+
+- [初期需求定义书（中文 / PDF）](docs/history/智能简历筛选Agent_定稿.pdf)
+
+> 该资料记录了开发开始前的规划、需求和初期设计。开发与验证过程中，部分产品设计和实现方针已经调整；最终规格请以 Final PRD 和当前源码实现为准。
+
+### 开发与验证记录
+
+- [开发进度主日志（中文）](docs/progress_log/progress.md)
+- [评分模块开发记录（中文）](docs/progress_log/progress_评分模块.md)
+- [Talent Discovery 开发记录（中文）](docs/progress_log/progress_talent.md)
+- [多语言开发记录（中文）](docs/progress_log/progress_language.md)
+- [测试与验证记录（中文）](docs/progress_log/progress_test.md)
+
+> 开发过程中的详细进度按模块记录在 `docs/progress_log/` 下的各个 progress 文件中。
+
+## 3. 运行环境
 
 ### Python
 
@@ -68,7 +96,7 @@ Node.js 22.12.0 或以上
 
 本文命令以 Windows PowerShell 为例。
 
-## 3. 项目结构
+## 4. 项目结构
 
 ```text
 resume_agent_manual/
@@ -98,7 +126,7 @@ resume_agent_manual/
 └─ README.md
 ```
 
-## 4. 首次安装
+## 5. 首次安装
 
 ### 第一步：获取源码
 
@@ -137,7 +165,7 @@ python .\scripts\manage_user.py create japan_admin --display-name "Japan Admin" 
 
 自动脚本只是对下方原有手动命令的封装。如果 `setup_windows.bat` 或 `start_ra.bat` 执行失败，仍然可以按照下方手动步骤继续安装或启动。
 
-## 5. 后端环境配置
+## 6. 后端环境配置
 
 ### 第二步：创建 Python 环境
 
@@ -168,7 +196,7 @@ Python 3.10.x
 python -m pip install -r .\backend\requirements.txt
 ```
 
-## 6. 配置环境变量
+## 7. 配置环境变量
 
 复制 `.env.example`：
 
@@ -200,7 +228,7 @@ COOKIE_SECURE=false
 
 ### LLM 配置说明
 
-RA 使用 OpenAI Python SDK，并通过 OpenAI-compatible API 调用模型。
+RA 使用 OpenAI Python SDK，并通过 OpenAI 兼容 API 调用模型。
 
 真实 AI 模式下主要需要：
 
@@ -224,7 +252,7 @@ LLM_MODEL
 
 如果没有配置有效 LLM，后端本身仍可以启动，但在执行 AI 相关功能时会报模型配置错误。
 
-## 7. 初始化数据库
+## 8. 初始化数据库
 
 进入后端目录：
 
@@ -248,7 +276,7 @@ data/resume_agent.db
 
 SQLite 数据库文件不需要提交至 Git。
 
-## 8. 创建首个用户
+## 9. 创建首个用户
 
 RA 不提供默认用户名和密码。
 
@@ -286,7 +314,7 @@ python .\scripts\manage_user.py create japan_admin --display-name "Japan Admin" 
 zh-CN
 ```
 
-## 9. 启动后端
+## 10. 启动后端
 
 保持位于 `backend` 目录：
 
@@ -306,7 +334,7 @@ FastAPI API 文档：
 http://127.0.0.1:18000/docs
 ```
 
-## 10. 前端环境配置
+## 11. 前端环境配置
 
 打开新的 PowerShell。
 
@@ -342,7 +370,7 @@ http://127.0.0.1:12140
 http://127.0.0.1:12140/login
 ```
 
-## 11. 本地开发结构
+## 12. 本地开发结构
 
 ```text
 Browser
@@ -374,7 +402,7 @@ http://127.0.0.1:18000
 
 因此默认本地开发模式下不需要额外配置 CORS。
 
-## 12. Cookie 配置
+## 13. Cookie 配置
 
 本地 HTTP 环境应设置：
 
@@ -401,7 +429,7 @@ COOKIE_SECURE=true
 COOKIE_SECURE=true
 ```
 
-## 13. 简历上传与保存
+## 14. 简历上传与保存
 
 当前 RA 支持 PDF 简历。
 
@@ -417,7 +445,7 @@ data/resumes/<candidate_id>/original.pdf
 
 上传后的简历文件不会提交至 Git。
 
-## 14. 运行时文件
+## 15. 运行时文件
 
 以下内容通常不应提交到 Git：
 
@@ -442,7 +470,7 @@ frontend/package.json
 frontend/package-lock.json
 ```
 
-## 15. 首次运行验证
+## 16. 首次运行验证
 
 环境安装完成后，建议按照以下流程验证：
 
@@ -459,7 +487,7 @@ frontend/package-lock.json
 
 如果使用真实 LLM，AI 相关流程需要有效的 LLM 配置。
 
-## 16. 常见问题
+## 17. 常见问题
 
 ### 登录成功后出现 401
 
@@ -513,7 +541,7 @@ cd backend
 python .\scripts\manage_user.py create japan_admin --display-name "Japan Admin" --language ja-JP
 ```
 
-## 17. 当前项目范围
+## 18. 当前项目范围
 
 当前 RA 主要用于本地环境、内部使用以及项目验证。
 
@@ -528,6 +556,6 @@ python .\scripts\manage_user.py create japan_admin --display-name "Japan Admin" 
 
 - 生产级反向代理
 - HTTPS 终止配置
-- Docker / Kubernetes
+- Docker / Kubernetes 等容器化运行
 - 生产环境前端静态托管
 - 云基础设施部署
