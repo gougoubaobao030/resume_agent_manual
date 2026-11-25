@@ -31,7 +31,7 @@ def _to_schema(row: CandidateModel) -> Candidate:
 def save_candidate_for_job(
     candidate: Candidate,
     job_id: str,
-    user_id: str | None,
+    user_id: str,
     resume_source_path: str | None = None,
 ) -> Candidate:
     if not candidate.id:
@@ -46,14 +46,20 @@ def save_candidate_for_job(
 
     def persist(resume_path: str | None = None) -> None:
         with SessionLocal() as db:
-            row = db.get(CandidateModel, candidate.id)
+            row = db.scalar(select(CandidateModel).where(
+                CandidateModel.id == candidate.id,
+                CandidateModel.user_id == user_id,
+            ))
             if row is None:
+                if db.get(CandidateModel, candidate.id) is not None:
+                    raise ValueError("Candidate标识已被其他账号使用")
                 row = CandidateModel(
                     id=candidate.id,
                     raw_text=raw_text,
                     structured_data_json=payload,
                     source_file=source_file,
                     resume_path=resume_path,
+                    user_id=user_id,
                     created_by=user_id,
                 )
                 db.add(row)
@@ -65,9 +71,14 @@ def save_candidate_for_job(
                 if resume_path is not None:
                     row.resume_path = resume_path
 
-            relation = db.get(JobCandidateModel, (job_id, candidate.id))
+            relation = db.scalar(select(JobCandidateModel).where(
+                JobCandidateModel.user_id == user_id,
+                JobCandidateModel.job_id == job_id,
+                JobCandidateModel.candidate_id == candidate.id,
+            ))
             if relation is None:
                 db.add(JobCandidateModel(
+                    user_id=user_id,
                     job_id=job_id,
                     candidate_id=candidate.id,
                     added_by=user_id,
@@ -83,10 +94,13 @@ def save_candidate_for_job(
     return candidate
 
 
-def get_candidate_by_resume_hash(resume_hash: str) -> Candidate | None:
+def get_candidate_by_resume_hash(resume_hash: str, user_id: str) -> Candidate | None:
     with SessionLocal() as db:
         row = db.scalar(
-            select(CandidateModel).where(CandidateModel.resume_hash == resume_hash)
+            select(CandidateModel).where(
+                CandidateModel.user_id == user_id,
+                CandidateModel.resume_hash == resume_hash,
+            )
         )
         return _to_schema(row) if row else None
 
@@ -94,7 +108,7 @@ def get_candidate_by_resume_hash(resume_hash: str) -> Candidate | None:
 def add_candidate_to_job(
     candidate_id: str,
     job_id: str,
-    user_id: str | None,
+    user_id: str,
 ) -> bool:
     """Idempotently link an existing Candidate to a Job.
 
@@ -103,10 +117,16 @@ def add_candidate_to_job(
     """
 
     with SessionLocal() as db:
-        if db.get(JobCandidateModel, (job_id, candidate_id)) is not None:
+        relation_statement = select(JobCandidateModel).where(
+            JobCandidateModel.user_id == user_id,
+            JobCandidateModel.job_id == job_id,
+            JobCandidateModel.candidate_id == candidate_id,
+        )
+        if db.scalar(relation_statement) is not None:
             return False
 
         db.add(JobCandidateModel(
+            user_id=user_id,
             job_id=job_id,
             candidate_id=candidate_id,
             added_by=user_id,
@@ -116,7 +136,7 @@ def add_candidate_to_job(
             return True
         except IntegrityError:
             db.rollback()
-            if db.get(JobCandidateModel, (job_id, candidate_id)) is not None:
+            if db.scalar(relation_statement) is not None:
                 return False
             raise
 
@@ -124,7 +144,7 @@ def add_candidate_to_job(
 def save_candidate_for_job_with_hash(
     candidate: Candidate,
     job_id: str,
-    user_id: str | None,
+    user_id: str,
     resume_source_path: str,
     resume_hash: str,
 ) -> CandidateJobSaveResult:
@@ -150,6 +170,7 @@ def save_candidate_for_job_with_hash(
             with SessionLocal() as db:
                 db.add(CandidateModel(
                     id=candidate.id,
+                    user_id=user_id,
                     resume_hash=resume_hash,
                     raw_text=raw_text,
                     structured_data_json=payload,
@@ -158,13 +179,14 @@ def save_candidate_for_job_with_hash(
                     created_by=user_id,
                 ))
                 db.add(JobCandidateModel(
+                    user_id=user_id,
                     job_id=job_id,
                     candidate_id=candidate.id,
                     added_by=user_id,
                 ))
                 db.commit()
     except IntegrityError:
-        winner = get_candidate_by_resume_hash(resume_hash)
+        winner = get_candidate_by_resume_hash(resume_hash, user_id)
         if winner is None or not winner.id:
             raise
         relation_created = add_candidate_to_job(winner.id, job_id, user_id)
@@ -181,33 +203,48 @@ def save_candidate_for_job_with_hash(
     )
 
 
-def get_candidate(candidate_id: str) -> Candidate | None:
+def get_candidate(candidate_id: str, user_id: str) -> Candidate | None:
     with SessionLocal() as db:
-        row = db.get(CandidateModel, candidate_id)
+        row = db.scalar(select(CandidateModel).where(
+            CandidateModel.id == candidate_id,
+            CandidateModel.user_id == user_id,
+        ))
         return _to_schema(row) if row else None
 
 
-def get_candidate_resume_info(candidate_id: str) -> tuple[str | None, str | None] | None:
+def get_candidate_resume_info(
+    candidate_id: str, user_id: str
+) -> tuple[str | None, str | None] | None:
     with SessionLocal() as db:
-        row = db.get(CandidateModel, candidate_id)
+        row = db.scalar(select(CandidateModel).where(
+            CandidateModel.id == candidate_id,
+            CandidateModel.user_id == user_id,
+        ))
         if row is None:
             return None
         return row.resume_path, row.source_file
 
 
-def candidate_belongs_to_job(job_id: str, candidate_id: str) -> bool:
+def candidate_belongs_to_job(job_id: str, candidate_id: str, user_id: str) -> bool:
     with SessionLocal() as db:
-        return db.get(JobCandidateModel, (job_id, candidate_id)) is not None
+        return db.scalar(select(JobCandidateModel).where(
+            JobCandidateModel.user_id == user_id,
+            JobCandidateModel.job_id == job_id,
+            JobCandidateModel.candidate_id == candidate_id,
+        )) is not None
 
 
-def list_candidates(job_id: str | None = None) -> list[Candidate]:
+def list_candidates(user_id: str, job_id: str | None = None) -> list[Candidate]:
     with SessionLocal() as db:
-        statement = select(CandidateModel)
+        statement = select(CandidateModel).where(CandidateModel.user_id == user_id)
         if job_id:
             statement = statement.join(
                 JobCandidateModel,
                 JobCandidateModel.candidate_id == CandidateModel.id,
-            ).where(JobCandidateModel.job_id == job_id)
+            ).where(
+                JobCandidateModel.user_id == user_id,
+                JobCandidateModel.job_id == job_id,
+            )
         rows = db.scalars(statement.order_by(CandidateModel.created_at.desc())).all()
         return [_to_schema(row) for row in rows]
 
@@ -221,14 +258,17 @@ def _experience_summary(row: CandidateModel) -> str | None:
     return " · ".join(value for value in values if value) or None
 
 
-def list_candidate_pool() -> list[CandidatePoolItem]:
+def list_candidate_pool(user_id: str) -> list[CandidatePoolItem]:
     with SessionLocal() as db:
         candidates = db.scalars(
-            select(CandidateModel).order_by(CandidateModel.created_at.desc())
+            select(CandidateModel)
+            .where(CandidateModel.user_id == user_id)
+            .order_by(CandidateModel.created_at.desc())
         ).all()
         relation_rows = db.execute(
             select(JobCandidateModel.candidate_id, JobModel.id, JobModel.job_title)
             .join(JobModel, JobModel.id == JobCandidateModel.job_id)
+            .where(JobCandidateModel.user_id == user_id)
             .order_by(JobCandidateModel.created_at.desc())
         ).all()
 
@@ -266,23 +306,31 @@ def list_candidate_pool() -> list[CandidatePoolItem]:
         return items
 
 
-def remove_candidate_from_job(job_id: str, candidate_id: str) -> bool:
+def remove_candidate_from_job(job_id: str, candidate_id: str, user_id: str) -> bool:
     with SessionLocal() as db:
-        relation = db.get(JobCandidateModel, (job_id, candidate_id))
+        relation = db.scalar(select(JobCandidateModel).where(
+            JobCandidateModel.user_id == user_id,
+            JobCandidateModel.job_id == job_id,
+            JobCandidateModel.candidate_id == candidate_id,
+        ))
         if relation is None:
             return False
         db.execute(delete(ScoringResultModel).where(
             ScoringResultModel.job_id == job_id,
             ScoringResultModel.candidate_id == candidate_id,
+            ScoringResultModel.user_id == user_id,
         ))
         db.delete(relation)
         db.commit()
         return True
 
 
-def delete_candidate(candidate_id: str) -> bool:
+def delete_candidate(candidate_id: str, user_id: str) -> bool:
     with SessionLocal() as db:
-        row = db.get(CandidateModel, candidate_id)
+        row = db.scalar(select(CandidateModel).where(
+            CandidateModel.id == candidate_id,
+            CandidateModel.user_id == user_id,
+        ))
         if row is None:
             return False
         with stage_candidate_resume_deletion(row.resume_path):

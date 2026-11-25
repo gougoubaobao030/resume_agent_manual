@@ -26,11 +26,13 @@ function sleep(milliseconds) {
 }
 
 async function startCandidateScoring(candidate, run) {
+  if (run.cancelled) return
   if (!candidate.id || session.jobMatchStatuses[candidate.id]) return
 
   setJobMatchLoading(candidate.id)
   try {
     const matchResult = await scoreJobMatch(run.jobId, candidate.id, run.analysisLanguage)
+    if (run.cancelled) return
     setJobMatchResult(candidate.id, matchResult)
 
     const talentRequests = run.talentModes.flatMap((mode) => {
@@ -49,6 +51,7 @@ async function startCandidateScoring(candidate, run) {
 }
 
 function applyTaskSnapshot(task, run) {
+  if (run.cancelled) return
   setResumeTask(task)
 
   for (const item of task.items ?? []) {
@@ -63,7 +66,7 @@ function applyTaskSnapshot(task, run) {
 }
 
 async function pollResumeTask(run) {
-  while (true) {
+  while (!run.cancelled) {
     let task
     try {
       task = await getResumeTask(run.taskId)
@@ -97,6 +100,7 @@ export function startResumeTaskRunner(task, options) {
         .map((item) => item.candidate.id),
     ),
     startedTalent: new Set(),
+    cancelled: false,
     promise: null,
   }
 
@@ -108,4 +112,10 @@ export function startResumeTaskRunner(task, options) {
   })
   activeRun = run
   return run.promise
+}
+
+export function cancelResumeTaskRunner() {
+  if (!activeRun) return
+  activeRun.cancelled = true
+  activeRun = null
 }

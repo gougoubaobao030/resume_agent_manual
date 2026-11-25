@@ -19,28 +19,35 @@ from services.scoring_service import evaluate_job_match
 router = APIRouter(prefix="/api/scoring", tags=["scoring"])
 
 
-def _load_job_match_context(job_id: str, candidate_id: str):
+def _load_job_match_context(job_id: str, candidate_id: str, user_id: str):
     """在一个完整同步阶段中读取评分所需数据库快照。"""
 
-    jd = get_jd(job_id)
+    jd = get_jd(job_id, user_id)
     if jd is None:
         raise HTTPException(status_code=404, detail="岗位不存在")
-    candidate = get_candidate(candidate_id)
+    candidate = get_candidate(candidate_id, user_id)
     if candidate is None:
         raise HTTPException(status_code=404, detail="Candidate不存在")
-    if not candidate_belongs_to_job(job_id, candidate_id):
+    if not candidate_belongs_to_job(job_id, candidate_id, user_id):
         raise HTTPException(status_code=404, detail="Candidate未关联到该岗位")
-    return jd, candidate, get_jd_revision(job_id)
+    return jd, candidate, get_jd_revision(job_id, user_id)
 
 
 @router.get("/job-match", response_model=list[JobMatchResult])
-def list_job_matches(job_id: str) -> list[JobMatchResult]:
-    return list_scoring_results(job_id)
+def list_job_matches(
+    job_id: str,
+    current_user: UserModel = Depends(get_current_user),
+) -> list[JobMatchResult]:
+    return list_scoring_results(job_id, current_user.id)
 
 
 @router.get("/job-match/{job_id}/{candidate_id}", response_model=JobMatchResult)
-def get_job_match(job_id: str, candidate_id: str) -> JobMatchResult:
-    result = get_scoring_result(job_id, candidate_id)
+def get_job_match(
+    job_id: str,
+    candidate_id: str,
+    current_user: UserModel = Depends(get_current_user),
+) -> JobMatchResult:
+    result = get_scoring_result(job_id, candidate_id, current_user.id)
     if result is None:
         raise HTTPException(status_code=404, detail="当前评分不存在或已过期")
     return result
@@ -55,6 +62,7 @@ async def score_job_match(
         _load_job_match_context,
         request.job_id,
         request.candidate_id,
+        current_user.id,
     )
 
     try:

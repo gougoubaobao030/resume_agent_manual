@@ -1,15 +1,15 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import { supportedLocales } from '../i18n'
 import { auth, changeLocale, logout } from '../state/auth'
 import { ApiError, changePassword, getFriendlyApiError } from '../services/api'
+import { cancelResumeTaskRunner } from '../services/resumeTaskRunner'
 import { initializeWorkspace, resetWorkspace, workspace } from '../state/workspace'
 
 const route = useRoute()
-const router = useRouter()
 const { locale, t } = useI18n()
 const mobileNavigationOpen = ref(false)
 const isCollapsed = ref(false)
@@ -54,9 +54,15 @@ async function handleLocaleChange(event) {
 }
 
 async function handleLogout() {
-  await logout()
-  resetWorkspace()
-  await router.replace('/login')
+  cancelResumeTaskRunner()
+  const currentUserId = auth.user?.id
+  if (currentUserId) localStorage.removeItem(`current-job-id:${currentUserId}`)
+  try {
+    await logout()
+  } finally {
+    resetWorkspace()
+    window.location.replace('/login')
+  }
 }
 
 async function handlePasswordChange() {

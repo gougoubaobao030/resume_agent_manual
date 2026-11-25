@@ -24,6 +24,8 @@ from services import resume_storage
 from repositories.candidate_repository import delete_candidate, save_candidate_for_job
 from repositories.jd_repository import delete_jd, save_jd
 
+TEST_USER_ID = "user_f1f0cc4fa8f44eccbe3f607e32e0da4a"
+
 
 class CandidatePoolTest(unittest.TestCase):
     candidate_id = "candidate_pool_delete_test"
@@ -37,26 +39,26 @@ class CandidatePoolTest(unittest.TestCase):
             resume_storage, "DATA_ROOT", Path(self.storage_dir.name)
         )
         self.storage_patch.start()
-        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=None)
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=TEST_USER_ID)
         self.client = TestClient(app)
 
-        delete_candidate(self.candidate_id)
-        delete_candidate(self.other_candidate_id)
-        delete_jd(self.job_one_id)
-        delete_jd(self.job_two_id)
+        delete_candidate(self.candidate_id, TEST_USER_ID)
+        delete_candidate(self.other_candidate_id, TEST_USER_ID)
+        delete_jd(self.job_one_id, TEST_USER_ID)
+        delete_jd(self.job_two_id, TEST_USER_ID)
 
         self.job_one = save_jd(JDInfo(
             id=self.job_one_id,
             job_title="Pool Job One",
             raw_text="Pool job one",
             requirements=[JDRequirement(name="Python")],
-        ))
+        ), TEST_USER_ID)
         self.job_two = save_jd(JDInfo(
             id=self.job_two_id,
             job_title="Pool Job Two",
             raw_text="Pool job two",
             requirements=[JDRequirement(name="SQL")],
-        ))
+        ), TEST_USER_ID)
 
         candidate_pdf = Path(self.storage_dir.name) / "candidate.pdf"
         candidate_pdf.write_bytes(b"candidate pdf")
@@ -68,9 +70,9 @@ class CandidatePoolTest(unittest.TestCase):
             extraction_metadata=ExtractionMetadata(source_file="candidate.pdf"),
         )
         save_candidate_for_job(
-            candidate, self.job_one.id, None, resume_source_path=str(candidate_pdf)
+            candidate, self.job_one.id, TEST_USER_ID, resume_source_path=str(candidate_pdf)
         )
-        save_candidate_for_job(candidate, self.job_two.id, None)
+        save_candidate_for_job(candidate, self.job_two.id, TEST_USER_ID)
 
         other_pdf = Path(self.storage_dir.name) / "other.pdf"
         other_pdf.write_bytes(b"other pdf")
@@ -82,7 +84,7 @@ class CandidatePoolTest(unittest.TestCase):
         save_candidate_for_job(
             other_candidate,
             self.job_one.id,
-            None,
+            TEST_USER_ID,
             resume_source_path=str(other_pdf),
         )
 
@@ -93,6 +95,7 @@ class CandidatePoolTest(unittest.TestCase):
                 self._score("score_pool_other", self.job_one.id, self.other_candidate_id),
                 TalentDiscoveryResultModel(
                     id="talent_pool_candidate",
+                    user_id=TEST_USER_ID,
                     candidate_id=self.candidate_id,
                     mode="auto",
                     analysis_language="zh-CN",
@@ -101,6 +104,7 @@ class CandidatePoolTest(unittest.TestCase):
                 ),
                 TalentDiscoveryResultModel(
                     id="talent_pool_other",
+                    user_id=TEST_USER_ID,
                     candidate_id=self.other_candidate_id,
                     mode="auto",
                     analysis_language="zh-CN",
@@ -113,10 +117,10 @@ class CandidatePoolTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.client.close()
         app.dependency_overrides.clear()
-        delete_candidate(self.candidate_id)
-        delete_candidate(self.other_candidate_id)
-        delete_jd(self.job_one_id)
-        delete_jd(self.job_two_id)
+        delete_candidate(self.candidate_id, TEST_USER_ID)
+        delete_candidate(self.other_candidate_id, TEST_USER_ID)
+        delete_jd(self.job_one_id, TEST_USER_ID)
+        delete_jd(self.job_two_id, TEST_USER_ID)
         self.storage_patch.stop()
         self.storage_dir.cleanup()
 
@@ -124,6 +128,7 @@ class CandidatePoolTest(unittest.TestCase):
     def _score(score_id: str, job_id: str, candidate_id: str) -> ScoringResultModel:
         return ScoringResultModel(
             id=score_id,
+            user_id=TEST_USER_ID,
             job_id=job_id,
             candidate_id=candidate_id,
             job_revision=1,
@@ -275,7 +280,7 @@ class CandidatePoolTest(unittest.TestCase):
 
         with patch.object(Session, "commit", side_effect=RuntimeError("commit failed")):
             with self.assertRaises(RuntimeError):
-                delete_candidate(self.candidate_id)
+                delete_candidate(self.candidate_id, TEST_USER_ID)
 
         self.assertTrue(candidate_pdf.exists())
         with SessionLocal() as db:

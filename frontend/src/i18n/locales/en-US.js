@@ -150,7 +150,7 @@ Preferred qualifications:
     operations: { scoring: 'Job-match scoring', taskStatus: 'Task status check', createTask: 'Resume parsing task creation', retry: 'Resume re-parsing' },
   },
   candidates: {
-    eyebrow: 'Candidates', title: 'Candidate List', description: 'Review job matches first, then select candidates worth exploring further.',
+    eyebrow: 'Candidates', title: 'Candidate List', description: 'Review job matches first, then select candidates worth exploring further.', currentJob: 'Current JD:', currentJobNotSelected: 'Not selected',
     importResumes: 'Import Resumes', currentCandidates: 'Current Candidates', personCount: '{count} people', matchScore: 'Match Score',
     sortLabel: 'Sort by match score', sortDescending: 'High to Low', sortAscending: 'Low to High', selectAll: 'Select all',
     clearSelection: 'Clear Selection', selectedCount: '{count} selected', analyzeSelected: 'Analyze Selected Candidates', selectCandidate: 'Select {name}',

@@ -37,7 +37,7 @@ class ResumeTaskConflictError(Exception):
 class ResumeTaskRecord:
     task: ResumeTaskResponse
     job_id: str | None
-    user_id: str | None
+    user_id: str
     pending_resumes: dict[str, str]
 
 
@@ -103,6 +103,7 @@ def _build_item_handlers(
         candidate = await asyncio.to_thread(
             get_candidate_by_resume_hash,
             resume_hash,
+            record.user_id,
         )
         if candidate is None or not candidate.id:
             return None
@@ -151,11 +152,14 @@ def _build_item_handlers(
 
 def create_resume_task(
     files: list[tuple[str, str]],
+    *,
+    user_id: str,
     job_id: str | None = None,
-    user_id: str | None = None,
 ) -> ResumeTaskResponse:
     if not files:
         raise ValueError("请至少提供一份简历")
+    if not user_id:
+        raise ValueError("创建简历任务必须提供当前用户")
 
     task_id = f"resume_task_{uuid4().hex}"
     task = ResumeTaskResponse(
@@ -213,9 +217,9 @@ def create_resume_task(
     return task.model_copy(deep=True)
 
 
-def get_resume_task(task_id: str) -> ResumeTaskResponse | None:
+def get_resume_task(task_id: str, user_id: str) -> ResumeTaskResponse | None:
     record = task_store.get(task_id)
-    if record is None:
+    if record is None or record.user_id != user_id:
         return None
 
     snapshot = record.task.model_copy(deep=True)
@@ -292,7 +296,7 @@ async def run_resume_task_item(task_id: str, item_id: str) -> None:
 def retry_resume_task_item(
     task_id: str,
     item_id: str,
-    user_id: str | None,
+    user_id: str,
 ) -> ResumeTaskResponse:
     record = task_store.get(task_id)
     if record is None:
@@ -330,6 +334,6 @@ def retry_resume_task_item(
     background_task.add_done_callback(
         lambda _: _background_tasks.pop(background_key, None)
     )
-    snapshot = get_resume_task(task_id)
+    snapshot = get_resume_task(task_id, user_id)
     assert snapshot is not None
     return snapshot

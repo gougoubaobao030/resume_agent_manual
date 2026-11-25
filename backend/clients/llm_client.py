@@ -29,7 +29,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # 明确读取项目根目录下的 .env
 load_dotenv(
     PROJECT_ROOT / ".env",
-    override=True,
+    # Deployment/test environment variables must take precedence over .env.
+    override=False,
 )
 
 

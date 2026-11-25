@@ -14,6 +14,8 @@ from services import resume_storage
 from repositories.candidate_repository import delete_candidate, save_candidate_for_job
 from repositories.jd_repository import delete_jd, save_jd
 
+TEST_USER_ID = "user_f1f0cc4fa8f44eccbe3f607e32e0da4a"
+
 
 class CandidateResumeApiTest(unittest.TestCase):
     def setUp(self):
@@ -22,21 +24,21 @@ class CandidateResumeApiTest(unittest.TestCase):
             resume_storage, "DATA_ROOT", Path(self.storage_dir.name)
         )
         self.storage_patch.start()
-        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=None)
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=TEST_USER_ID)
         self.client = TestClient(app)
         self.job = save_jd(JDInfo(
             job_title="原简历接口测试",
             raw_text="测试 Candidate 原始简历读取",
             requirements=[JDRequirement(name="Python")],
-        ))
+        ), TEST_USER_ID)
         self.candidate_ids = []
 
     def tearDown(self):
         self.client.close()
         app.dependency_overrides.clear()
         for candidate_id in self.candidate_ids:
-            delete_candidate(candidate_id)
-        delete_jd(self.job.id)
+            delete_candidate(candidate_id, TEST_USER_ID)
+        delete_jd(self.job.id, TEST_USER_ID)
         self.storage_patch.stop()
         self.storage_dir.cleanup()
 
@@ -48,7 +50,7 @@ class CandidateResumeApiTest(unittest.TestCase):
         save_candidate_for_job(
             candidate,
             self.job.id,
-            None,
+            TEST_USER_ID,
             resume_source_path=source_path,
         )
         self.candidate_ids.append(candidate_id)
@@ -71,7 +73,7 @@ class CandidateResumeApiTest(unittest.TestCase):
             response = self.client.get("/api/candidates/any/resume")
         finally:
             app.dependency_overrides[get_current_user] = (
-                lambda: SimpleNamespace(id=None)
+                lambda: SimpleNamespace(id=TEST_USER_ID)
             )
 
         self.assertEqual(response.status_code, 401)
@@ -121,7 +123,7 @@ class CandidateResumeApiTest(unittest.TestCase):
         save_candidate_for_job(
             updated,
             self.job.id,
-            None,
+            TEST_USER_ID,
             resume_source_path=str(second),
         )
 

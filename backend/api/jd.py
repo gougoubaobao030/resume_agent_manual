@@ -36,8 +36,10 @@ router = APIRouter(
 
 
 @router.get("", response_model=list[JDInfo])
-def list_jds_api() -> list[JDInfo]:
-    return list_jds()
+def list_jds_api(
+    current_user: UserModel = Depends(get_current_user),
+) -> list[JDInfo]:
+    return list_jds(current_user.id)
 
 
 @router.post(
@@ -109,7 +111,7 @@ def save_jd_api(
     )
 
 
-    saved_job = save_jd(job, created_by=getattr(current_user, "id", None))
+    saved_job = save_jd(job, current_user.id)
 
 
     return JDSaveResponse(
@@ -123,9 +125,10 @@ def save_jd_api(
 )
 def get_jd_api(
     job_id: str,
+    current_user: UserModel = Depends(get_current_user),
 ):
 
-    job = get_jd(job_id)
+    job = get_jd(job_id, current_user.id)
 
 
     if job is None:
@@ -145,9 +148,10 @@ def get_jd_api(
 def update_jd_api(
     job_id: str,
     request: JDUpdateRequest,
+    current_user: UserModel = Depends(get_current_user),
 ):
 
-    old_job = get_jd(job_id)
+    old_job = get_jd(job_id, current_user.id)
 
 
     if old_job is None:
@@ -168,11 +172,15 @@ def update_jd_api(
     return update_jd(
         job_id,
         updated_job,
+        current_user.id,
     )
 
 
 @router.delete("/{job_id}", status_code=204)
-def delete_jd_api(job_id: str):
-    if not delete_jd(job_id):
+def delete_jd_api(
+    job_id: str,
+    current_user: UserModel = Depends(get_current_user),
+):
+    if not delete_jd(job_id, current_user.id):
         raise HTTPException(status_code=404, detail="JD不存在")
     return None

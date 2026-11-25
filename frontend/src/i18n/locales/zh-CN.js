@@ -227,6 +227,8 @@ export default {
     eyebrow: '候选人',
     title: '候选人列表',
     description: '先查看岗位匹配，再选择值得进一步了解的人才。',
+    currentJob: '当前 JD：',
+    currentJobNotSelected: '未选择',
     importResumes: '导入简历',
     currentCandidates: '当前候选人',
     personCount: '{count} 人',

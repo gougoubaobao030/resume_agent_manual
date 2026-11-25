@@ -29,7 +29,7 @@ class PersistentResultApiTest(unittest.TestCase):
             requirements=[JDRequirement(
                 name="Python", description="熟悉Python", category="technical"
             )],
-        ))
+        ), self.user.id)
         self.candidate = Candidate(
             id="candidate_result_api_test",
             skills=["Python"],
@@ -43,8 +43,8 @@ class PersistentResultApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def tearDown(self):
-        delete_candidate(self.candidate.id)
-        delete_jd(self.job.id)
+        delete_candidate(self.candidate.id, self.user.id)
+        delete_jd(self.job.id, self.user.id)
         with SessionLocal() as db:
             db.execute(delete(UserModel).where(UserModel.username == "result_api_test"))
             db.commit()
@@ -97,7 +97,7 @@ class PersistentResultApiTest(unittest.TestCase):
             job_title="其他岗位",
             raw_text="另一个用于关系校验的岗位。",
             requirements=[JDRequirement(name="Java")],
-        ))
+        ), self.user.id)
         other_candidate = Candidate(
             id="candidate_other_job_result_api_test",
             skills=["Java"],
@@ -116,8 +116,8 @@ class PersistentResultApiTest(unittest.TestCase):
             self.assertEqual(response.status_code, 404, response.text)
             self.assertEqual(response.json()["detail"], "Candidate未关联到该岗位")
         finally:
-            delete_candidate(other_candidate.id)
-            delete_jd(other_job.id)
+            delete_candidate(other_candidate.id, self.user.id)
+            delete_jd(other_job.id, self.user.id)
 
     def test_rescore_updates_existing_result(self):
         with patch.dict(os.environ, {"SCORING_USE_MOCK": "true"}):

@@ -14,6 +14,8 @@ from api.auth import get_current_user
 from schemas.resume import Candidate
 from services import resume_service, resume_storage, resume_task_service
 
+TEST_USER_ID = "user_f1f0cc4fa8f44eccbe3f607e32e0da4a"
+
 
 class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -26,7 +28,7 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(storage_patch.stop)
         resume_task_service.task_store.clear()
         resume_task_service._background_tasks.clear()
-        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=None)
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=TEST_USER_ID)
         self.addCleanup(app.dependency_overrides.clear)
 
     def make_files(self, names):
@@ -40,7 +42,8 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
     async def wait_finished(self, task_id):
         # 测试等待 runner，API 使用者则只调用 GET，不需要接触 asyncio.Task。
         await asyncio.wait_for(resume_task_service._background_tasks[task_id], timeout=10)
-        return resume_task_service.get_resume_task(task_id)
+        record = resume_task_service.task_store[task_id]
+        return resume_task_service.get_resume_task(task_id, record.user_id)
 
     async def test_create_returns_pending_and_duplicate_names_have_distinct_ids(self):
         release = asyncio.Event()
@@ -51,14 +54,14 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
 
         files = self.make_files(["same.pdf", "same.pdf"])
         with patch.object(resume_service, "parse_resume_pdf", side_effect=fake_parse):
-            created = resume_task_service.create_resume_task(files)
+            created = resume_task_service.create_resume_task(files, user_id=TEST_USER_ID)
             self.assertTrue(created.task_id.startswith("resume_task_"))
             self.assertEqual(created.status, "pending")
             self.assertEqual([i.status for i in created.items], ["pending", "pending"])
             self.assertNotEqual(created.items[0].item_id, created.items[1].item_id)
             await asyncio.sleep(0)
             await asyncio.sleep(0)
-            running = resume_task_service.get_resume_task(created.task_id)
+            running = resume_task_service.get_resume_task(created.task_id, TEST_USER_ID)
             self.assertEqual(running.status, "running")
             self.assertEqual([i.status for i in running.items], ["running", "running"])
             self.assertTrue(all(not Path(p).exists() for _, p in files))
@@ -76,10 +79,10 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
     async def test_real_resume_mock_finishes_successfully(self):
         files = self.make_files(["A.pdf", "B.pdf", "C.pdf", "D.pdf", "E.pdf"])
         with patch.dict(os.environ, {"RESUME_USE_MOCK": "true"}):
-            created = resume_task_service.create_resume_task(files)
+            created = resume_task_service.create_resume_task(files, user_id=TEST_USER_ID)
             await asyncio.sleep(0)
             await asyncio.sleep(0)
-            current = resume_task_service.get_resume_task(created.task_id)
+            current = resume_task_service.get_resume_task(created.task_id, TEST_USER_ID)
             self.assertEqual([i.status for i in current.items], ["running"] * 3 + ["pending"] * 2)
             final = await self.wait_finished(created.task_id)
         self.assertEqual([i.status for i in final.items], ["success"] * 5)
@@ -114,7 +117,7 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
 
         files = self.make_files(["A.pdf", "B.pdf", "C.pdf"])
         with patch.object(resume_service, "parse_resume_pdf", side_effect=fake_parse):
-            created = resume_task_service.create_resume_task(files)
+            created = resume_task_service.create_resume_task(files, user_id=TEST_USER_ID)
             final = await self.wait_finished(created.task_id)
         self.assertEqual([i.status for i in final.items], ["success", "failed", "success"])
         self.assertEqual(final.status, "completed_with_errors")
@@ -169,7 +172,7 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
             await resume_task_service._background_tasks[
                 f"{created.task_id}:{item_id}"
             ]
-            final = resume_task_service.get_resume_task(created.task_id)
+            final = resume_task_service.get_resume_task(created.task_id, "user-a")
 
         self.assertEqual(attempts, 2)
         self.assertEqual(final.status, "completed")
@@ -182,7 +185,7 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
 
         files = self.make_files(["retry.pdf"])
         with patch.object(resume_service, "parse_resume_pdf", side_effect=fake_parse):
-            created = resume_task_service.create_resume_task(files)
+            created = resume_task_service.create_resume_task(files, user_id=TEST_USER_ID)
             first = await self.wait_finished(created.task_id)
             item_id = first.items[0].item_id
             record = resume_task_service.task_store[created.task_id]
@@ -190,11 +193,13 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
                 record.pending_resumes[item_id]
             )
 
-            resume_task_service.retry_resume_task_item(created.task_id, item_id, None)
+            resume_task_service.retry_resume_task_item(
+                created.task_id, item_id, TEST_USER_ID
+            )
             await resume_task_service._background_tasks[
                 f"{created.task_id}:{item_id}"
             ]
-            final = resume_task_service.get_resume_task(created.task_id)
+            final = resume_task_service.get_resume_task(created.task_id, TEST_USER_ID)
 
         self.assertEqual(final.status, "completed_with_errors")
         self.assertEqual(final.items[0].status, "failed")
@@ -210,7 +215,9 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
             "save_candidate_for_job_with_hash",
             side_effect=RuntimeError("数据库暂时不可用"),
         ):
-            created = resume_task_service.create_resume_task(files, job_id="job-test")
+            created = resume_task_service.create_resume_task(
+                files, job_id="job-test", user_id=TEST_USER_ID
+            )
             final = await self.wait_finished(created.task_id)
 
         record = resume_task_service.task_store[created.task_id]
@@ -268,9 +275,9 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
 
         files = self.make_files([f"{i}.pdf" for i in range(7)])
         with patch.object(resume_service, "parse_resume_pdf", side_effect=fake_parse):
-            created = resume_task_service.create_resume_task(files)
+            created = resume_task_service.create_resume_task(files, user_id=TEST_USER_ID)
             await asyncio.wait_for(first_three.wait(), timeout=2)
-            current = resume_task_service.get_resume_task(created.task_id)
+            current = resume_task_service.get_resume_task(created.task_id, TEST_USER_ID)
             self.assertEqual([i.status for i in current.items], ["running"] * 3 + ["pending"] * 4)
             self.assertEqual((current.success_count, current.failed_count), (0, 0))
             release.set()
@@ -281,7 +288,7 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
     async def test_batch_infrastructure_failure_marks_batch_failed_and_cleans(self):
         files = self.make_files(["A.pdf"])
         with patch.object(resume_task_service, "parse_resume_batch", side_effect=RuntimeError("编排失败")):
-            created = resume_task_service.create_resume_task(files)
+            created = resume_task_service.create_resume_task(files, user_id=TEST_USER_ID)
             final = await self.wait_finished(created.task_id)
         self.assertEqual(final.status, "failed")
         self.assertEqual(final.error, "编排失败")
@@ -388,6 +395,10 @@ class ResumeTaskTest(unittest.IsolatedAsyncioTestCase):
                 app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
                     id="user-b"
                 )
+                hidden = await client.get(
+                    f"/api/resume/tasks/{created['task_id']}"
+                )
+                self.assertEqual(hidden.status_code, 404)
                 forbidden = await client.post(retry_url)
                 self.assertEqual(forbidden.status_code, 403)
 

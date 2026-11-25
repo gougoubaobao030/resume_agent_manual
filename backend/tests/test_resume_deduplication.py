@@ -20,6 +20,8 @@ from schemas.jd import JDInfo, JDRequirement
 from schemas.resume import BasicInfo, Candidate, ExtractionMetadata
 from services import resume_service, resume_storage, resume_task_service
 
+TEST_USER_ID = "user_f1f0cc4fa8f44eccbe3f607e32e0da4a"
+
 
 class ResumeDeduplicationTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
@@ -41,9 +43,9 @@ class ResumeDeduplicationTest(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         for candidate_id in self.candidate_ids:
-            delete_candidate(candidate_id)
+            delete_candidate(candidate_id, TEST_USER_ID)
         for job_id in self.job_ids:
-            delete_jd(job_id)
+            delete_jd(job_id, TEST_USER_ID)
 
     def make_job(self, title: str) -> JDInfo:
         job = save_jd(JDInfo(
@@ -51,7 +53,7 @@ class ResumeDeduplicationTest(unittest.IsolatedAsyncioTestCase):
             job_title=title,
             raw_text=title,
             requirements=[JDRequirement(name="Python")],
-        ))
+        ), TEST_USER_ID)
         self.job_ids.append(job.id)
         return job
 
@@ -65,7 +67,7 @@ class ResumeDeduplicationTest(unittest.IsolatedAsyncioTestCase):
             resume_task_service._background_tasks[task_id],
             timeout=10,
         )
-        return resume_task_service.get_resume_task(task_id)
+        return resume_task_service.get_resume_task(task_id, TEST_USER_ID)
 
     async def test_created_reused_and_already_linked(self) -> None:
         first_job = self.make_job("First")
@@ -90,12 +92,14 @@ class ResumeDeduplicationTest(unittest.IsolatedAsyncioTestCase):
             created_task = resume_task_service.create_resume_task(
                 [self.make_upload("first.pdf", content)],
                 job_id=first_job.id,
+                user_id=TEST_USER_ID,
             )
             created = await self.wait_finished(created_task.task_id)
 
             reused_task = resume_task_service.create_resume_task(
                 [self.make_upload("renamed.pdf", content)],
                 job_id=second_job.id,
+                user_id=TEST_USER_ID,
             )
             reused_record = resume_task_service.task_store[reused_task.task_id]
             reused_item_id = reused_task.items[0].item_id
@@ -107,6 +111,7 @@ class ResumeDeduplicationTest(unittest.IsolatedAsyncioTestCase):
             linked_task = resume_task_service.create_resume_task(
                 [self.make_upload("again.pdf", content)],
                 job_id=second_job.id,
+                user_id=TEST_USER_ID,
             )
             linked_record = resume_task_service.task_store[linked_task.task_id]
             linked_item_id = linked_task.items[0].item_id
@@ -176,6 +181,7 @@ class ResumeDeduplicationTest(unittest.IsolatedAsyncioTestCase):
                     self.make_upload("two.pdf", content),
                 ],
                 job_id=job.id,
+                user_id=TEST_USER_ID,
             )
             await asyncio.wait_for(both_started.wait(), timeout=5)
             release.set()
@@ -233,7 +239,7 @@ class ResumeDeduplicationTest(unittest.IsolatedAsyncioTestCase):
             created = resume_task_service.create_resume_task(
                 [self.make_upload("retry.pdf", content)],
                 job_id=retry_job.id,
-                user_id=None,
+                user_id=TEST_USER_ID,
             )
             failed = await self.wait_finished(created.task_id)
 
@@ -242,7 +248,7 @@ class ResumeDeduplicationTest(unittest.IsolatedAsyncioTestCase):
         save_candidate_for_job_with_hash(
             Candidate(id=winner_id, raw_text="winner"),
             winner_job.id,
-            None,
+            TEST_USER_ID,
             str(winner_source),
             resume_hash,
         )
@@ -259,10 +265,12 @@ class ResumeDeduplicationTest(unittest.IsolatedAsyncioTestCase):
             "parse_resume_pdf",
             side_effect=AssertionError("retry must not parse a known hash"),
         ):
-            resume_task_service.retry_resume_task_item(created.task_id, item_id, None)
+            resume_task_service.retry_resume_task_item(
+                created.task_id, item_id, TEST_USER_ID
+            )
             await resume_task_service._background_tasks[f"{created.task_id}:{item_id}"]
 
-        final = resume_task_service.get_resume_task(created.task_id)
+        final = resume_task_service.get_resume_task(created.task_id, TEST_USER_ID)
         self.assertEqual(final.items[0].status, "success")
         self.assertEqual(final.items[0].outcome, "reused")
         self.assertEqual(final.items[0].candidate.id, winner_id)
@@ -272,7 +280,7 @@ class ResumeDeduplicationTest(unittest.IsolatedAsyncioTestCase):
         job = self.make_job("Legacy Null")
         candidate_id = f"candidate_dedupe_{uuid4().hex}"
         self.candidate_ids.append(candidate_id)
-        save_candidate_for_job(Candidate(id=candidate_id), job.id, None)
+        save_candidate_for_job(Candidate(id=candidate_id), job.id, TEST_USER_ID)
 
         with SessionLocal() as db:
             row = db.get(CandidateModel, candidate_id)

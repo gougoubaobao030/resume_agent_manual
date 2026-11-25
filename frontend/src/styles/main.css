@@ -301,6 +301,14 @@ textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(39,100,21
 .talent-mode-options, .talent-batch-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 15px; }
 .talent-batch-actions { margin-top: 16px; }
 .talent-batch-actions > span { color: var(--muted); font-size: .78rem; }
+.candidate-heading-row { display: flex; min-width: 0; align-items: baseline; gap: 14px; }
+.candidate-heading-row h2 { flex: 0 0 auto; }
+.current-job-indicator {
+  display: flex; min-width: 0; max-width: min(460px, 50vw); align-items: center; gap: 4px; padding: 5px 9px;
+  border: 1px solid var(--line); border-radius: 7px; color: var(--muted); background: var(--surface-soft); font-size: .76rem;
+}
+.current-job-indicator span { flex: 0 0 auto; }
+.current-job-indicator strong { min-width: 0; flex: 1; overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
 .reevaluation-settings { padding: 18px; border: 1px solid #d9e6f6; border-radius: 9px; background: #f8fbff; }
 .reevaluation-settings__heading h3 { margin: 0; font-size: .94rem; }
 .reevaluation-settings__heading p { margin: 5px 0 0; color: var(--muted); font-size: .76rem; }
@@ -565,6 +573,9 @@ textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(39,100,21
   .language-selector select { max-width: 96px; }
   .page-container { padding: 28px 18px 50px; }
   .page-heading--split { align-items: flex-start; flex-direction: column; }
+  .candidate-heading-row { align-items: stretch; flex-direction: column; gap: 6px; }
+  .candidate-heading-row h2 { margin-bottom: 0; }
+  .current-job-indicator { width: 100%; max-width: 100%; }
   .workflow-card, .panel { padding: 20px; }
   .workflow-steps, .detail-grid { grid-template-columns: 1fr; }
   .session-summary { grid-template-columns: 1fr; }

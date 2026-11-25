@@ -18,9 +18,11 @@ from schemas.jd import (
 from api.jd import save_jd_api, update_jd_api
 from services import jd_service
 from services.jd_service import parse_jd
+from repositories.jd_repository import delete_jd
 
 
 T = TypeVar("T", bound=BaseModel)
+TEST_USER_ID = "user_f1f0cc4fa8f44eccbe3f607e32e0da4a"
 
 
 class FakeLLMClient:
@@ -124,7 +126,7 @@ save_response = save_jd_api(
             ),
         ],
     ),
-    current_user=SimpleNamespace(id=None),
+    current_user=SimpleNamespace(id=TEST_USER_ID),
 )
 
 assert save_response.job.requirements[0].must_have is True
@@ -143,6 +145,7 @@ updated_job = update_jd_api(
             ),
         ],
     ),
+    current_user=SimpleNamespace(id=TEST_USER_ID),
 )
 
 assert updated_job.requirements[0].must_have is False
@@ -151,3 +154,4 @@ assert JDRequirement(
 ).must_have is False
 
 print("JD 保存和 PUT 修改 must_have 测试通过")
+delete_jd(save_response.job.id, TEST_USER_ID)

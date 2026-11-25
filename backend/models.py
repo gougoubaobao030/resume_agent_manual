@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -85,10 +86,30 @@ class UserSessionModel(Base):
     user: Mapped[UserModel] = relationship(back_populates="sessions")
 
 
+class DataInitializationRunModel(Base):
+    """Audit marker for explicit, one-time data initialization operations."""
+
+    __tablename__ = "data_initialization_runs"
+
+    seed_key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    target_user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True
+    )
+    source_user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    source_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    details_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
 class JobModel(TimestampMixin, Base):
     __tablename__ = "jobs"
     __table_args__ = (
         CheckConstraint("revision >= 1", name="ck_jobs_revision"),
+        UniqueConstraint("user_id", "id", name="uq_jobs_user_id_id"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -96,6 +117,9 @@ class JobModel(TimestampMixin, Base):
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
     requirements_json: Mapped[list] = mapped_column(JSON, nullable=False)
     revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
     created_by: Mapped[str | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
@@ -104,7 +128,13 @@ class JobModel(TimestampMixin, Base):
 class CandidateModel(TimestampMixin, Base):
     __tablename__ = "candidates"
     __table_args__ = (
-        Index("ux_candidates_resume_hash", "resume_hash", unique=True),
+        UniqueConstraint("user_id", "id", name="uq_candidates_user_id_id"),
+        Index(
+            "ux_candidates_user_resume_hash",
+            "user_id",
+            "resume_hash",
+            unique=True,
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -114,6 +144,9 @@ class CandidateModel(TimestampMixin, Base):
     structured_data_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     source_file: Mapped[str | None] = mapped_column(String(500))
     resume_path: Mapped[str | None] = mapped_column(String(500))
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
     created_by: Mapped[str | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
@@ -122,6 +155,24 @@ class CandidateModel(TimestampMixin, Base):
 # 组合主键，多对多
 class JobCandidateModel(Base):
     __tablename__ = "job_candidates"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["user_id", "job_id"],
+            ["jobs.user_id", "jobs.id"],
+            ondelete="CASCADE",
+            name="fk_job_candidates_user_job",
+        ),
+        ForeignKeyConstraint(
+            ["user_id", "candidate_id"],
+            ["candidates.user_id", "candidates.id"],
+            ondelete="CASCADE",
+            name="fk_job_candidates_user_candidate",
+        ),
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
 
     job_id: Mapped[str] = mapped_column(
         ForeignKey("jobs.id", ondelete="CASCADE"), primary_key=True
@@ -140,7 +191,24 @@ class JobCandidateModel(Base):
 class ScoringResultModel(TimestampMixin, Base):
     __tablename__ = "scoring_results"
     __table_args__ = (
-        UniqueConstraint("job_id", "candidate_id", name="uq_scoring_job_candidate"),
+        UniqueConstraint(
+            "user_id",
+            "job_id",
+            "candidate_id",
+            name="uq_scoring_user_job_candidate",
+        ),
+        ForeignKeyConstraint(
+            ["user_id", "job_id"],
+            ["jobs.user_id", "jobs.id"],
+            ondelete="CASCADE",
+            name="fk_scoring_results_user_job",
+        ),
+        ForeignKeyConstraint(
+            ["user_id", "candidate_id"],
+            ["candidates.user_id", "candidates.id"],
+            ondelete="CASCADE",
+            name="fk_scoring_results_user_candidate",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -155,6 +223,9 @@ class ScoringResultModel(TimestampMixin, Base):
     score: Mapped[float] = mapped_column(Float, nullable=False)
     confidence: Mapped[str] = mapped_column(String(20), nullable=False)
     result_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
     created_by: Mapped[str | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
@@ -164,7 +235,16 @@ class TalentDiscoveryResultModel(TimestampMixin, Base):
     __tablename__ = "talent_discovery_results"
     __table_args__ = (
         UniqueConstraint(
-            "candidate_id", "mode", name="uq_talent_candidate_mode"
+            "user_id",
+            "candidate_id",
+            "mode",
+            name="uq_talent_user_candidate_mode",
+        ),
+        ForeignKeyConstraint(
+            ["user_id", "candidate_id"],
+            ["candidates.user_id", "candidates.id"],
+            ondelete="CASCADE",
+            name="fk_talent_results_user_candidate",
         ),
     )
 
@@ -176,6 +256,9 @@ class TalentDiscoveryResultModel(TimestampMixin, Base):
     analysis_language: Mapped[str] = mapped_column(String(10), nullable=False)
     desired_traits_json: Mapped[list] = mapped_column(JSON, nullable=False)
     result_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
     created_by: Mapped[str | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )

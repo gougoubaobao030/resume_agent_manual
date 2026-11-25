@@ -16,9 +16,11 @@ router = APIRouter(prefix="/api/talent", tags=["talent"])
 
 @router.get("/discover/{candidate_id}", response_model=TalentDiscoveryResult)
 def get_talent_discovery(
-    candidate_id: str, mode: TalentMode
+    candidate_id: str,
+    mode: TalentMode,
+    current_user: UserModel = Depends(get_current_user),
 ) -> TalentDiscoveryResult:
-    result = get_talent_result(candidate_id, mode)
+    result = get_talent_result(candidate_id, mode, current_user.id)
     if result is None:
         raise HTTPException(status_code=404, detail="人才能力分析结果不存在")
     return result
@@ -29,7 +31,9 @@ async def discover_talent_api(
     request: TalentDiscoveryRequest,
     current_user: UserModel = Depends(get_current_user),
 ) -> TalentDiscoveryResult:
-    candidate = await asyncio.to_thread(get_candidate, request.candidate_id)
+    candidate = await asyncio.to_thread(
+        get_candidate, request.candidate_id, current_user.id
+    )
     if candidate is None:
         raise HTTPException(status_code=404, detail="Candidate不存在")
 

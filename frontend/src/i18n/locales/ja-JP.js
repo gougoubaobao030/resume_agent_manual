@@ -150,7 +150,7 @@ export default {
     operations: { scoring: '求人マッチング評価', taskStatus: 'タスク状態の確認', createTask: '履歴書解析タスクの作成', retry: '履歴書の再解析' },
   },
   candidates: {
-    eyebrow: '候補者', title: '候補者一覧', description: 'まず求人とのマッチ度を確認し、さらに詳しく見たい人材を選択します。',
+    eyebrow: '候補者', title: '候補者一覧', description: 'まず求人とのマッチ度を確認し、さらに詳しく見たい人材を選択します。', currentJob: '現在の求人票：', currentJobNotSelected: '未選択',
     importResumes: '履歴書をインポート', currentCandidates: '現在の候補者', personCount: '{count} 人', matchScore: '求人マッチ度',
     sortLabel: '求人マッチ度で並べ替え', sortDescending: '高い順', sortAscending: '低い順', selectAll: '全選択',
     clearSelection: '選択を解除', selectedCount: '{count} 人を選択中', analyzeSelected: '選択した候補者の能力を分析', selectCandidate: '{name} を選択',

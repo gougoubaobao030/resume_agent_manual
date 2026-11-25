@@ -15,10 +15,19 @@ import {
   setJobMatchResult,
   setTalentResult,
 } from './session'
+import { auth } from './auth'
 
 
 export const workspace = reactive({ initialized: false, loading: false, error: '' })
 let workspaceGeneration = 0
+
+function currentJobStorageKey() {
+  return `current-job-id:${auth.user?.id ?? 'anonymous'}`
+}
+
+export function clearCurrentJobStorage() {
+  localStorage.removeItem(currentJobStorageKey())
+}
 
 export async function refreshJobs(generation = workspaceGeneration) {
   const jobs = await getJds()
@@ -26,13 +35,17 @@ export async function refreshJobs(generation = workspaceGeneration) {
   return jobs
 }
 
-export async function selectJob(job, generation = workspaceGeneration) {
+export async function selectJob(job, generation = null) {
+  if (generation === null) {
+    workspaceGeneration += 1
+    generation = workspaceGeneration
+  }
   workspace.loading = true
   workspace.error = ''
   try {
     if (generation !== workspaceGeneration) return
     setCurrentJob(job)
-    localStorage.setItem('current-job-id', job.id)
+    localStorage.setItem(currentJobStorageKey(), job.id)
     const [candidates, matches] = await Promise.all([
       getCandidates(job.id),
       getJobMatches(job.id),
@@ -68,7 +81,7 @@ export async function initializeWorkspace() {
     const jobs = await refreshJobs(generation)
     if (generation !== workspaceGeneration) return
     if (jobs.length) {
-      const cachedId = localStorage.getItem('current-job-id')
+      const cachedId = localStorage.getItem(currentJobStorageKey())
       await selectJob(jobs.find((job) => job.id === cachedId) || jobs[0], generation)
     }
     if (generation !== workspaceGeneration) return

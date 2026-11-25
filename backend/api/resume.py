@@ -201,7 +201,7 @@ async def create_resume_task_api(
             raise HTTPException(status_code=400, detail="请至少上传一份简历")
         if len(files) > 30:
             raise HTTPException(status_code=400, detail="一次最多上传30份简历")
-        if job_id is not None and get_jd(job_id) is None:
+        if job_id is not None and get_jd(job_id, current_user.id) is None:
             raise HTTPException(status_code=404, detail="岗位不存在")
         for file in files:
             if not file.filename:
@@ -234,8 +234,11 @@ async def create_resume_task_api(
 
 # 这里同步也可以 不过都是简历的事，又在简历并发，那就异步吧
 @router.get("/tasks/{task_id}", response_model=ResumeTaskResponse)
-async def get_resume_task_api(task_id: str) -> ResumeTaskResponse:
-    task = get_resume_task(task_id)
+async def get_resume_task_api(
+    task_id: str,
+    current_user: UserModel = Depends(get_current_user),
+) -> ResumeTaskResponse:
+    task = get_resume_task(task_id, current_user.id)
     if task is None:
         raise HTTPException(status_code=404, detail="简历任务不存在")
     return task

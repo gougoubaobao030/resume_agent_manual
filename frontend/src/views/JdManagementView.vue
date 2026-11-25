@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { deleteJd, getFriendlyApiError, parseJd, saveJd, updateJd } from '../services/api'
 import { session, setCandidates, setCurrentJob } from '../state/session'
-import { refreshJobs, selectJob } from '../state/workspace'
+import { clearCurrentJobStorage, refreshJobs, selectJob } from '../state/workspace'
 
 const { t } = useI18n()
 const currentSampleJd = computed(() => t('jd.sample'))
@@ -115,7 +115,7 @@ async function handleDeleteJob() {
     session.jobs = session.jobs.filter((item) => item.id !== deletedJobId)
     setCurrentJob(null)
     setCandidates([])
-    localStorage.removeItem('current-job-id')
+    clearCurrentJobStorage()
     loadJobIntoEditor(null)
     warnings.value = []
     parseStatus.value = 'idle'
@@ -135,7 +135,7 @@ async function handleDeleteJob() {
 
     setCurrentJob(null)
     setCandidates([])
-    localStorage.removeItem('current-job-id')
+    clearCurrentJobStorage()
     loadJobIntoEditor(null)
     deleteStatus.value = 'error'
     deleteMessage.value = t('jd.messages.deleteReloadFailed')

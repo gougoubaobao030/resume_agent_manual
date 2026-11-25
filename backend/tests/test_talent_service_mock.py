@@ -15,6 +15,8 @@ from schemas.jd import JDInfo, JDRequirement
 from repositories.jd_repository import save_jd, delete_jd
 from repositories.candidate_repository import save_candidate_for_job, delete_candidate
 
+TEST_USER_ID = "user_f1f0cc4fa8f44eccbe3f607e32e0da4a"
+
 
 class TalentMockTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -26,14 +28,14 @@ class TalentMockTest(unittest.IsolatedAsyncioTestCase):
         self.job = save_jd(JDInfo(
             job_title="Talent测试", raw_text="用于Talent API测试的岗位文本",
             requirements=[JDRequirement(name="测试要求")],
-        ))
-        save_candidate_for_job(self.candidate, self.job.id, None)
-        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=None)
+        ), TEST_USER_ID)
+        save_candidate_for_job(self.candidate, self.job.id, TEST_USER_ID)
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=TEST_USER_ID)
 
     def tearDown(self):
         app.dependency_overrides.clear()
-        delete_candidate(self.candidate.id)
-        delete_jd(self.job.id)
+        delete_candidate(self.candidate.id, TEST_USER_ID)
+        delete_jd(self.job.id, TEST_USER_ID)
 
     def test_api_auto_and_specified_skip_llm(self):
         with patch.dict(os.environ, {"TALENT_USE_MOCK": "true"}), patch.object(

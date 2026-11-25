@@ -21,6 +21,8 @@ from repositories.jd_repository import save_jd
 from repositories.jd_repository import delete_jd
 from repositories.candidate_repository import save_candidate_for_job, delete_candidate
 
+TEST_USER_ID = "user_f1f0cc4fa8f44eccbe3f607e32e0da4a"
+
 
 class AnalysisLanguageTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
@@ -113,15 +115,15 @@ class AnalysisLanguageTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result.abilities[0].evidence[0].text, "Pythonで採用管理APIを開発した。")
 
     def test_scoring_api_requires_and_echoes_analysis_language(self) -> None:
-        delete_candidate(self.candidate.id)
-        delete_jd(self.jd.id)
-        save_jd(self.jd)
-        save_candidate_for_job(self.candidate, self.jd.id, None)
+        delete_candidate(self.candidate.id, TEST_USER_ID)
+        delete_jd(self.jd.id, TEST_USER_ID)
+        save_jd(self.jd, TEST_USER_ID)
+        save_candidate_for_job(self.candidate, self.jd.id, TEST_USER_ID)
         payload = {
             "job_id": self.jd.id,
             "candidate_id": self.candidate.id,
         }
-        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=None)
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=TEST_USER_ID)
         try:
             with patch.dict(os.environ, {"SCORING_USE_MOCK": "true"}), TestClient(app) as client:
                 missing = client.post("/api/scoring/job-match", json=payload)
@@ -131,8 +133,8 @@ class AnalysisLanguageTest(unittest.IsolatedAsyncioTestCase):
                 )
         finally:
             app.dependency_overrides.clear()
-            delete_candidate(self.candidate.id)
-            delete_jd(self.jd.id)
+            delete_candidate(self.candidate.id, TEST_USER_ID)
+            delete_jd(self.jd.id, TEST_USER_ID)
 
         self.assertEqual(missing.status_code, 422)
         self.assertEqual(success.status_code, 200, success.text)

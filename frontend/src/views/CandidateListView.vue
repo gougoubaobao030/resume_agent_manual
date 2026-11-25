@@ -248,7 +248,28 @@ function talentKeywords(candidate, mode) {
 <template>
   <section class="page-stack">
     <div class="page-heading page-heading--split">
-      <div><p class="eyebrow">{{ t('candidates.eyebrow') }}</p><h2>{{ t('candidates.title') }}</h2><p>{{ t('candidates.description') }}</p></div>
+      <!--<div><p class="eyebrow">{{ t('candidates.eyebrow') }}</p><h2>{{ t('candidates.title') }}</h2><p>{{ t('candidates.description') }}</p></div>-->
+
+      <div>
+        <p class="eyebrow">{{ t('candidates.eyebrow') }}</p>
+
+        <div class="candidate-heading-row">
+          <h2>{{ t('candidates.title') }}</h2>
+
+          <div
+            class="current-job-indicator"
+            :title="session.currentJob?.job_title || t('candidates.currentJobNotSelected')"
+          >
+            <span>{{ t('candidates.currentJob') }}</span>
+            <strong>
+              {{ session.currentJob?.job_title || t('candidates.currentJobNotSelected') }}
+            </strong>
+          </div>
+        </div>
+
+        <p>{{ t('candidates.description') }}</p>
+      </div>
+
       <RouterLink class="button button--secondary" to="/resumes">{{ t('candidates.importResumes') }}</RouterLink>
     </div>
     <article class="panel panel--candidate-list">

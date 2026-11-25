@@ -26,6 +26,8 @@ from repositories.result_repository import (
     save_talent_result,
 )
 
+TEST_USER_ID = "user_f1f0cc4fa8f44eccbe3f607e32e0da4a"
+
 
 class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
     async def test_candidate_is_committed_before_task_item_success(self):
@@ -33,7 +35,7 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
             job_title="顺序测试",
             raw_text="用于验证持久化顺序的岗位文本",
             requirements=[JDRequirement(name="Python")],
-        ))
+        ), TEST_USER_ID)
         handle = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
         handle.close()
 
@@ -45,22 +47,22 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
                 resume_storage, "DATA_ROOT", Path(storage_dir)
             ), patch.object(resume_service, "parse_resume_pdf", side_effect=fake_parse):
                 created = resume_task_service.create_resume_task(
-                    [("A.pdf", handle.name)], job_id=job.id
+                    [("A.pdf", handle.name)], job_id=job.id, user_id=TEST_USER_ID
                 )
                 await resume_task_service._background_tasks[created.task_id]
-                final = resume_task_service.get_resume_task(created.task_id)
+                final = resume_task_service.get_resume_task(created.task_id, TEST_USER_ID)
 
                 self.assertEqual(final.items[0].status, "success")
-                self.assertEqual(get_candidate("candidate_order_test").raw_text, "evidence")
-                resume_path, _ = get_candidate_resume_info("candidate_order_test")
+                self.assertEqual(get_candidate("candidate_order_test", TEST_USER_ID).raw_text, "evidence")
+                resume_path, _ = get_candidate_resume_info("candidate_order_test", TEST_USER_ID)
                 self.assertEqual(
                     resume_path,
                     "resumes/candidate_order_test/original.pdf",
                 )
                 self.assertTrue((Path(storage_dir) / resume_path).is_file())
         finally:
-            delete_candidate("candidate_order_test")
-            delete_jd(job.id)
+            delete_candidate("candidate_order_test", TEST_USER_ID)
+            delete_jd(job.id, TEST_USER_ID)
             Path(handle.name).unlink(missing_ok=True)
 
     async def test_retry_success_saves_candidate_to_original_job_and_formal_resume_path(self):
@@ -68,7 +70,7 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
             job_title="重试持久化测试",
             raw_text="用于验证失败简历重试后的岗位关联",
             requirements=[JDRequirement(name="Python")],
-        ))
+        ), TEST_USER_ID)
         handle = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
         handle.write(b"retry pdf")
         handle.close()
@@ -86,25 +88,25 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
                 resume_storage, "DATA_ROOT", Path(storage_dir)
             ), patch.object(resume_service, "parse_resume_pdf", side_effect=fake_parse):
                 created = resume_task_service.create_resume_task(
-                    [("retry.pdf", handle.name)], job_id=job.id, user_id=None
+                    [("retry.pdf", handle.name)], job_id=job.id, user_id=TEST_USER_ID
                 )
                 await resume_task_service._background_tasks[created.task_id]
-                failed = resume_task_service.get_resume_task(created.task_id)
+                failed = resume_task_service.get_resume_task(created.task_id, TEST_USER_ID)
                 item_id = failed.items[0].item_id
                 resume_task_service.retry_resume_task_item(
-                    created.task_id, item_id, None
+                    created.task_id, item_id, TEST_USER_ID
                 )
                 await resume_task_service._background_tasks[
                     f"{created.task_id}:{item_id}"
                 ]
-                final = resume_task_service.get_resume_task(created.task_id)
+                final = resume_task_service.get_resume_task(created.task_id, TEST_USER_ID)
 
                 self.assertEqual(final.items[0].status, "success")
                 self.assertTrue(candidate_belongs_to_job(
-                    job.id, "candidate_retry_persistence"
+                    job.id, "candidate_retry_persistence", TEST_USER_ID
                 ))
                 resume_path, _ = get_candidate_resume_info(
-                    "candidate_retry_persistence"
+                    "candidate_retry_persistence", TEST_USER_ID
                 )
                 self.assertEqual(
                     resume_path,
@@ -112,8 +114,8 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertTrue((Path(storage_dir) / resume_path).is_file())
         finally:
-            delete_candidate("candidate_retry_persistence")
-            delete_jd(job.id)
+            delete_candidate("candidate_retry_persistence", TEST_USER_ID)
+            delete_jd(job.id, TEST_USER_ID)
             Path(handle.name).unlink(missing_ok=True)
 
     async def test_result_json_round_trip_and_revision_staleness(self):
@@ -121,10 +123,10 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
             job_title="结果测试",
             raw_text="用于验证结果JSON和revision的岗位文本",
             requirements=[JDRequirement(name="Python")],
-        ))
+        ), TEST_USER_ID)
         candidate = Candidate(id="candidate_result_test", raw_text="Python")
         from repositories.candidate_repository import save_candidate_for_job
-        save_candidate_for_job(candidate, job.id, None)
+        save_candidate_for_job(candidate, job.id, TEST_USER_ID)
         try:
             scoring = JobMatchResult(
                 job_id=job.id,
@@ -134,8 +136,8 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
                 confidence="high",
                 summary="匹配",
             )
-            save_scoring_result(scoring, job_revision=1, user_id=None)
-            self.assertEqual(get_scoring_result(job.id, candidate.id).score, 88)
+            save_scoring_result(scoring, job_revision=1, user_id=TEST_USER_ID)
+            self.assertEqual(get_scoring_result(job.id, candidate.id, TEST_USER_ID).score, 88)
 
             auto_talent = TalentDiscoveryResult(
                 candidate_id=candidate.id,
@@ -157,19 +159,19 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
                 specified_fit_level="medium_high",
                 summary="符合指定人才像",
             )
-            save_talent_result(auto_talent, desired_traits=[], user_id=None)
+            save_talent_result(auto_talent, desired_traits=[], user_id=TEST_USER_ID)
             save_talent_result(
-                specified_talent, desired_traits=["认真"], user_id=None
+                specified_talent, desired_traits=["认真"], user_id=TEST_USER_ID
             )
             self.assertEqual(
-                get_talent_result(candidate.id, "auto").summary, "值得关注"
+                get_talent_result(candidate.id, "auto", TEST_USER_ID).summary, "值得关注"
             )
             self.assertEqual(
-                get_talent_result(candidate.id, "auto").abilities[0].evidence_status,
+                get_talent_result(candidate.id, "auto", TEST_USER_ID).abilities[0].evidence_status,
                 "verified",
             )
             self.assertEqual(
-                get_talent_result(candidate.id, "specified").summary,
+                get_talent_result(candidate.id, "specified", TEST_USER_ID).summary,
                 "符合指定人才像",
             )
 
@@ -194,30 +196,30 @@ class DatabasePersistenceTest(unittest.IsolatedAsyncioTestCase):
                 }
                 db.commit()
 
-            legacy = get_talent_result(candidate.id, "auto")
+            legacy = get_talent_result(candidate.id, "auto", TEST_USER_ID)
             self.assertEqual(legacy.abilities[0].ability_name, "旧版自由能力")
             self.assertFalse(hasattr(legacy.abilities[0], "evidence_status"))
 
-            save_talent_result(auto_talent, desired_traits=[], user_id=None)
+            save_talent_result(auto_talent, desired_traits=[], user_id=TEST_USER_ID)
 
             updated_auto_talent = auto_talent.model_copy(
                 update={"summary": "更新后的自动发现结果"}
             )
-            save_talent_result(updated_auto_talent, desired_traits=[], user_id=None)
+            save_talent_result(updated_auto_talent, desired_traits=[], user_id=TEST_USER_ID)
             self.assertEqual(
-                get_talent_result(candidate.id, "auto").summary,
+                get_talent_result(candidate.id, "auto", TEST_USER_ID).summary,
                 "更新后的自动发现结果",
             )
             self.assertEqual(
-                get_talent_result(candidate.id, "specified").summary,
+                get_talent_result(candidate.id, "specified", TEST_USER_ID).summary,
                 "符合指定人才像",
             )
 
-            update_jd(job.id, job)
-            self.assertIsNone(get_scoring_result(job.id, candidate.id))
+            update_jd(job.id, job, TEST_USER_ID)
+            self.assertIsNone(get_scoring_result(job.id, candidate.id, TEST_USER_ID))
         finally:
-            delete_candidate(candidate.id)
-            delete_jd(job.id)
+            delete_candidate(candidate.id, TEST_USER_ID)
+            delete_jd(job.id, TEST_USER_ID)
 
 
 if __name__ == "__main__":

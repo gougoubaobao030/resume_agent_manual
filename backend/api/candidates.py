@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import FileResponse
 
+from api.auth import get_current_user
+from models import UserModel
 from schemas.resume import Candidate, CandidatePoolItem
 from repositories.candidate_repository import (
     delete_candidate,
@@ -17,26 +19,37 @@ router = APIRouter(prefix="/api/candidates", tags=["Candidates"])
 
 
 @router.get("", response_model=list[Candidate])
-def list_candidates_api(job_id: str | None = None) -> list[Candidate]:
-    return list_candidates(job_id)
+def list_candidates_api(
+    job_id: str | None = None,
+    current_user: UserModel = Depends(get_current_user),
+) -> list[Candidate]:
+    return list_candidates(current_user.id, job_id)
 
 
 @router.get("/pool", response_model=list[CandidatePoolItem])
-def list_candidate_pool_api() -> list[CandidatePoolItem]:
-    return list_candidate_pool()
+def list_candidate_pool_api(
+    current_user: UserModel = Depends(get_current_user),
+) -> list[CandidatePoolItem]:
+    return list_candidate_pool(current_user.id)
 
 
 @router.get("/{candidate_id}", response_model=Candidate)
-def get_candidate_api(candidate_id: str) -> Candidate:
-    candidate = get_candidate(candidate_id)
+def get_candidate_api(
+    candidate_id: str,
+    current_user: UserModel = Depends(get_current_user),
+) -> Candidate:
+    candidate = get_candidate(candidate_id, current_user.id)
     if candidate is None:
         raise HTTPException(status_code=404, detail="Candidate不存在")
     return candidate
 
 
 @router.get("/{candidate_id}/resume", response_class=FileResponse)
-def get_candidate_resume_api(candidate_id: str) -> FileResponse:
-    resume_info = get_candidate_resume_info(candidate_id)
+def get_candidate_resume_api(
+    candidate_id: str,
+    current_user: UserModel = Depends(get_current_user),
+) -> FileResponse:
+    resume_info = get_candidate_resume_info(candidate_id, current_user.id)
     if resume_info is None:
         raise HTTPException(status_code=404, detail="Candidate不存在")
 
@@ -61,14 +74,21 @@ def get_candidate_resume_api(candidate_id: str) -> FileResponse:
 
 
 @router.delete("/{candidate_id}", status_code=204)
-def delete_candidate_api(candidate_id: str) -> Response:
-    if not delete_candidate(candidate_id):
+def delete_candidate_api(
+    candidate_id: str,
+    current_user: UserModel = Depends(get_current_user),
+) -> Response:
+    if not delete_candidate(candidate_id, current_user.id):
         raise HTTPException(status_code=404, detail="Candidate不存在")
     return Response(status_code=204)
 
 
 @router.delete("/{candidate_id}/jobs/{job_id}", status_code=204)
-def remove_candidate_from_job_api(candidate_id: str, job_id: str) -> Response:
-    if not remove_candidate_from_job(job_id, candidate_id):
+def remove_candidate_from_job_api(
+    candidate_id: str,
+    job_id: str,
+    current_user: UserModel = Depends(get_current_user),
+) -> Response:
+    if not remove_candidate_from_job(job_id, candidate_id, current_user.id):
         raise HTTPException(status_code=404, detail="Candidate未关联到该岗位")
     return Response(status_code=204)
